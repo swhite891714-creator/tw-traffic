@@ -65,6 +65,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .memo2 b{font-size:12px;color:var(--accent);letter-spacing:.04em}
 .chk.good{border:1px solid var(--line);color:var(--ok)}
 .grp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700;font-size:17px}
+.grp .grp-lbl{font-size:15px;font-weight:700;color:var(--muted)}
 .grp small{font-size:13px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
 .row{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:12px 4px;border:0;border-bottom:1px solid var(--line);cursor:pointer;background:none;text-align:left;color:inherit;font:inherit;width:100%}
 .row.hl{background:color-mix(in srgb,var(--mark) 35%,transparent)}
@@ -73,7 +74,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;box-sizing:border-box;resize:vertical;min-height:120px;line-height:1.5}
 textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .qty{grid-row:span 2;align-self:center;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
-.qty b{font-size:30px;line-height:1.1;display:block}
+.qty b{font-size:23px;display:block}
 .row.zero,.row.zero .meta,.row.zero .qty small{color:var(--danger);font-weight:700}
 .qty small{font-size:13px;color:var(--muted)}
 .empty{padding:40px 8px;text-align:center;color:var(--muted)}
@@ -302,7 +303,7 @@ function render(){
     const parts=[i.color].filter(Boolean);
     // 每個品類的第一筆前面加上品類標題（品項數、目前庫存合計）
     let head='';
-    if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span></div>`}
+    if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><span class="grp-lbl">庫存</span></div>`}
     return head+`<button class="row${(num(i.qty)===0||i.red)?' zero':''}${(i.hl||num(i.qty)===0)?' hl':''}" data-id="${i.id}">
       <span class="model">${esc(i.model)}</span>
       <span class="qty"><b>${fmt(num(i.qty))}</b></span>
