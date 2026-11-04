@@ -30,7 +30,7 @@ h1{font-size:20px;margin:0;text-wrap:balance}
 .seg label{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:15px;color:var(--fg);cursor:pointer}
 .seg input{width:18px;height:18px}
 .btn.out{background:var(--accent);color:var(--accent-fg)}
-.tool{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:6px 10px;font:inherit;font-size:15px;cursor:pointer}
+.tool{text-decoration:none;display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;padding:6px 10px;font:inherit;font-size:15px;cursor:pointer}
 .status{font-size:14px;color:var(--muted)}
 /* 身分標籤：管理員／可編輯／預覽 */
 .statusrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -73,7 +73,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;box-sizing:border-box;resize:vertical;min-height:120px;line-height:1.5}
 textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .qty{grid-row:span 2;align-self:center;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
-.qty b{font-size:23px;display:block}
+.qty b{font-size:30px;line-height:1.1;display:block}
 .row.zero,.row.zero .meta,.row.zero .qty small{color:var(--danger);font-weight:700}
 .qty small{font-size:13px;color:var(--muted)}
 .empty{padding:40px 8px;text-align:center;color:var(--muted)}
@@ -138,6 +138,8 @@ label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
         <button class="tool primary" id="openOut" type="button">出庫</button>
         <button class="tool" id="openHist" type="button">修改紀錄</button>
         <button class="tool" id="openExp" type="button">匯出</button>
+        <button class="tool" id="pubPush" type="button" hidden>更新公開頁</button>
+        <a class="tool" id="pubLink" href="https://swhite891714-creator.github.io/tw-traffic/nux/" target="_blank" rel="noopener" hidden title="免登入的公開瀏覽頁；要更新數字請跟 Claude 說「更新公開頁」">公開頁 ↗</a>
         <button class="tool" id="openPub" type="button" hidden>公開預覽</button>
       </div>
     </div>
@@ -241,7 +243,7 @@ label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
 
 <div class="toast" id="toast" hidden><span id="toastMsg"></span><button type="button" id="toastUndo" hidden>復原</button></div>
 
-<script type="application/json" id="snap">{"at":"2026-11-04T15:59:52.853301+00:00","showNotes":false,"items":[{"id":"i01","cat":"Nux Amplifier","model":"PA50","color":"","qty":43,"hl":true,"red":false,"order":1,"note":"亞都*5\nYA玩音樂*6"},{"id":"i02","cat":"Nux Amplifier","model":"Mighty Lite BT MKII","color":"","qty":188,"hl":true,"red":false,"order":2,"note":"名人*20\n艾白*2\n升煌*1\n森韻*1\n阿通伯*4\n愛樂客*3\n宛伶*4\n撥撥*2\n查克*4\n小新*10\nYA玩音樂*30\n嘉義動力*4\n海頓*10\n奇想*6\n沐吉他*1\n灰街竹北*10"},{"id":"i03","cat":"Nux Amplifier","model":"Mighty Air","color":"","qty":42,"hl":true,"red":false,"order":3,"note":"樂吉他*10(兩邊各5\n名人*10\n亞果*2\n阿通伯*6\n禧樂*1\n宛伶*2\n小新*10\nYA玩音樂*10\n嘉義動力*1\n奇想*3\n沐吉他*3"},{"id":"i04","cat":"Nux Amplifier","model":"Mighty Space","color":"","qty":1,"hl":true,"red":false,"order":4,"note":"YA玩音樂*1\n小新*2"},{"id":"i05","cat":"Nux Modelling Processor","model":"MG-30MKII","color":"","qty":28,"hl":true,"red":false,"order":5,"note":"弦宏*1\n亞都*5\n澄風*1\n小新*5"},{"id":"i06","cat":"Nux Modelling Processor","model":"MG-101","color":"","qty":17,"hl":true,"red":false,"order":6,"note":"亞都*5"},{"id":"i07","cat":"Nux Effect Pedal","model":"NAP-5","color":"","qty":11,"hl":false,"red":false,"order":7},{"id":"i08","cat":"Nux Digital Piano","model":"NEK-110","color":"WH","qty":0,"hl":true,"red":false,"order":8,"note":"立恩*2\n苑里艾爾*2"},{"id":"i09","cat":"Nux Digital Piano","model":"NEK-110","color":"BK","qty":6,"hl":true,"red":false,"order":9,"note":"夢劇場*4"},{"id":"i10","cat":"Nux Amplifier","model":"Mighty Bass 50BT","color":"","qty":3,"hl":true,"red":true,"order":10,"note":"亞都*2\n敦煌*4\n大鼻子*1"},{"id":"i11","cat":"Nux Amplifier","model":"NBA-200FR","color":"","qty":0,"hl":true,"red":false,"order":11,"note":"亞都*13\nYA玩音樂*3\n小新*3\nDrum吉*1"},{"id":"i12","cat":"Nux Wireless System","model":"B-6","color":"","qty":38,"hl":true,"red":false,"order":12,"note":"亞都*10"},{"id":"i13","cat":"Nux Wireless System","model":"B-6Pro","color":"","qty":6,"hl":true,"red":false,"order":13,"note":"亞都*7\n小新*3\n凱傑*4"},{"id":"i14","cat":"Nux Wireless System","model":"B-5RC","color":"","qty":10,"hl":true,"red":false,"order":14,"note":"小新*5"},{"id":"i15","cat":"Nux Wireless System","model":"C-5RC","color":"","qty":0,"hl":true,"red":false,"order":15,"note":"亞都*18\n名人*2\n小新*5"},{"id":"i16","cat":"Nux Wireless System","model":"C-9","color":"","qty":15,"hl":true,"red":false,"order":16,"note":"亞都*20\n小新*5"},{"id":"i17","cat":"Nux Digital Drum Kit","model":"DM-110 10 inch Cymbal Set","color":"","qty":16,"hl":true,"red":false,"order":17,"note":"YA玩音樂*28\n凱傑*6"},{"id":"i18","cat":"Nux Digital Drum Kit","model":"DM-210 10 inch Cymbal Set","color":"","qty":6,"hl":true,"red":false,"order":18,"note":"YA玩音樂*24\n凱傑*20"},{"id":"i19","cat":"Cherub Clip-On Tuner","model":"WST-675","color":"WH","qty":3,"hl":true,"red":false,"order":19,"note":"亞都*100"},{"id":"i20","cat":"Cherub Clip-On Tuner","model":"WST-675","color":"BK","qty":0,"hl":true,"red":false,"order":20,"note":"亞都*100"},{"id":"i21","cat":"Cherub Clip-On Tuner","model":"WST-675","color":"Grey","qty":10,"hl":true,"red":false,"order":21,"note":"亞都*100"},{"id":"i22","cat":"Cherub Clip-On Tuner","model":"WST-570LI","color":"WH","qty":0,"hl":true,"red":false,"order":22,"note":"老羊*100\n陸比*60"},{"id":"i23","cat":"Cherub Clip-On Tuner","model":"WST-570LI","color":"Blue","qty":0,"hl":true,"red":false,"order":23,"note":"老羊*60"},{"id":"i24","cat":"Cherub Clip-On Tuner","model":"WST-570LI","color":"Yellow","qty":15,"hl":true,"red":false,"order":24,"note":"老羊*20\n森韻*5"},{"id":"i25","cat":"Cherub Clip-On Tuner","model":"WST-570LI","color":"Orange","qty":0,"hl":true,"red":false,"order":25,"note":"老羊*60"},{"id":"i26","cat":"MKC Tuner","model":"EZT-01","color":"","qty":1290,"hl":true,"red":false,"order":26,"note":"小馬*10\n純粹*200(依之前價格\n翊銘*100\n宛伶*200\n吉他寶貝*200"},{"id":"i27","cat":"Musedo Sustain Pedal","model":"TB-005","color":"","qty":234,"hl":true,"red":false,"order":27,"note":"亞都*80"},{"id":"i28","cat":"Nux Adapter","model":"ACD-006A","color":"","qty":80,"hl":true,"red":false,"order":28,"note":"老羊*200"},{"id":"i29","cat":"Nux Digital Drum Kit","model":"DM-110","color":"","qty":0,"hl":true,"red":true,"order":29,"memo2":"Can*17\n文聖*10","note":"弦宏*6\n小新*18(含毯\nYA玩音樂*33(含毯\n凱傑*6"},{"id":"i30","cat":"Nux Digital Drum Kit","model":"DM-210","color":"","qty":0,"hl":true,"red":true,"order":30,"memo2":"Can*8\n文聖*9","note":"弦宏*5\n氧樂多*1\n三一*2\n小新*8（含毯\nYA玩音樂*20(含毯\n民揚*6（含毯\n凱傑*3"},{"id":"i31","cat":"Nux Digital Drum Kit","model":"DM-8","color":"","qty":4,"hl":true,"red":true,"order":31,"memo2":"Can*4 文聖*1","note":"弦宏*1\n小新*2（含毯\nYA玩音樂*5(含毯\n鼓聲*6(含毯"},{"id":"i32","cat":"Nux Digital Piano","model":"NPK-200","color":"BK","qty":2,"hl":true,"red":true,"order":32,"note":"韋伯*18"},{"id":"i33","cat":"Nux Digital Piano","model":"NPK-200","color":"White","qty":3,"hl":true,"red":true,"order":33,"note":"韋伯*7"},{"id":"i34","cat":"Nux Piano Stand","model":"NPS-2","color":"BK","qty":10,"hl":true,"red":true,"order":34},{"id":"i35","cat":"Nux Piano Stand","model":"NPS-2","color":"White","qty":5,"hl":true,"red":true,"order":35},{"id":"i36","cat":"Nux Digital Drum Kit","model":"DM-310H","color":"","qty":34,"hl":true,"red":false,"order":36,"memo2":"Can*4 文聖*4","note":"三一*1\n小新*4（含毯\nYA玩音樂*10(含毯\n民揚*5(含毯\n鼓聲*1(含毯"},{"id":"i37","cat":"Nux Digital Piano","model":"NPK-20","color":"BK","qty":5,"hl":false,"red":false,"order":37},{"id":"i38","cat":"Nux Digital Piano","model":"NCK-330","color":"Black","qty":13,"hl":false,"red":false,"order":38},{"id":"i39","cat":"Nux Digital Piano","model":"NCK-430","color":"White","qty":2,"hl":false,"red":false,"order":39},{"id":"i40","cat":"Nux Digital Piano","model":"NCK-430","color":"Walnut","qty":4,"hl":false,"red":false,"order":40},{"id":"i41","cat":"Nux Amplifier","model":"AC-25","color":"","qty":53,"hl":true,"red":false,"order":41,"note":"YA玩音樂*10"}]}</script>
+
 <script>
 const $=id=>document.getElementById(id);
 let onlyMis=false,histCount=100,items=[],limits={},histItems=[],db=null,user=null,me=null,editing=null,canWrite=true,delArmed=false,names={},downloads=null;
@@ -300,11 +302,11 @@ function render(){
     const parts=[i.color].filter(Boolean);
     // 每個品類的第一筆前面加上品類標題（品項數、目前庫存合計）
     let head='';
-    if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><small>${g.length} 項 · 庫存 ${fmt(g.reduce((t,x)=>t+num(x.qty),0))}</small></div>`}
+    if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span></div>`}
     return head+`<button class="row${(num(i.qty)===0||i.red)?' zero':''}${(i.hl||num(i.qty)===0)?' hl':''}" data-id="${i.id}">
       <span class="model">${esc(i.model)}</span>
-      <span class="qty"><b>${fmt(num(i.qty))}</b>${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])} · 已扣 ${fmt(limits[i.id]-num(i.qty))}</small>`:''}</span>
-      <span class="meta">${esc(parts.join(' · '))}${i.note?`\n${esc(i.note)}`:''}</span>
+      <span class="qty"><b>${fmt(num(i.qty))}</b></span>
+      <span class="meta">${esc([parts.join(' · '),i.note||''].filter(Boolean).join('\n'))}</span>
       ${i.memo2?`<span class="memo2"><b>客戶寄庫</b>\n${esc(i.memo2)}</span>`:''}
       ${i.shipped?`<span class="memo2 ship"><b>已出貨</b>\n${esc(i.shipped)}</span>`:''}
       ${(m=>m?`<span class="mis">⚠ 備註＋寄庫＋出貨合計 ${fmt(m.total)}，已扣 ${fmt(m.used)}（${m.total>m.used?'多':'少'} ${fmt(Math.abs(m.total-m.used))}）</span>`:'')(misOf(i))}
@@ -771,16 +773,45 @@ $('pubGo').onclick=async()=>{
   }
 };
 // 沒登入時：用快照顯示純瀏覽版
-function startPublic(){
-  const sn=readSnap();
+async function startPublic(){
+  let sn=readSnap();
+  if(!sn){try{const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});if(r.ok)sn=await r.json()}catch(e){}}
   document.body.classList.add('ro','pub');canWrite=false;
-  ['openOut','openHist','openExp','openPub'].forEach(id=>$(id).hidden=true);
+  ['openOut','openHist','openExp','openPub','pubLink','pubPush'].forEach(id=>$(id).hidden=true);
   $('role').className='role pub';$('role').textContent='公開預覽';$('role').hidden=false;
   if(!sn||!sn.items){$('status').textContent='尚未公開';$('list').innerHTML='<div class="empty">管理員還沒有發布公開預覽。</div>';return}
   items=sn.items;limits={};
   $('status').textContent=`資料更新時間：${fmtAt(sn.at)}`;
   render();
 }
+
+/* ---------- 一鍵更新 GitHub 公開頁 ---------- */
+// 按下後：把目前庫存（含備註、客戶寄庫，不含已出貨）整理成快照，
+// 交給「更新 Nux 公開頁」排程工作，由它寫進 GitHub 的 nux/data.json；約 3～5 分鐘後公開頁就是新資料。
+const PUB_TASK='trig_01Ljpv9wts2qHvNUPxr14g2C';
+function publicSnap(){
+  const list=items.map(i=>{const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,order:num(i.order)};
+    if(i.note)o.note=i.note;if(i.memo2)o.memo2=i.memo2;return o});
+  return {at:new Date().toISOString(),showNotes:true,count:list.length,items:list};
+}
+let pubBusy=false;
+$('pubPush').onclick=async()=>{
+  if(pubBusy)return;
+  if(!items.length){toast('清單還沒載入完成，請稍候再試');return}
+  const btn=$('pubPush');
+  if(btn.dataset.armed!=='1'){btn.dataset.armed='1';btn.textContent='確定更新？';setTimeout(()=>{btn.dataset.armed='';if(!pubBusy)btn.textContent='更新公開頁'},4000);return}
+  btn.dataset.armed='';pubBusy=true;btn.disabled=true;btn.textContent='送出中…';
+  try{
+    const mcp=await claude.use('mcp');
+    if(!mcp)throw {code:'unavailable'};
+    const text='<<<NUXDATA\n'+JSON.stringify(publicSnap())+'\nNUXDATA>>>';
+    await mcp.callTool('Claude Code Remote','fire_trigger',{trigger_id:PUB_TASK,text});
+    toast('已送出更新，約 3～5 分鐘後公開頁會換成最新資料');
+  }catch(e){
+    const c=e&&e.code;
+    toast(c==='server_not_connected'?'請先在 claude.ai 的「設定 → 連接器」開啟 Claude Code Remote':c==='not_granted'||c==='approval_required'?'需要允許這個頁面使用 Claude Code Remote 才能更新':'更新沒有送出，請稍後再試一次');
+  }finally{pubBusy=false;btn.disabled=false;btn.textContent='更新公開頁'}
+};
 
 /* ---------- boot ---------- */
 (async()=>{
@@ -795,7 +826,7 @@ function startPublic(){
   const role=isOwnerV?['admin','管理員']:canWrite?['edit','可編輯']:['view','預覽'];
   $('role').className='role '+role[0];$('role').textContent=role[1];$('role').hidden=false;
   if(!canWrite){document.body.classList.add('ro');['openOut','openHist','openExp'].forEach(id=>$(id).hidden=true)}
-  if(isOwnerV)$('openPub').hidden=false;
+  if(isOwnerV){$('pubLink').hidden=false;$('pubPush').hidden=false}
   claude.use('downloads').then(d=>downloads=d);
   db.collection('items').orderBy('order').onSnapshot(snap=>{
     items=snap.docs.map(d=>({id:d.id,...d.data()}));
