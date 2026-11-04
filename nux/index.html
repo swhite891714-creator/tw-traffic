@@ -272,7 +272,8 @@ function check(note,qty,id,memo2,shipped,initOverride){
   if(total==null){return String(note||'').trim()||used===0?null:{bad:true,total:0,used}}
   return {bad:total!==used,total,used};
 }
-const misOf=i=>{const c=check(i.note,i.qty,i.id,i.memo2,i.shipped);return c&&c.bad?c:null};
+let pubMode=false;
+const misOf=i=>{if(pubMode)return null;const c=check(i.note,i.qty,i.id,i.memo2,i.shipped);return c&&c.bad?c:null};
 
 function shown(){
   const q=$('q').value.trim().toLowerCase(),c=$('cat').value;
@@ -306,7 +307,7 @@ function render(){
     if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><span class="grp-lbl">庫存</span></div>`}
     return head+`<button class="row${(num(i.qty)===0||i.red)?' zero':''}${(i.hl||num(i.qty)===0)?' hl':''}" data-id="${i.id}">
       <span class="model">${esc(i.model)}</span>
-      <span class="qty"><b>${fmt(num(i.qty))}</b></span>
+      <span class="qty"><b>${fmt(num(i.qty))}</b>${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
       <span class="meta">${esc([parts.join(' · '),i.note||''].filter(Boolean).join('\n'))}</span>
       ${i.memo2?`<span class="memo2"><b>客戶寄庫</b>\n${esc(i.memo2)}</span>`:''}
       ${i.shipped?`<span class="memo2 ship"><b>已出貨</b>\n${esc(i.shipped)}</span>`:''}
@@ -781,7 +782,7 @@ async function startPublic(){
   ['openOut','openHist','openExp','openPub','pubLink','pubPush'].forEach(id=>$(id).hidden=true);
   $('role').className='role pub';$('role').textContent='公開預覽';$('role').hidden=false;
   if(!sn||!sn.items){$('status').textContent='尚未公開';$('list').innerHTML='<div class="empty">管理員還沒有發布公開預覽。</div>';return}
-  items=sn.items;limits={};
+  pubMode=true;items=sn.items;limits={};items.forEach(i=>{if(typeof i.init==='number')limits[i.id]=i.init});
   $('status').textContent=`資料更新時間：${fmtAt(sn.at)}`;
   render();
 }
@@ -792,6 +793,7 @@ async function startPublic(){
 const PUB_TASK='trig_01Ljpv9wts2qHvNUPxr14g2C';
 function publicSnap(){
   const list=items.map(i=>{const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,order:num(i.order)};
+    if(limits[i.id]!=null)o.init=limits[i.id];
     if(i.note)o.note=i.note;if(i.memo2)o.memo2=i.memo2;return o});
   return {at:new Date().toISOString(),showNotes:true,count:list.length,items:list};
 }
