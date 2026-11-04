@@ -67,6 +67,25 @@ h1{margin:0;font-size:22px;font-weight:900;letter-spacing:.02em;text-wrap:balanc
 .nearx{font:inherit;font-size:13px;font-weight:700;border:0;background:var(--chip);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
 .dist{display:inline-block;font-family:var(--font-num);font-weight:700;color:#e8590c;margin-right:4px}
 .pin{pointer-events:none}
+/* 加入最愛按鈕：有字、比較明顯 */
+.star.favb{flex:none;font:inherit;font-size:13px;font-weight:700;line-height:1.2;border:1.5px solid var(--star);color:var(--star);background:transparent;border-radius:999px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+.star.favb[aria-pressed="true"]{background:var(--star);color:#fff}
+.pick .acts .star.favb{flex:none;border-radius:8px;padding:8px 12px;font-size:14px}
+/* 搜尋後的「附近路況」速覽 */
+.nearbox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+.nbhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-bottom:10px}
+.nbhead b{font-size:16px}
+.nbhead span{font-size:12px;color:var(--muted)}
+.nbgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:900px){.nbgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.nbt{position:relative;display:block;aspect-ratio:352/240;background:#0d1210;border:0;padding:0;border-radius:10px;overflow:hidden;cursor:zoom-in;text-decoration:none;width:100%}
+.nbt img{width:100%;height:100%;object-fit:cover;display:block}
+.nbt .nbl{position:absolute;left:0;right:0;bottom:0;padding:16px 8px 6px;background:linear-gradient(transparent,rgba(0,0,0,.75));color:#fff;font-size:12px;font-weight:700;text-align:left;line-height:1.3}
+.nbt .nbl small{display:block;font-weight:500;opacity:.85}
+.nbt .ph{color:#cfd8d3}
+.nbacts{display:flex;gap:8px;margin-top:10px}
+.nbacts button{flex:1;font:inherit;font-size:14px;font-weight:700;border:0;border-radius:8px;padding:9px;cursor:pointer;background:var(--chip);color:var(--ink)}
+.nbacts button.pri{background:var(--fw);color:var(--fw-ink)}
 /* 景點直播 */
 .chip.spot{color:#e8590c;font-weight:700}
 .chip.spot[aria-pressed="true"]{background:#e8590c;color:#fff}
@@ -212,6 +231,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
   .meta{padding:8px;gap:4px;flex-wrap:wrap}
   .meta .txt{order:3;flex-basis:100%}
   .meta .star{margin-left:auto}
+  .star.favb{font-size:12px;padding:3px 8px}
   .btns{padding:0 8px 8px;flex-direction:column}
   .open,.locate{font-size:13px;padding:7px}
 }
@@ -241,6 +261,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
 
   <div class="layout">
     <div class="mapcol">
+      <section class="nearbox" id="nearbox" hidden aria-label="附近路況"></section>
       <div class="mapbox" id="mapbox">
         <svg id="mapbase" class="maplayer" aria-hidden="true">
           <g id="counties-g"></g>
@@ -273,7 +294,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
         <h2 id="title">地圖範圍內的攝影機</h2>
         <button class="nearx" type="button" id="nearx" hidden>✕ 清除地點</button>
         <button class="chip spot" type="button" id="spotbtn" aria-pressed="false" title="觀光署公開的景點即時影像">🏞 景點直播 <span class="n" id="spotn">0</span></button>
-        <button class="chip fav" type="button" id="favbtn" aria-pressed="false">★ 我的常用 <span class="n" id="favn">0</span></button>
+        <button class="chip fav" type="button" id="favbtn" aria-pressed="false">★ 我的最愛 <span class="n" id="favn">0</span></button>
       </div>
       <div class="roads" id="roads" role="group" aria-label="這一區的道路"></div>
       <button class="morebtn" type="button" id="roads-more" hidden></button>
@@ -13551,7 +13572,7 @@ b34K+950</script>
     }
   }
 
-  // 地圖要顯示哪些攝影機：跟著下方選的道路、方向、搜尋、常用一起變
+  // 地圖要顯示哪些攝影機：跟著下方選的道路、方向、搜尋、最愛一起變
   const CLUSTER_OFF = 70;  // 放大到這個程度以下就不再合併，每支都單獨顯示並標上里程
   let DRAWN = [];
   function dotR(){ return vb.w < 25 ? 7 : vb.w < CLUSTER_OFF ? 6 : vb.w < 150 ? 5.5 : vb.w < 1300 ? 5 : 2.6; }
@@ -13834,7 +13855,7 @@ b34K+950</script>
     townEls.forEach((e, k) => e.classList.toggle('on', state.town === k));
     tlabelEls.forEach((e, k) => e.classList.toggle('on', state.town === k));
     renderTownChips(); renderCountyChips(); }
-  // 點選時只在目前清單相關的點裡找（搜尋或常用時只看那些點）
+  // 點選時只在目前清單相關的點裡找（搜尋或最愛時只看那些點）
   function visiblePool(){ return state.q || state.near || state.mode === 'fav' ? lastBase : cams; }
 
   // ===== 地圖上選到的攝影機 =====
@@ -13852,11 +13873,11 @@ b34K+950</script>
       (canEmbed ? '<button class="shot" type="button" data-view="' + c.i + '" aria-label="放大看即時影像"><img alt="' + esc(META.R[c.r] + ' ' + kmText(c)) + ' 即時影像"><span class="ph">載入中…</span><span class="tag"><span class="dot"></span>即時</span></button>' : '') +
       '<div class="row">' + badgeHTML(c.r) +
       '<div class="txt"><div class="km">' + esc(kmText(c)) + (dirText(c) ? '<small>' + dirText(c) + '</small>' : '') + '</div><div class="secline">' + esc(place(c) + ' · ' + (c.sec || META.R[c.r])) + '</div></div>' +
-      '<button class="star" type="button" data-star="' + c.i + '" aria-pressed="' + isFav + '" aria-label="' + (isFav ? '移出常用' : '加入常用') + '">' + (isFav ? '★' : '☆') + '</button>' +
+      '' +
       '<button class="x" type="button" id="pickx" aria-label="關閉">✕</button></div>' +
       '<div class="acts">' + (canEmbed
         ? '<button class="open" type="button" data-view="' + c.i + '">放大看</button>'
-        : '<a class="open" href="' + esc(c.live) + '" target="_blank" rel="noopener"><span class="dot"></span>看即時影像</a>') + '</div>' + navHTML(c);
+        : '<a class="open" href="' + esc(c.live) + '" target="_blank" rel="noopener"><span class="dot"></span>看即時影像</a>') + favBtn('star', c.i, isFav, true) + '</div>' + navHTML(c);
     p.hidden = false;
     if (canEmbed){
       const img = p.querySelector('img'), ph = p.querySelector('.ph');
@@ -14014,25 +14035,28 @@ b34K+950</script>
     });
     lastList = list;
 
+    const favSpots0 = state.mode === 'fav' && !state.q ? SPOTS.filter(s => favs.has('spot:' + s.uid)) : [];
     const t = $('title');
     $('nearx').hidden = !state.near;
     if (state.near) t.textContent = '「' + state.near.name + '」附近 · ' + list.length + ' 支（由近到遠）';
     else if (state.q) t.textContent = '搜尋「' + state.q + '」· ' + list.length + ' 支';
-    else if (state.mode === 'fav') t.textContent = '★ 我的常用 · ' + list.length + ' 支';
+    else if (state.mode === 'fav') t.textContent = '★ 我的最愛 · ' + (list.length + favSpots0.length) + ' 個';
     else if (state.town != null) t.textContent = state.county + ' ' + TOWNS[state.town].name + ' · ' + list.length + ' 支攝影機';
     else t.textContent = state.county ? state.county + ' · ' + list.length + ' 支攝影機' : '地圖範圍內 ' + list.length + ' 支';
     $('favn').textContent = favs.size;
     $('favbtn').setAttribute('aria-pressed', state.mode === 'fav');
 
     const grid = $('grid');
-    if (!list.length){
+    const favSpots = state.mode === 'fav' && !state.q ? SPOTS.filter(s => favs.has('spot:' + s.uid)) : [];
+    renderNearBox(list);
+    if (!list.length && !favSpots.length){
       grid.innerHTML = '<div class="empty">' + (state.mode === 'fav' && !state.q
-        ? '還沒有常用的攝影機。<br>點任何攝影機旁的 ☆，下次打開就能一次看完你常走的路段。'
+        ? '還沒有最愛的攝影機。<br>點任何攝影機旁的 ☆，下次打開就能一次看完你常走的路段。'
         : state.q ? '找不到符合的道路或交流道，換個關鍵字試試，例如「國道3號」或「台61」。'
         : state.town != null ? '這個區域沒有國道或省道攝影機，換旁邊的區域看看。' : '這個範圍沒有攝影機，把地圖拖到有點的地方，或按「全台」重新選。') + '</div>';
       $('more').hidden = true; return;
     }
-    grid.innerHTML = spotHint() + list.slice(0, limit).map(cardHTML).join('');
+    grid.innerHTML = spotHint() + list.slice(0, limit).map(cardHTML).join('') + favSpots.map(spotCard).join('');
     $('more').hidden = list.length <= limit;
     $('more').textContent = '顯示更多（還有 ' + (list.length - limit) + ' 支）';
     attachImages();
@@ -14044,7 +14068,7 @@ b34K+950</script>
     return '<article class="cam' + (state.pick === c.i ? ' on' : '') + '" data-i="' + c.i + '">' + shot +
       '<div class="meta">' + badgeHTML(c.r) +
       '<div class="txt"><div class="km">' + esc(kmText(c)) + (dirText(c) ? '<small>' + dirText(c) + '</small>' : '') + '</div><div class="secline">' + (state.near ? '<span class="dist">' + distText(c._d) + '</span>' : '') + esc(place(c) + ' · ' + (c.sec || META.R[c.r])) + '</div></div>' +
-      '<button class="star" type="button" data-star="' + c.i + '" aria-pressed="' + isFav + '" aria-label="' + (isFav ? '移出常用' : '加入常用') + '">' + (isFav ? '★' : '☆') + '</button></div>' +
+      favBtn('star', c.i, isFav, false) + '</div>' +
       '<div class="btns">' + (canEmbed ? '' : '<a class="open" href="' + esc(c.live) + '" target="_blank" rel="noopener"><span class="dot"></span>看即時影像</a>') +
       '<button class="locate" type="button" data-loc="' + c.i + '">在地圖上看</button></div>' +
       '</article>';
@@ -14059,7 +14083,7 @@ b34K+950</script>
     io = new IntersectionObserver(entries => {
       for (const e of entries){ const img = e.target, c = cams[+img.dataset.i]; if (e.isIntersecting) startImg(img, c); else stopImg(img); }
     }, {rootMargin:'200px'});
-    document.querySelectorAll('#grid img[data-i]').forEach(img => io.observe(img));
+    document.querySelectorAll('#grid img[data-i], #nearbox img[data-i]').forEach(img => io.observe(img));
   }
   function startImg(img, c){
     const ph = img.parentElement.querySelector('.ph');
@@ -14105,16 +14129,23 @@ b34K+950</script>
   });
 
   // ===== 其他互動 =====
-  function toggleFav(i, btn){
-    const c = cams[i];
-    if (favs.has(c.key)) favs.delete(c.key); else favs.add(c.key);
-    store.set('tw-cctv-favs', [...favs]);
-    const on = favs.has(c.key);
-    document.querySelectorAll('[data-star="' + i + '"]').forEach(s => { s.setAttribute('aria-pressed', on); s.textContent = on ? '★' : '☆'; s.setAttribute('aria-label', on ? '移出常用' : '加入常用'); });
-    $('favn').textContent = favs.size;
+  // 最愛按鈕：long＝地圖小卡上的長版文字
+  function favBtn(kind, i, on, long){
+    return '<button class="star favb" type="button" data-' + kind + '="' + i + '" data-long="' + (long ? 1 : 0) + '" aria-pressed="' + on + '">' + favText(on, long) + '</button>';
   }
+  function favText(on, long){ return on ? (long ? '★ 已加入最愛' : '★ 已收藏') : (long ? '☆ 加入最愛' : '☆ 最愛'); }
+  function setFavKey(key, sel){
+    if (favs.has(key)) favs.delete(key); else favs.add(key);
+    store.set('tw-cctv-favs', [...favs]);
+    const on = favs.has(key);
+    document.querySelectorAll(sel).forEach(s => { s.setAttribute('aria-pressed', on); s.textContent = favText(on, s.dataset.long === '1'); });
+    $('favn').textContent = favs.size;
+    if (state.mode === 'fav') scheduleList();
+  }
+  function toggleFav(i){ setFavKey(cams[i].key, '[data-star="' + i + '"]'); }
   document.addEventListener('click', e => {
     const s = e.target.closest('[data-star]'); if (s){ toggleFav(+s.dataset.star); return; }
+    const ss = e.target.closest('[data-sstar]'); if (ss){ const sp = SPOTS[+ss.dataset.sstar]; setFavKey('spot:' + sp.uid, '[data-sstar="' + sp.i + '"]'); return; }
     const v = e.target.closest('[data-view]'); if (v){ openViewer(+v.dataset.view); return; }
     const ch = e.target.closest('[data-choose]'); if (ch){ selectCam(cams[+ch.dataset.choose], false); return; }
     const nv = e.target.closest('[data-nav]'); if (nv){ focusCam(cams[+nv.dataset.nav]); return; }
@@ -14135,7 +14166,7 @@ b34K+950</script>
     closePick();
     setMode(state.mode === 'fav' ? 'map' : 'fav');
     if (state.mode === 'fav' && lastBase.length){
-      // 地圖移到常用攝影機所在的範圍
+      // 地圖移到最愛攝影機所在的範圍
       const xs = lastBase.map(c => c.x), ys = lastBase.map(c => c.y);
       const x0 = Math.min(...xs), y0 = Math.min(...ys);
       animateTo(fit({x:x0, y:y0, w:Math.max(150, Math.max(...xs) - x0), h:Math.max(150, Math.max(...ys) - y0)}, 0.2));
@@ -14264,7 +14295,8 @@ b34K+950</script>
     for (const c of (state.mode === 'spot' ? nearSpots() : list)){ x0 = Math.min(x0, c.x); y0 = Math.min(y0, c.y); x1 = Math.max(x1, c.x); y1 = Math.max(y1, c.y); }
     const w = Math.max(40, x1 - x0), h = Math.max(40, y1 - y0);
     animateTo(fit({x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - h / 2, w, h}, 0.18));
-    if (window.matchMedia('(max-width: 899px)').matches) $('mapbox').scrollIntoView({behavior: 'smooth', block: 'start'});
+    const target = $('nearbox').hidden ? $('mapbox') : $('nearbox');
+    if (window.matchMedia('(max-width: 899px)').matches || !$('nearbox').hidden) target.scrollIntoView({behavior: 'smooth', block: 'start'});
   }
   function clearNear(keepText){
     if (!state.near) return;
@@ -14378,7 +14410,7 @@ b34K+950</script>
     p.innerHTML = '<div class="spcard">' + shotHTML(s) + '</div>' +
       '<div class="row">' + (canEmbed ? '' : '<span class="spbadge">▶</span>') + '<div class="txt"><div class="spname">' + esc(s.name) + '</div><div class="secline">' + esc(s.sub) + ' · 景點直播</div></div>' +
       '<button class="x" type="button" id="pickx" aria-label="關閉">✕</button></div>' +
-      '<div class="acts">' + playHTML(s) + '<a class="locate off" href="' + official(s) + '" target="_blank" rel="noopener">官方頁面</a></div>';
+      '<div class="acts">' + playHTML(s) + '<a class="locate off" href="' + official(s) + '" target="_blank" rel="noopener">官方頁面</a>' + favBtn('sstar', s.i, favs.has('spot:' + s.uid), true) + '</div>';
     p.hidden = false;
     $('pickx').onclick = closePick;
     document.querySelectorAll('#grid .cam.on').forEach(e => e.classList.remove('on'));
@@ -14403,13 +14435,14 @@ b34K+950</script>
   function spotCard(s){
     return '<article class="cam spcard' + (state.spick === s.i ? ' on' : '') + '" data-s="' + s.i + '">' + shotHTML(s) +
       '<div class="meta">' + (canEmbed ? '' : '<span class="spbadge">▶</span>') + '<div class="txt"><div class="spname">' + esc(s.name) + '</div><div class="secline">' +
-      (state.near ? '<span class="dist">' + distText(s._d) + '</span>' : '') + esc(s.sub) + '</div></div></div>' +
+      (state.near ? '<span class="dist">' + distText(s._d) + '</span>' : '') + esc(s.sub) + '</div></div>' + favBtn('sstar', s.i, favs.has('spot:' + s.uid), false) + '</div>' +
       '<div class="btns">' + playHTML(s) + '<button class="locate" type="button" data-sloc="' + s.i + '">在地圖上看</button></div></article>';
   }
   function renderSpots(){
     let list = spotBase();
     if (!state.near) list = list.slice().sort((a, b) => a.y - b.y); // 由北到南
     lastBase = []; lastBaseSet = new Set(); lastList = [];
+    $('nearbox').hidden = true;
     $('roads').innerHTML = ''; fitRow('roads', 2); $('dirs').innerHTML = '';
     drawDetail();
     $('nearx').hidden = !state.near;
@@ -14452,6 +14485,29 @@ b34K+950</script>
     closePick();
     setMode(state.mode === 'spot' ? 'map' : 'spot');
   };
+
+  // ===== 搜尋地點後：最上面直接列出最近 4 支攝影機的即時畫面 =====
+  function renderNearBox(list){
+    const box = $('nearbox');
+    if (!state.near || state.mode !== 'map' || state.q || !list.length){ box.hidden = true; box.innerHTML = ''; return; }
+    const top = list.slice(0, 4);
+    const tile = c => {
+      const label = '<span class="nbl">' + esc(roadBadge(META.R[c.r]).t + ' ' + kmText(c) + (c.dir ? ' ' + DIRS[c.dir] : '')) +
+        '<small>' + distText(c._d) + ' · ' + esc(townName(c)) + '</small></span>';
+      // 能嵌入畫面時顯示每 15 秒更新的縮圖；不能嵌入（例如 claude.ai）時點了開新分頁看
+      return canEmbed
+        ? '<button class="nbt" type="button" data-view="' + c.i + '" aria-label="放大看即時影像"><img data-i="' + c.i + '" alt=""><span class="ph">載入中…</span>' + label + '</button>'
+        : '<a class="nbt" href="' + esc(c.live) + '" target="_blank" rel="noopener"><span class="ph">▶ 點開看即時影像</span>' + label + '</a>';
+    };
+    box.innerHTML = '<div class="nbhead"><b>📍 ' + esc(state.near.name) + ' 附近路況</b><span>最近的 ' + top.length + ' 支攝影機' + (canEmbed ? '，畫面每 15 秒自動更新' : '') + '</span></div>' +
+      '<div class="nbgrid">' + top.map(tile).join('') + '</div>' +
+      '<div class="nbacts"><button type="button" data-nbmap>看地圖位置</button><button class="pri" type="button" data-nball>看全部 ' + list.length + ' 支 ↓</button></div>';
+    box.hidden = false;
+  }
+  document.addEventListener('click', e => {
+    if (e.target.closest('[data-nbmap]')) $('mapbox').scrollIntoView({behavior: 'smooth', block: 'start'});
+    if (e.target.closest('[data-nball]')) $('title').scrollIntoView({behavior: 'smooth', block: 'start'});
+  });
 
   // ===== 偵測這個環境能不能直接顯示畫面 =====
   function setEmbed(ok){
