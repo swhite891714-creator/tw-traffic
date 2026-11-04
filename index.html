@@ -162,7 +162,15 @@ button:focus-visible,a:focus-visible,svg:focus-visible{outline:2px solid var(--f
 .mapctl{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
 .mapctl button{width:44px;height:40px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:20px;line-height:1;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .maphint{position:absolute;left:10px;top:10px;right:60px;font-size:12.5px;background:var(--panel);color:var(--ink);border-radius:10px;padding:6px 10px;box-shadow:0 1px 3px rgba(0,0,0,.12);pointer-events:none;width:max-content;max-width:calc(100% - 70px)}
-.legend{position:absolute;left:10px;bottom:10px;display:flex;gap:10px;font-size:12px;background:var(--panel);padding:4px 10px;border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.legend{position:absolute;left:10px;bottom:10px;right:10px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;pointer-events:none}
+.legend > *{pointer-events:auto}
+.legend .lbl{background:var(--panel);color:var(--muted);font-size:12px;font-weight:700;padding:6px 8px;border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.lyr{display:flex;align-items:center;gap:2px;font:inherit;font-size:13px;font-weight:700;border:1.5px solid transparent;background:var(--panel);color:var(--ink);padding:6px 11px;border-radius:999px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.15);min-height:34px}
+.lyr[aria-pressed="true"]{border-color:var(--ink)}
+.lyr[aria-pressed="false"]{color:var(--muted);opacity:.75}
+.lyr[aria-pressed="false"] i,.lyr[aria-pressed="false"] .sq{filter:grayscale(1);opacity:.5}
+.lyr .ck{font-size:11px;margin-left:3px}
+.legend #lg-ic{background:var(--panel);padding:6px 10px;border-radius:999px;box-shadow:0 1px 3px rgba(0,0,0,.15);font-size:12px}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
 /* 地圖上選到的攝影機 */
 .pick{position:absolute;left:10px;right:10px;bottom:10px;background:var(--panel);border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.25);overflow:hidden}
@@ -284,7 +292,13 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
           <button type="button" id="zout" aria-label="縮小">－</button>
           <button type="button" id="zall" aria-label="看全台灣" title="看全台灣" style="font-size:13px;font-weight:700">全台</button>
         </div>
-        <div class="legend" id="legend"><span><i style="background:var(--fw)"></i>國道</span><span><i style="background:var(--pr)"></i>省道</span><span><i class="sq"></i>景點</span><span id="lg-ic" hidden><b style="color:var(--fw)">◆</b> 交流道</span></div>
+        <div class="legend" id="legend" role="group" aria-label="地圖要顯示哪些攝影機">
+          <span class="lbl">顯示</span>
+          <button class="lyr" type="button" data-ly="fw" aria-pressed="true"><i style="background:var(--fw)"></i>國道<span class="ck">✓</span></button>
+          <button class="lyr" type="button" data-ly="pr" aria-pressed="true"><i style="background:var(--pr)"></i>省道<span class="ck">✓</span></button>
+          <button class="lyr" type="button" data-ly="spot" aria-pressed="false"><i class="sq"></i>景點<span class="ck"></span></button>
+          <span id="lg-ic" hidden><b style="color:var(--fw)">◆</b> 交流道</span>
+        </div>
         <div class="pick" id="pick" hidden></div>
       </div>
     </div>
@@ -13291,6 +13305,9 @@ b34K+950</script>
   };
   let favs = new Set(store.get('tw-cctv-favs', []));
   const state = {mode: 'map', road: null, dir: '', q: '', county: null, town: null, pick: null, cand: new Set(), near: null, spick: null};
+  // 地圖顯示開關：國道、省道（景點由「景點模式」控制）
+  state.layers = Object.assign({fw: true, pr: true}, store.get('tw-cctv-layers', {}));
+  if (!state.layers.fw && !state.layers.pr) state.layers = {fw: true, pr: true};
   let limit = 60;
   let canEmbed = null;
 
@@ -13411,7 +13428,8 @@ b34K+950</script>
         g2.moveTo(X(rl.pts[0][0]), Y(rl.pts[0][1]));
         for (let k = 1; k < rl.pts.length; k++) g2.lineTo(X(rl.pts[k][0]), Y(rl.pts[k][1]));
       }
-      g2.globalAlpha = 0.3; g2.strokeStyle = kind === 'fw' ? FW : PR; g2.lineWidth = lw; g2.stroke(); g2.globalAlpha = 1;
+      if (!state.layers[kind] && state.mode !== 'spot') continue;
+      g2.globalAlpha = state.mode === 'spot' ? 0.15 : 0.3; g2.strokeStyle = kind === 'fw' ? FW : PR; g2.lineWidth = lw; g2.stroke(); g2.globalAlpha = 1;
     }
 
     // ===== 攝影機點：太密的地方合併成數字泡泡，點泡泡就放大 =====
@@ -13420,7 +13438,11 @@ b34K+950</script>
     const pad = 20 * pxu;
     const inside = c => c.x > x0 - pad && c.x < x1 + pad && c.y > y0 - pad && c.y < y1 + pad;
     const on = [], dim = [];
-    for (const c of cams){ if (!inside(c)) continue; (mapShows(c) ? on : dim).push(c); }
+    for (const c of cams){
+      if (!inside(c)) continue;
+      if (state.mode === 'spot' || !state.layers[c.kind]) continue; // 看景點時、或關掉的種類：地圖上完全不畫
+      (mapShows(c) ? on : dim).push(c);
+    }
     function dot(c, r, alpha){
       g2.globalAlpha = alpha == null ? 1 : alpha;
       g2.beginPath(); g2.arc(X(c.x), Y(c.y), r * dpr, 0, Math.PI * 2);
@@ -13479,15 +13501,23 @@ b34K+950</script>
       g2.fillStyle = SPC; g2.fill(); g2.lineWidth = 1.5 * dpr; g2.strokeStyle = ring ? col('--ink') : LAND; g2.stroke();
       if (r >= 5.5){ g2.beginPath(); g2.moveTo(cx - h * 0.32, cy - h * 0.45); g2.lineTo(cx + h * 0.5, cy); g2.lineTo(cx - h * 0.32, cy + h * 0.45); g2.closePath(); g2.fillStyle = '#fff'; g2.fill(); }
     }
-    for (const s of SPOTS){
+    for (const s of (spotMode ? SPOTS : [])){
       if (!inside(s) || s.i === state.spick) continue;
       spotMark(s, sr); DRAWN.push({x: s.x, y: s.y, r: sr, spot: s, cams: []});
     }
-    if (state.spick != null){ const s = SPOTS[state.spick]; spotMark(s, sr + 2, true); DRAWN.push({x: s.x, y: s.y, r: sr + 2, spot: s, cams: []}); }
+    if (state.spick != null && spotMode){ const s = SPOTS[state.spick]; spotMark(s, sr + 2, true); DRAWN.push({x: s.x, y: s.y, r: sr + 2, spot: s, cams: []}); }
     // 候選（同一位置好幾支）加紅框；選到的那支永遠單獨畫在最上面
     for (const i of state.cand){ const c = cams[i]; g2.beginPath(); g2.arc(X(c.x), Y(c.y), (rpx + 3) * dpr, 0, Math.PI * 2); g2.lineWidth = 2.5 * dpr; g2.strokeStyle = col('--live'); g2.stroke(); }
     if (state.pick != null){ const c = cams[state.pick]; dot(c, rpx + 1); if (interactive) DRAWN.push({x: c.x, y: c.y, r: rpx + 1, cams: [c]}); }
 
+    if ($('tlabels-g').style.display !== 'none'){
+      tlabelEls.forEach((e, k) => {
+        if (e.style.display === 'none'){ e.style.visibility = ''; return; }
+        const tn = TOWNS[k], cx = X(tn.lx), cy = Y(tn.ly), hw = tn.name.length * 6.5 * dpr, hh = 9 * dpr;
+        const hit = DRAWN.some(d => { const r = (d.r + 2) * dpr, dx = Math.max(Math.abs(X(d.x) - cx) - hw, 0), dy = Math.max(Math.abs(Y(d.y) - cy) - hh, 0); return dx * dx + dy * dy < r * r; });
+        e.style.visibility = hit && state.town !== k ? 'hidden' : '';
+      });
+    }
     // 文字：先放的優先，後面的若會重疊就不畫
     const boxes = [];
     const fits = (x, y, w, h) => { if (x < 0 || y < 0 || x + w > W || y + h > H) return false; for (const b of boxes) if (x < b[0] + b[2] && x + w > b[0] && y < b[1] + b[3] && y + h > b[1]) return false; boxes.push([x, y, w, h]); return true; };
@@ -13513,10 +13543,10 @@ b34K+950</script>
     }
     // 鄉鎮市區名稱已經畫在上層，先把它們的位置佔住
     if ($('tlabels-g').style.display !== 'none'){
-      tlabelEls.forEach((e, k) => { if (e.style.display === 'none') return; const tn = TOWNS[k]; const w = tn.name.length * 12 * dpr; boxes.push([X(tn.lx) - w / 2, Y(tn.ly) - 9 * dpr, w, 18 * dpr]); });
+      tlabelEls.forEach((e, k) => { if (e.style.display === 'none' || e.style.visibility === 'hidden') return; const tn = TOWNS[k]; const w = tn.name.length * 12 * dpr; boxes.push([X(tn.lx) - w / 2, Y(tn.ly) - 9 * dpr, w, 18 * dpr]); });
     }
     // 景點名稱（景點模式時較早顯示）
-    if (spotMode ? vb.w < 1300 : vb.w < 300){
+    if (spotMode && vb.w < 1300){
       const ord = SPOTS.slice().sort((a, b) => (b.i === state.spick) - (a.i === state.spick));
       for (const s of ord){
         if (s.x < x0 || s.x > x1 || s.y < y0 || s.y > y1) continue;
@@ -13981,6 +14011,10 @@ b34K+950</script>
   let lastBase = [], lastList = [], lastBaseSet = new Set();
   function inView(c){ return c.x >= vb.x && c.x <= vb.x + vb.w && c.y >= vb.y && c.y <= vb.y + vb.h; }
   function baseList(){
+    const l = baseList0();
+    return state.mode === 'fav' ? l : l.filter(c => state.layers[c.kind]);
+  }
+  function baseList0(){
     if (state.q){
       const q = state.q.replace(/\s+/g,'').replace(/臺/g,'台').toLowerCase();
       const qn = q.replace(/^國道?(\d)/,'國道$1');
@@ -13995,6 +14029,7 @@ b34K+950</script>
   function scheduleList(){ clearTimeout(listTimer); listTimer = setTimeout(renderList, 160); }
 
   function renderList(){
+    syncLayers();
     if (state.mode === 'spot'){ renderSpots(); return; }
     $('spotbtn').setAttribute('aria-pressed', 'false');
     const base = baseList();
@@ -14507,6 +14542,31 @@ b34K+950</script>
   document.addEventListener('click', e => {
     if (e.target.closest('[data-nbmap]')) $('mapbox').scrollIntoView({behavior: 'smooth', block: 'start'});
     if (e.target.closest('[data-nball]')) $('title').scrollIntoView({behavior: 'smooth', block: 'start'});
+  });
+
+  // ===== 地圖顯示開關 =====
+  function syncLayers(){
+    const sp = state.mode === 'spot';
+    document.querySelectorAll('.lyr').forEach(b => {
+      const k = b.dataset.ly, on = k === 'spot' ? sp : !sp && state.layers[k];
+      b.setAttribute('aria-pressed', on); b.querySelector('.ck').textContent = on ? '✓' : '';
+    });
+  }
+  $('legend').addEventListener('click', e => {
+    const b = e.target.closest('.lyr'); if (!b) return;
+    const k = b.dataset.ly;
+    closePick();
+    if (k === 'spot'){ setMode(state.mode === 'spot' ? 'map' : 'spot'); return; }
+    if (state.mode === 'spot'){
+      // 從景點切回路況：只開按的那一種
+      state.layers = {fw: k === 'fw', pr: k === 'pr'};
+      store.set('tw-cctv-layers', state.layers);
+      setMode('map'); return;
+    }
+    state.layers[k] = !state.layers[k];
+    if (!state.layers.fw && !state.layers.pr) state.layers[k === 'fw' ? 'pr' : 'fw'] = true; // 至少留一種
+    store.set('tw-cctv-layers', state.layers);
+    limit = 60; renderList();
   });
 
   // ===== 偵測這個環境能不能直接顯示畫面 =====
