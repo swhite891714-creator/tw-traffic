@@ -13674,10 +13674,14 @@ b34K+950</script>
     const mpp = vb.w * (111320 / TK) / W;          // 每個實際像素幾公尺
     let z = Math.round(Math.log2(156543.03 * Math.cos(latC * Math.PI / 180) / mpp));
     z = Math.max(7, Math.min(18, z));
-    const n = 2 ** z;
     const lonL = 120 + vb.x / TKX, lonR = 120 + (vb.x + vb.w) / TKX, latT = 25.35 - vb.y / TK, latB = 25.35 - (vb.y + vb.h) / TK;
-    const x0 = Math.floor(lon2tx(lonL, n)), x1 = Math.floor(lon2tx(lonR, n)), y0 = Math.floor(lat2ty(latT, n)), y1 = Math.floor(lat2ty(latB, n));
-    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 120) return;  // 保險：一次最多 120 張
+    let n, x0, x1, y0, y1;
+    for (;;){
+      n = 2 ** z;
+      x0 = Math.floor(lon2tx(lonL, n)); x1 = Math.floor(lon2tx(lonR, n)); y0 = Math.floor(lat2ty(latT, n)); y1 = Math.floor(lat2ty(latB, n));
+      if ((x1 - x0 + 1) * (y1 - y0 + 1) <= 90 || z <= 7) break;
+      z--;   // 一次最多約 90 張
+    }
     let drawn = 0;
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++){
       const px = X(tx2lon(tx, n)), py = Y(ty2lat(ty, n));
