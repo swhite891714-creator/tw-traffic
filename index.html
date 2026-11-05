@@ -19,6 +19,7 @@
   --fw:#0b6b45;            /* 國道綠 */
   --fw-ink:#ffffff;
   --pr:#1f4fa3;            /* 省道藍 */
+  --ct:#8b3fd9;            /* 市區紫 */
   --pr-ink:#ffffff;
   --live:#d9480f;
   --chip:#e2e8e4;
@@ -30,11 +31,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#101512;--panel:#18201b;--ink:#e6ece8;--muted:#9aa9a0;--line:#2b3630;
   --land:#1f2823;--land-hi:#2a3a31;--sea:#0d1420;--border:#6a7d72;--tline:#33413a;--town-hi:#2f4a3b;
-  --fw:#19a56b;--fw-ink:#ffffff;--pr:#4f86e6;--pr-ink:#ffffff;--live:#ff6b35;--chip:#232d27;--star:#f0b429;--shade:rgba(0,0,0,.88);color-scheme:dark}}
+  --fw:#19a56b;--fw-ink:#ffffff;--pr:#4f86e6;--pr-ink:#ffffff;--ct:#b07cf0;--live:#ff6b35;--chip:#232d27;--star:#f0b429;--shade:rgba(0,0,0,.88);color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#101512;--panel:#18201b;--ink:#e6ece8;--muted:#9aa9a0;--line:#2b3630;
   --land:#1f2823;--land-hi:#2a3a31;--sea:#0d1420;--border:#6a7d72;--tline:#33413a;--town-hi:#2f4a3b;
-  --fw:#19a56b;--fw-ink:#ffffff;--pr:#4f86e6;--pr-ink:#ffffff;--live:#ff6b35;--chip:#232d27;--star:#f0b429;--shade:rgba(0,0,0,.88);color-scheme:dark}
+  --fw:#19a56b;--fw-ink:#ffffff;--pr:#4f86e6;--pr-ink:#ffffff;--ct:#b07cf0;--live:#ff6b35;--chip:#232d27;--star:#f0b429;--shade:rgba(0,0,0,.88);color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5}
@@ -67,6 +68,20 @@ h1{margin:0;font-size:22px;font-weight:900;letter-spacing:.02em;text-wrap:balanc
 .nearx{font:inherit;font-size:13px;font-weight:700;border:0;background:var(--chip);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
 .dist{display:inline-block;font-family:var(--font-num);font-weight:700;color:#e8590c;margin-right:4px}
 .pin{pointer-events:none}
+/* 更新清單按鈕與提示 */
+.updrow{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:4px}
+.updbtn{font:inherit;font-size:13px;font-weight:700;border:1.5px solid var(--fw);color:var(--fw);background:var(--panel);border-radius:999px;padding:4px 12px;cursor:pointer}
+.updbtn.first{background:var(--ct);border-color:var(--ct);color:#fff}
+.updbtn:disabled{opacity:.7;cursor:progress}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;max-width:min(92vw,520px);background:var(--ink);color:var(--bg);font-size:14px;font-weight:600;line-height:1.45;padding:12px 16px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.3);cursor:pointer}
+#vframe{width:100%;aspect-ratio:16/10;border:0;background:#000;display:block}
+@media (max-width:520px){
+  #legend.legend{gap:4px;left:8px;right:8px;bottom:8px}
+  #legend .lbl{display:none}
+  #legend .lyr{font-size:12.5px;padding:5px 8px;min-height:32px}
+  #legend .lyr .ck{margin-left:1px}
+  .legend #lg-ic{display:none}
+}
 /* 加入最愛按鈕：有字、比較明顯 */
 .star.favb{flex:none;font:inherit;font-size:13px;font-weight:700;line-height:1.2;border:1.5px solid var(--star);color:var(--star);background:transparent;border-radius:999px;padding:4px 10px;cursor:pointer;white-space:nowrap}
 .star.favb[aria-pressed="true"]{background:var(--star);color:#fff}
@@ -186,6 +201,7 @@ button:focus-visible,a:focus-visible,svg:focus-visible{outline:2px solid var(--f
 .badge{display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:26px;padding:0 6px;font-family:var(--font-num),var(--font-body);font-weight:700;font-size:15px;line-height:1;flex:none}
 .badge.fw{background:var(--fw);color:var(--fw-ink);border-radius:6px}
 .badge.pr{background:var(--pr);color:var(--pr-ink);clip-path:polygon(0 0,100% 0,100% 62%,50% 100%,0 62%);height:28px;padding-bottom:5px;border-radius:2px}
+.badge.ct{background:var(--ct);color:#fff;border-radius:999px;font-size:13px}
 .badge.co{background:var(--panel);color:var(--ink);border:1.5px solid var(--ink);border-radius:3px}
 .badge.lg{min-width:56px;height:32px;font-size:18px}
 
@@ -249,7 +265,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
 
 <div class="wrap">
   <h1>台灣路況即時影像</h1>
-  <div class="sub"><b id="total">0</b> 支國道與省道攝影機 · 在地圖上點想看的地方，就能看到那裡的即時路況</div>
+  <div class="sub"><b id="total">0</b> 支攝影機（國道、省道、市區）<span class="updrow"><span id="updt"></span><button class="updbtn" type="button" id="upd">⟳ 更新清單</button></span></div>
 
   <div class="search">
     <div class="srow">
@@ -296,6 +312,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
           <span class="lbl">顯示</span>
           <button class="lyr" type="button" data-ly="fw" aria-pressed="true"><i style="background:var(--fw)"></i>國道<span class="ck">✓</span></button>
           <button class="lyr" type="button" data-ly="pr" aria-pressed="true"><i style="background:var(--pr)"></i>省道<span class="ck">✓</span></button>
+          <button class="lyr" type="button" data-ly="ct" aria-pressed="true"><i style="background:var(--ct)"></i>市區<span class="ck">✓</span></button>
           <button class="lyr" type="button" data-ly="spot" aria-pressed="false"><i class="sq"></i>景點<span class="ck"></span></button>
           <span id="lg-ic" hidden><b style="color:var(--fw)">◆</b> 交流道</span>
         </div>
@@ -322,6 +339,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
   <footer>影像來源：交通部高速公路局、交通部公路局公開的即時影像。地圖上的點是攝影機實際位置，偶爾會有攝影機維修或畫面延遲。</footer>
 </div>
 
+<div class="toast" id="toast" hidden role="status"></div>
 <div class="viewer" id="sviewer" hidden role="dialog" aria-modal="true" aria-label="景點直播">
   <div class="vbox">
     <div class="yt"><iframe id="sframe" title="景點直播" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
@@ -336,6 +354,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="即時影像">
   <div class="vbox">
     <img id="vimg" alt="">
+    <iframe id="vframe" title="即時影像" hidden allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
     <div class="vbar">
       <span id="vbadge"></span>
       <div class="txt"><div class="km" id="vkm"></div><div class="secline" id="vsec"></div></div>
@@ -13273,7 +13292,7 @@ b34K+950</script>
   const townName = c => TOWNS[c.t] ? TOWNS[c.t].name : '';
   // 景點直播（資料在後面搜尋區塊建立，地圖會用到所以先宣告）
   let SPOTS = [];
-  const place = c => META.C[c.c] + townName(c);
+  const place = c => (META.C[c.c] || c.cname || '') + townName(c);
 
   function thbKm(s){ const m = s.match(/(\d+)\s*[Kk]\s*[+-]?\s*(\d*)/); return m ? +m[1] + (m[2] ? +('0.' + m[2]) : 0) : null; }
   function prettyStake(s){
@@ -13292,10 +13311,11 @@ b34K+950</script>
     if ((m = name.match(/^縣道(\d+)線$/))) return {cls:'co', t:m[1]};
     return {cls:'co', t:name.replace('便道','')};
   }
-  const badgeHTML = (r, big) => { const b = roadBadge(META.R[r]); return '<span class="badge ' + b.cls + (big ? ' lg' : '') + '">' + esc(b.t) + '</span>'; };
+  const badgeHTML = (r, big) => { const b = CTR.has(r) ? {cls: 'ct', t: '市區'} : roadBadge(META.R[r]); return '<span class="badge ' + b.cls + (big ? ' lg' : '') + '">' + esc(b.t) + '</span>'; };
   function esc(s){ return String(s).replace(/[&<>"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
-  const kmText = c => c.kind === 'fw' ? (c.km == null ? '' : c.km.toFixed(1) + 'K') : c.stake;
-  const dirText = c => c.dir ? DIRS[c.dir] : '';
+  const kmText = c => c.kind === 'ct' ? META.R[c.r] : c.kind === 'fw' ? (c.km == null ? '' : c.km.toFixed(1) + 'K') : (c.stake || '');
+  const CTD = {N: '往北', S: '往南', E: '往東', W: '往西'};
+  const dirText = c => c.kind === 'ct' ? (CTD[c.dir] || '') : (DIRS[c.dir] || '');
   function roadNo(name){ const m = name.match(/\d+/); return m ? +m[0] + (/甲|高架/.test(name) ? 0.5 : 0) : 99; }
 
   // ===== 只存在這台裝置的設定 =====
@@ -13306,8 +13326,8 @@ b34K+950</script>
   let favs = new Set(store.get('tw-cctv-favs', []));
   const state = {mode: 'map', road: null, dir: '', q: '', county: null, town: null, pick: null, cand: new Set(), near: null, spick: null};
   // 地圖顯示開關：國道、省道（景點由「景點模式」控制）
-  state.layers = Object.assign({fw: true, pr: true}, store.get('tw-cctv-layers', {}));
-  if (!state.layers.fw && !state.layers.pr) state.layers = {fw: true, pr: true};
+  state.layers = Object.assign({fw: true, pr: true, ct: true}, store.get('tw-cctv-layers', {}));
+  if (!state.layers.fw && !state.layers.pr && !state.layers.ct) state.layers = {fw: true, pr: true, ct: true};
   let limit = 60;
   let canEmbed = null;
 
@@ -13339,6 +13359,62 @@ b34K+950</script>
   const BOX = {};
   for (const name of Object.keys(countyEls)){ const b = countyEls[name].getBBox(); BOX[name] = {x:b.x, y:b.y, w:b.width, h:b.height}; }
   const ALL = {x:-40, y:120, w:2250, h:3900};
+  // ===== 市區攝影機（各縣市政府）＋ 國道／省道清單的增減 =====
+  // 資料是按「更新清單」時從交通部 TDX 平台抓下來，存在這支手機的瀏覽器裡；這裡在開頁時把它加進來
+  const CITY_NAMES = {Taipei: '台北市', NewTaipei: '新北市', Taoyuan: '桃園市', Taichung: '台中市', Tainan: '台南市', Kaohsiung: '高雄市',
+    Keelung: '基隆市', Hsinchu: '新竹市', HsinchuCounty: '新竹縣', MiaoliCounty: '苗栗縣', ChanghuaCounty: '彰化縣', NantouCounty: '南投縣',
+    YunlinCounty: '雲林縣', ChiayiCounty: '嘉義縣', Chiayi: '嘉義市', PingtungCounty: '屏東縣', YilanCounty: '宜蘭縣', HualienCounty: '花蓮縣',
+    TaitungCounty: '台東縣', KinmenCounty: '金門縣', PenghuCounty: '澎湖縣', LienchiangCounty: '連江縣'};
+  const DYN = store.get('tw-cctv-dyn', null);
+  const CTR = new Set();          // 只有市區攝影機用到的路名（徽章顯示「市區」）
+  const DYN_INFO = {ct: 0, fwAdd: 0, fwDel: 0, prAdd: 0, prDel: 0};
+  {
+    const K1 = 4095 / 3.5, KX1 = K1 * Math.cos(23.7 * Math.PI / 180);
+    const projXY = (lon, lat) => [(lon - 120) * KX1, (25.35 - lat) * K1];
+    const normU = u => String(u).replace(/^https?:\/\//i, '').replace(/:443(?=\/)/, '').replace(/\/+$/, '').toLowerCase();
+    const parseMile = s => { const m = String(s || '').match(/(\d+)\s*[Kk]\s*\+?\s*(\d*)/); return m ? +m[1] + (m[2] ? +('0.' + m[2].padStart(3, '0')) : 0) : null; };
+    const roadIdx = (name, city) => { let k = META.R.indexOf(name); if (k < 0){ k = META.R.length; META.R.push(name); if (city) CTR.add(k); } return k; };
+    // 找攝影機所在的縣市與鄉鎮（先用外框篩選，再精確判斷）
+    const pt = svg.createSVGPoint();
+    const locate = c => {
+      pt.x = c.x; pt.y = c.y;
+      for (const tn of TOWNS){ const b = tn.box; if (c.x < b.x || c.x > b.x + b.w || c.y < b.y || c.y > b.y + b.h) continue; if (townEls[tn.i].isPointInFill(pt)){ c.t = tn.i; c.c = tn.c; return; } }
+    };
+    const S = DYN && DYN.src ? DYN.src : {};
+    // 國道（fw）、省道（hw）：用影像網址比對內建清單；對得上的比例夠高才套用增減，避免來源格式改變時誤刪
+    for (const [code, kind] of [['fw', 'fw'], ['hw', 'pr']]){
+      const d = S[code]; if (!d || !d.L || !d.L.length) continue;
+      const base = cams.filter(c => c.kind === kind);
+      const dset = new Set(d.L.map(r => normU(r[5])));
+      const keep = new Set(base.filter(c => dset.has(normU(c.live))));
+      if (keep.size < base.length * 0.7) continue;
+      const bset = new Set(base.map(c => normU(c.live)));
+      for (let i = cams.length - 1; i >= 0; i--) if (cams[i].kind === kind && !keep.has(cams[i])){ cams.splice(i, 1); DYN_INFO[kind + 'Del']++; }
+      for (const r of d.L){
+        if (bset.has(normU(r[5]))) continue;
+        const [x, y] = projXY(r[3], r[4]);
+        const c = {kind, r: roadIdx(r[1] || (kind === 'fw' ? '國道' : '省道'), false), dir: kind === 'fw' ? (r[2] || '') : '',
+          km: parseMile(r[6]), stake: r[6] || '', sec: r[7] || '', live: r[5],
+          snap: /\/abs2mjpg\/bmjpg/.test(r[5]) ? r[5].replace('/abs2mjpg/bmjpg', '/abs2mjpg/jpg') : null, key: code + '|' + r[0], x, y};
+        locate(c); if (c.c == null) c.c = -1;
+        cams.push(c); DYN_INFO[kind + 'Add']++;
+      }
+    }
+    // 各縣市市區攝影機
+    for (const code of Object.keys(CITY_NAMES)){
+      const d = S[code]; if (!d || !d.L) continue;
+      for (const r of d.L){
+        const [x, y] = projXY(r[3], r[4]);
+        const c = {kind: 'ct', r: roadIdx(r[1] || '市區道路', true), dir: r[2] || '', km: null, stake: '', sec: '市區路口', live: r[5], snap: null,
+          key: 'ct|' + code + '|' + r[5], x, y, cname: CITY_NAMES[code]};
+        locate(c); if (c.c == null) c.c = META.C.indexOf(CITY_NAMES[code]);
+        cams.push(c); DYN_INFO.ct++;
+      }
+    }
+    cams.forEach((c, i) => c.i = i);
+    $('total').textContent = cams.length.toLocaleString('zh-TW');
+  }
+
 
   // ===== 道路線：把同一條路、同一方向的攝影機依里程連起來 =====
   const ROADLINES = [], IC = [];
@@ -13405,7 +13481,8 @@ b34K+950</script>
     const out = b => b[2] < x0 || b[0] > x1 || b[3] < y0 || b[1] > y1;
     const css = getComputedStyle(document.documentElement);
     const col = n => css.getPropertyValue(n).trim();
-    const INK = col('--ink'), MUTED = col('--muted'), LAND = col('--land'), FW = col('--fw'), PR = col('--pr');
+    const INK = col('--ink'), MUTED = col('--muted'), LAND = col('--land'), FW = col('--fw'), PR = col('--pr'), CTC = col('--ct');
+    const kcol = c => c.kind === 'fw' ? FW : c.kind === 'ct' ? CTC : PR;
 
     // 1. 村里界線（虛線）
     if (vb.w < 300){
@@ -13428,7 +13505,7 @@ b34K+950</script>
         g2.moveTo(X(rl.pts[0][0]), Y(rl.pts[0][1]));
         for (let k = 1; k < rl.pts.length; k++) g2.lineTo(X(rl.pts[k][0]), Y(rl.pts[k][1]));
       }
-      if (!state.layers[kind] && state.mode !== 'spot') continue;
+      if (!state.layers[kind] && state.mode !== 'spot') continue; // （市區沒有道路線）
       g2.globalAlpha = state.mode === 'spot' ? 0.15 : 0.3; g2.strokeStyle = kind === 'fw' ? FW : PR; g2.lineWidth = lw; g2.stroke(); g2.globalAlpha = 1;
     }
 
@@ -13446,7 +13523,7 @@ b34K+950</script>
     function dot(c, r, alpha){
       g2.globalAlpha = alpha == null ? 1 : alpha;
       g2.beginPath(); g2.arc(X(c.x), Y(c.y), r * dpr, 0, Math.PI * 2);
-      g2.fillStyle = c.kind === 'fw' ? FW : PR; g2.fill();
+      g2.fillStyle = kcol(c); g2.fill();
       if (r >= 4){ g2.lineWidth = 1.5 * dpr; g2.strokeStyle = LAND; g2.stroke(); }
       g2.globalAlpha = 1;
     }
@@ -13481,9 +13558,10 @@ b34K+950</script>
       for (const k of cl){
         if (k.list.length === 1){ dot(k.list[0], rpx); DRAWN.push({x: k.x, y: k.y, r: rpx, cams: k.list}); continue; }
         const n = k.list.length, r = 10 + Math.min(8, Math.sqrt(n) * 1.6);
-        const fwN = k.list.filter(c => c.kind === 'fw').length;
+        const kn = {fw: 0, pr: 0, ct: 0}; k.list.forEach(c => kn[c.kind]++);
+        const top = kn.fw >= kn.pr && kn.fw >= kn.ct ? FW : kn.ct > kn.pr ? CTC : PR;
         g2.beginPath(); g2.arc(X(k.x), Y(k.y), r * dpr, 0, Math.PI * 2);
-        g2.fillStyle = fwN * 2 >= n ? FW : PR; g2.fill();
+        g2.fillStyle = top; g2.fill();
         g2.lineWidth = 2 * dpr; g2.strokeStyle = LAND; g2.stroke();
         g2.fillStyle = '#fff'; g2.font = '700 ' + (12 * dpr) + 'px ' + col('--font-num'); g2.textAlign = 'center'; g2.textBaseline = 'middle';
         g2.fillText(String(n), X(k.x), Y(k.y) + 0.5 * dpr); g2.textAlign = 'left';
@@ -13561,9 +13639,9 @@ b34K+950</script>
       if (vis.length < 200){
         for (const c of vis){
           const b = roadBadge(META.R[c.r]).t;
-          const str = b + ' ' + kmText(c).replace(' · ', ' ') + (c.dir ? ' ' + DIRS[c.dir] : '');
+          const str = (c.kind === 'ct' ? '' : b + ' ') + kmText(c).replace(' · ', ' ') + (dirText(c) ? ' ' + dirText(c) : '');
           const cx = X(c.x), cy = Y(c.y), off = 10 * dpr;
-          const color = c.kind === 'fw' ? FW : PR;
+          const color = kcol(c);
           // 先試右邊，再試左邊、上面、下面
           text(str, cx + off, cy, 11.5, color, 700) || text(str, cx - off, cy, 11.5, color, 700, 'right') ||
             text(str, cx, cy - off - 3 * dpr, 11.5, color, 700, 'center') || text(str, cx, cy + off + 3 * dpr, 11.5, color, 700, 'center');
@@ -13610,7 +13688,7 @@ b34K+950</script>
     if (state.mode === 'spot') return false; // 看景點時，路況攝影機淡化
     if (state.q || state.near || state.mode === 'fav') return lastBaseSet.has(c.i);
     if (state.road != null && c.r !== state.road) return false;
-    if (state.dir && c.dir && c.dir !== state.dir) return false;
+    if (state.dir && c.kind === 'fw' && c.dir && c.dir !== state.dir) return false;
     return true;
   }
   // 找手指／滑鼠點到的是哪個點或泡泡
@@ -13792,7 +13870,7 @@ b34K+950</script>
     const c = near[0][1];
     const hr = $('hovring'); hr.removeAttribute('hidden'); hr.setAttribute('cx', c.x); hr.setAttribute('cy', c.y);
     const tip = $('tip');
-    tip.innerHTML = '<b>' + esc(roadBadge(META.R[c.r]).t + ' ' + kmText(c)) + '</b> ' + esc(dirText(c)) + '<br>' + esc(place(c) + ' · ' + (c.sec || META.R[c.r])) +
+    tip.innerHTML = '<b>' + esc((c.kind === 'ct' ? '市區 ' : roadBadge(META.R[c.r]).t + ' ') + kmText(c)) + '</b> ' + esc(dirText(c)) + '<br>' + esc(place(c) + ' · ' + (c.sec || META.R[c.r])) +
       (near.length > 1 ? '<br><span style="color:var(--muted)">附近還有 ' + (near.length - 1) + ' 支，點一下可選</span>' : '');
     tip.hidden = false;
     const mb = $('mapbox').getBoundingClientRect();
@@ -13912,8 +13990,8 @@ b34K+950</script>
     if (canEmbed){
       const img = p.querySelector('img'), ph = p.querySelector('.ph');
       img.onload = () => ph.hidden = true;
-      img.onerror = () => { ph.hidden = false; ph.textContent = '這支攝影機暫時沒有畫面'; };
-      img.src = c.live;
+      img.onerror = () => { ph.hidden = false; if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); ph.textContent = '▶ 點開看即時影像'; } else ph.textContent = '這支攝影機暫時沒有畫面'; };
+      if (c.page){ ph.textContent = '▶ 點開看即時影像'; } else img.src = c.live;
     }
     $('pickx').onclick = closePick;
     document.querySelectorAll('#grid .cam.on').forEach(e => e.classList.remove('on'));
@@ -14052,12 +14130,12 @@ b34K+950</script>
 
     let list = state.road != null ? base.filter(c => c.r === state.road) : base;
     // 方向
-    const ds = [...new Set(list.filter(c => c.dir).map(c => c.dir))];
+    const ds = [...new Set(list.filter(c => c.dir && c.kind === 'fw').map(c => c.dir))];
     if (ds.length >= 2 && !state.q && state.mode !== 'fav'){
       if (state.dir && !ds.includes(state.dir)) state.dir = '';
       $('dirs').innerHTML = '<span class="lbl">國道方向</span><button class="chip" type="button" data-d="" aria-pressed="' + (!state.dir) + '">雙向</button>' +
         ['S','N','E','W'].filter(d => ds.includes(d)).map(d => '<button class="chip" type="button" data-d="' + d + '" aria-pressed="' + (state.dir === d) + '">' + DIRS[d] + '</button>').join('');
-      if (state.dir) list = list.filter(c => !c.dir || c.dir === state.dir);
+      if (state.dir) list = list.filter(c => c.kind !== 'fw' || !c.dir || c.dir === state.dir);
     } else { $('dirs').innerHTML = ''; state.dir = ''; }
 
     drawDetail(); // 地圖跟著篩選更新
@@ -14123,7 +14201,12 @@ b34K+950</script>
   function startImg(img, c){
     const ph = img.parentElement.querySelector('.ph');
     img.onload = () => { if (ph) ph.hidden = true; const t = img.parentElement.querySelector('.t'); if (t) t.textContent = c.snap ? new Date().toLocaleTimeString('zh-TW', {hour12:false}) : '即時'; };
-    img.onerror = () => { if (ph){ ph.hidden = false; ph.textContent = '這支攝影機暫時沒有畫面'; } };
+    img.onerror = () => {
+      // 市區攝影機若不是圖片，而是網頁播放器：改成「點開看」
+      if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); if (ph){ ph.hidden = false; ph.textContent = '▶ 點開看即時影像'; } return; }
+      if (ph){ ph.hidden = false; ph.textContent = '這支攝影機暫時沒有畫面'; }
+    };
+    if (c.page){ if (ph){ ph.hidden = false; ph.textContent = '▶ 點開看即時影像'; } return; }
     if (c.snap){ const load = () => { img.src = c.snap + '&t=' + Date.now(); }; load(); clearInterval(img._t); img._t = setInterval(load, SNAP_EVERY); }
     else if (!img.src) img.src = c.live;
   }
@@ -14138,14 +14221,19 @@ b34K+950</script>
   }
   function showViewer(){
     const c = vlist[vi];
-    $('vimg').src = c.live; $('vimg').alt = META.R[c.r] + ' ' + kmText(c) + ' 即時影像';
+    const vimg = $('vimg'), vf = $('vframe');
+    const asPage = () => { vimg.hidden = true; vimg.removeAttribute('src'); vf.hidden = false; vf.src = c.live; };
+    vf.hidden = true; vf.src = 'about:blank'; vimg.hidden = false;
+    vimg.onerror = () => { if (c.kind === 'ct'){ c.page = true; asPage(); } };
+    if (c.page) asPage(); else vimg.src = c.live;
+    vimg.alt = META.R[c.r] + ' ' + kmText(c) + ' 即時影像';
     $('vbadge').innerHTML = badgeHTML(c.r, true);
     $('vkm').innerHTML = esc(kmText(c)) + (dirText(c) ? '<small>' + dirText(c) + '</small>' : '');
     $('vsec').textContent = place(c) + ' · ' + (c.sec || META.R[c.r]);
     $('vopen').href = c.live;
     $('vprev').disabled = vi <= 0; $('vnext').disabled = vi >= vlist.length - 1;
   }
-  function closeViewer(){ $('viewer').hidden = true; $('vimg').removeAttribute('src'); }
+  function closeViewer(){ $('viewer').hidden = true; $('vimg').removeAttribute('src'); $('vframe').src = 'about:blank'; $('vframe').hidden = true; }
   $('vprev').onclick = () => { if (vi > 0){ vi--; showViewer(); } };
   $('vnext').onclick = () => { if (vi < vlist.length - 1){ vi++; showViewer(); } };
   $('vclose').onclick = closeViewer;
@@ -14527,7 +14615,7 @@ b34K+950</script>
     if (!state.near || state.mode !== 'map' || state.q || !list.length){ box.hidden = true; box.innerHTML = ''; return; }
     const top = list.slice(0, 4);
     const tile = c => {
-      const label = '<span class="nbl">' + esc(roadBadge(META.R[c.r]).t + ' ' + kmText(c) + (c.dir ? ' ' + DIRS[c.dir] : '')) +
+      const label = '<span class="nbl">' + esc((c.kind === 'ct' ? '市區 ' : roadBadge(META.R[c.r]).t + ' ') + kmText(c) + (dirText(c) ? ' ' + dirText(c) : '')) +
         '<small>' + distText(c._d) + ' · ' + esc(townName(c)) + '</small></span>';
       // 能嵌入畫面時顯示每 15 秒更新的縮圖；不能嵌入（例如 claude.ai）時點了開新分頁看
       return canEmbed
@@ -14559,15 +14647,88 @@ b34K+950</script>
     if (k === 'spot'){ setMode(state.mode === 'spot' ? 'map' : 'spot'); return; }
     if (state.mode === 'spot'){
       // 從景點切回路況：只開按的那一種
-      state.layers = {fw: k === 'fw', pr: k === 'pr'};
+      state.layers = {fw: k === 'fw', pr: k === 'pr', ct: k === 'ct'};
       store.set('tw-cctv-layers', state.layers);
       setMode('map'); return;
     }
     state.layers[k] = !state.layers[k];
-    if (!state.layers.fw && !state.layers.pr) state.layers[k === 'fw' ? 'pr' : 'fw'] = true; // 至少留一種
+    if (!state.layers.fw && !state.layers.pr && !state.layers.ct) state.layers[k] = true; // 至少留一種
     store.set('tw-cctv-layers', state.layers);
     limit = 60; renderList();
   });
+
+  // ===== 「更新清單」：直接向交通部 TDX 平台抓最新的國道、省道、各縣市市區攝影機 =====
+  // 不用金鑰的查詢，每個網路每天大約 50 次；更新一次全部約 24 次，所以平常一天按一兩次就夠
+  const TDX = 'https://tdx.transportdata.tw/api/basic/v2/Road/Traffic/CCTV/';
+  function fmtTime(iso){ const d = new Date(iso); return isNaN(d) ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  let toastT;
+  function toast(msg, ms){ const el = $('toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, ms || 9000); }
+  $('toast').onclick = () => $('toast').hidden = true;
+  function showUpdInfo(){
+    const has = DYN && DYN.src && Object.keys(CITY_NAMES).some(k => DYN.src[k]);
+    $('updt').textContent = has ? '清單更新於 ' + fmtTime(DYN.t) : '市區攝影機還沒載入';
+    $('upd').textContent = has ? '⟳ 更新清單' : '⟳ 載入市區攝影機';
+    $('upd').classList.toggle('first', !has);
+  }
+  async function updateList(){
+    const btn = $('upd'); if (btn.disabled) return;
+    btn.disabled = true; $('toast').hidden = true;
+    const codes = Object.keys(CITY_NAMES).concat(['fw', 'hw']);
+    const old = DYN && DYN.src ? DYN.src : {};
+    const src = Object.assign({}, old);
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    let ok = 0, quota = false, failed = 0, offline = false;
+    for (let k = 0; k < codes.length; k++){
+      const code = codes[k];
+      btn.textContent = '更新中 ' + (k + 1) + '/' + codes.length + '…';
+      const url = TDX + (code === 'fw' ? 'Freeway' : code === 'hw' ? 'Highway' : 'City/' + code) + '?$format=JSON';
+      let res = null;
+      for (let t = 0; t < 3; t++){
+        try {
+          const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 25000);
+          const r = await fetch(url, {signal: ctl.signal}); clearTimeout(to);
+          if (r.status === 429){ if (t < 2){ await sleep(3000 * (t + 1)); continue; } quota = true; break; }
+          if (!r.ok) break;
+          res = await r.json(); break;
+        } catch(e){ if (k === 0) offline = true; break; }
+      }
+      if (quota || offline) break;
+      if (res && Array.isArray(res.CCTVs)){
+        const L = [];
+        for (const x of res.CCTVs){
+          const u = x.VideoStreamURL || x.VideoImageURL || '';
+          if (!/^https?:/.test(u) || !x.PositionLat || !x.PositionLon) continue;
+          const sec = x.RoadSection && x.RoadSection.Start ? x.RoadSection.Start + '→' + (x.RoadSection.End || '') : '';
+          L.push([x.CCTVID || '', x.RoadName || '', x.RoadDirection || '', +(+x.PositionLon).toFixed(6), +(+x.PositionLat).toFixed(6), u, x.LocationMile || '', sec]);
+        }
+        src[code] = {t: new Date().toISOString(), L}; ok++;
+      } else failed++;
+      await sleep(1100); // 放慢一點，避免被平台判定呼叫太頻繁
+    }
+    const reset = () => { btn.disabled = false; showUpdInfo(); };
+    if (!ok){
+      reset();
+      toast(quota ? '今天這個網路的免費查詢次數已用完，明天再按一次，或換個網路（例如手機行動網路）。'
+                  : '連不到交通部資料平台。請用網站版、在台灣的網路下再按一次。');
+      return;
+    }
+    // 算出新增、減少幾支（第一次載入只報市區數量）
+    const keysOf = s => { const set = new Set(); for (const [code, d] of Object.entries(s)) if (d && d.L) for (const r of d.L) set.add(code + '|' + r[5]); return set; };
+    const first = !Object.keys(CITY_NAMES).some(k => old[k]);
+    const a = keysOf(old), b = keysOf(src);
+    let add = 0, del = 0; for (const k of b) if (!a.has(k)) add++; for (const k of a) if (!b.has(k)) del++;
+    const cityN = Object.keys(CITY_NAMES).reduce((n, k) => n + (src[k] ? src[k].L.length : 0), 0);
+    let msg = first ? '已載入各縣市市區攝影機 ' + cityN.toLocaleString('zh-TW') + ' 支' : add || del ? '清單已更新：新增 ' + add + ' 支、減少 ' + del + ' 支' : '清單已是最新，沒有新增或減少';
+    if (quota || failed) msg += '（有 ' + (codes.length - ok) + ' 個來源這次沒抓到，先沿用上次的資料' + (quota ? '；今天的免費查詢次數已用完，明天再按一次即可' : '') + '）';
+    try { localStorage.setItem('tw-cctv-dyn', JSON.stringify({v: 1, t: new Date().toISOString(), src})); }
+    catch(e){ reset(); toast('手機的瀏覽器儲存空間不足，沒辦法存下最新清單。'); return; }
+    if (!first && !add && !del){ DYN && (DYN.t = new Date().toISOString()); reset(); toast(msg); return; }
+    try { sessionStorage.setItem('tw-cctv-msg', msg); } catch(e){}
+    location.reload(); // 重新開頁，用新清單重建地圖與清單
+  }
+  $('upd').onclick = updateList;
+  showUpdInfo();
+  try { const m = sessionStorage.getItem('tw-cctv-msg'); if (m){ sessionStorage.removeItem('tw-cctv-msg'); setTimeout(() => toast(m), 600); } } catch(e){}
 
   // ===== 偵測這個環境能不能直接顯示畫面 =====
   function setEmbed(ok){
