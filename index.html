@@ -14064,8 +14064,8 @@ b34K+950</script>
     if (canEmbed){
       const img = p.querySelector('img'), ph = p.querySelector('.ph');
       img.onload = () => ph.hidden = true;
-      img.onerror = () => { ph.hidden = false; if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); img.hidden = true; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } else ph.textContent = '這支攝影機暫時沒有畫面'; };
-      if (c.page){ img.hidden = true; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } else img.src = c.live;
+      img.onerror = () => { ph.hidden = false; if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); img.style.display = 'none'; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } else ph.textContent = '這支攝影機暫時沒有畫面'; };
+      if (c.page){ img.style.display = 'none'; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } else img.src = c.live;
     }
     $('pickx').onclick = closePick;
     document.querySelectorAll('#grid .cam.on').forEach(e => e.classList.remove('on'));
@@ -14277,10 +14277,10 @@ b34K+950</script>
     img.onload = () => { if (ph) ph.hidden = true; const t = img.parentElement.querySelector('.t'); if (t) t.textContent = c.snap ? new Date().toLocaleTimeString('zh-TW', {hour12:false}) : '即時'; };
     img.onerror = () => {
       // 市區攝影機若不是圖片，而是網頁播放器：改成「點開看」
-      if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); img.hidden = true; if (ph){ ph.hidden = false; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } return; }
+      if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); img.style.display = 'none'; if (ph){ ph.hidden = false; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } return; }
       if (ph){ ph.hidden = false; ph.textContent = '這支攝影機暫時沒有畫面'; }
     };
-    if (c.page){ img.hidden = true; if (ph){ ph.hidden = false; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } return; }
+    if (c.page){ img.style.display = 'none'; if (ph){ ph.hidden = false; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } return; }
     if (c.snap){ const load = () => { img.src = c.snap + '&t=' + Date.now(); }; load(); clearInterval(img._t); img._t = setInterval(load, SNAP_EVERY); }
     else if (!img.src) img.src = c.live;
   }
