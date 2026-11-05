@@ -1,0 +1,28 @@
+# 每 6 小時自動更新一次攝影機清單（TDX 平台本身也是約 6 小時更新一次）
+name: 更新攝影機清單
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/**'
+      - '.github/workflows/update.yml'
+permissions:
+  contents: write
+concurrency:
+  group: update-cams
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 抓最新攝影機清單
+        run: python3 scripts/update_cams.py
+      - name: 存回儲存庫
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || (git commit -m "自動更新攝影機清單" && git pull --rebase && git push)
