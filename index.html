@@ -13675,8 +13675,9 @@ b34K+950</script>
     let z = Math.round(Math.log2(156543.03 * Math.cos(latC * Math.PI / 180) / mpp));
     z = Math.max(7, Math.min(18, z));
     const lonL = 120 + vb.x / TKX, lonR = 120 + (vb.x + vb.w) / TKX, latT = 25.35 - vb.y / TK, latB = 25.35 - (vb.y + vb.h) / TK;
+    if (!isFinite(z) || !isFinite(lonL + lonR + latT + latB)) return;   // 地圖大小還沒算好時先不畫
     let n, x0, x1, y0, y1;
-    for (;;){
+    for (let guard = 0; guard < 12; guard++){
       n = 2 ** z;
       x0 = Math.floor(lon2tx(lonL, n)); x1 = Math.floor(lon2tx(lonR, n)); y0 = Math.floor(lat2ty(latT, n)); y1 = Math.floor(lat2ty(latB, n));
       if ((x1 - x0 + 1) * (y1 - y0 + 1) <= 90 || z <= 7) break;
