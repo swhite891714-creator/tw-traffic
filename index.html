@@ -69,12 +69,6 @@ h1{margin:0;font-size:22px;font-weight:900;letter-spacing:.02em;text-wrap:balanc
 .dist{display:inline-block;font-family:var(--font-num);font-weight:700;color:#e8590c;margin-right:4px}
 .pin{pointer-events:none}
 .vbox [hidden]{display:none!important}
-.vstage{position:relative;background:#000}
-#rcv{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;background:#000}
-.recbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 12px;background:#161a18;color:#ddd;font-size:13px}
-.recbar input[type=range]{flex:1 1 180px;min-width:140px;accent-color:#ff6b35;height:28px}
-.recbar #rinfo{flex:1 1 100%;order:-1;font-weight:600}
-.recbar .vbtn{padding:6px 10px;font-size:13px}
 /* 手機上：路名資訊一整行，按鈕排到下一行 */
 #viewer .vbar .txt{flex:1 1 200px}
 @media (max-width:520px){#viewer .vbar .vbtn{flex:1 1 auto;text-align:center}}
@@ -262,7 +256,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
 .vbar .secline{color:#aab}
 .vbtn{font:inherit;font-size:14px;background:#2a2f2c;color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;text-decoration:none}
 .vbtn:disabled{opacity:.35;cursor:default}
-@media (max-width:520px){
+@media all{
   h1{font-size:20px}
   .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .km{font-size:17px}
@@ -275,31 +269,77 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
 }
 @media (prefers-reduced-motion:no-preference){.dot{animation:pulse 1.6s infinite}}
 @keyframes pulse{50%{opacity:.25}}
+
+/* ===== 版面（參考 Google 地圖、Apple 地圖）：地圖全螢幕＋浮動搜尋列＋可拉動的清單面板 ===== */
+html,body{height:100%}
+body{overflow:hidden;overscroll-behavior:none}
+.app{position:fixed;inset:0}
+.app .mapbox{position:absolute;inset:0;height:auto;max-height:none;min-height:0;border:0;border-radius:0}
+#lg-ic{display:none!important}
+/* 上方浮動：搜尋列＋圖層按鈕 */
+.topbar{position:absolute;left:0;right:0;top:0;z-index:20;padding:calc(env(safe-area-inset-top,0px) + 10px) max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px));pointer-events:none}
+.topbar > *{pointer-events:auto}
+.brand{display:none}
+.topbar .search{margin:0}
+.topbar .search input{height:48px;border:0;border-radius:24px;box-shadow:0 2px 6px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.04);padding-left:42px}
+.topbar .search svg{top:24px}
+.topbar .nearme{width:48px;height:48px;padding:0;border:0;border-radius:24px;box-shadow:0 2px 6px rgba(0,0,0,.18);font-size:0}
+.topbar .nearme::before{content:"📍";font-size:20px}
+.lyrrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;width:max-content;max-width:100%}
+.lyrrow .lyr,.lyrrow .chip.fav{min-height:34px;padding:6px 12px;font-size:13.5px;border-radius:999px;box-shadow:0 1px 4px rgba(0,0,0,.18);border:1.5px solid transparent;background:var(--panel)}
+.lyrrow .lyr[aria-pressed="true"]{border-color:var(--ink)}
+.lyrrow .chip.fav{color:var(--star);font-weight:700}
+.lyrrow .chip.fav[aria-pressed="true"]{background:var(--star);color:#fff}
+.lyrrow .chip.fav .n{color:inherit}
+/* 地圖上的提示、按鈕避開搜尋列與清單面板 */
+.app .maphint{top:calc(var(--tb,110px) + 6px);left:12px}
+.app .mapctl{top:calc(var(--tb,110px) + 6px);right:12px}
+.app .mapctl button{width:42px;height:42px;border:0;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.app .pick{left:10px;right:10px;bottom:calc(var(--peek,0px) + 10px);border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.28);z-index:12;max-height:calc(100% - var(--tb,110px) - var(--peek,0px) - 24px);overflow:auto}
+.app .attr{bottom:calc(var(--peek,0px) + 6px)}
+/* 底部清單面板（Material Design／Apple 的 bottom sheet：上方橫條可拉、可點） */
+.sheet{position:absolute;left:0;right:0;bottom:0;top:var(--sheet-top,70%);z-index:15;background:var(--bg);border-radius:20px 20px 0 0;box-shadow:0 -2px 18px rgba(0,0,0,.2);display:flex;flex-direction:column;transition:top .3s cubic-bezier(.2,.8,.2,1)}
+.sheet.dragging{transition:none}
+.grab{flex:none;height:24px;display:grid;place-items:center;cursor:grab;touch-action:none}
+.grab span{width:36px;height:5px;border-radius:3px;background:var(--muted);opacity:.45}
+.sheetbody{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 max(14px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));-webkit-overflow-scrolling:touch}
+.sheet .listhead{touch-action:none;padding-bottom:10px;align-items:center}
+.sheet .listhead h2{font-size:17px}
+.sheet .listhead #spotbtn{display:none}
+.infobar{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:10px 12px;margin:2px 0 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.region{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.region .sect,.sheet .roads::before{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.04em}
+.region .scroller:first-of-type{margin-top:6px}
+.sheet .nearbox{margin-bottom:12px}
+.sheet .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sheet .cam{border-radius:14px}
+footer{margin-top:24px}
+/* 電腦：清單固定在左側（像 Google 地圖電腦版），地圖在右側 */
+@media (min-width:900px){
+  .app .mapbox{left:420px}
+  .topbar{right:auto;width:420px;padding:14px 16px 12px;background:var(--bg);border-bottom:1px solid var(--line)}
+  .brand{display:block;font-size:18px;margin-bottom:10px}
+  .topbar .lyrrow .lyr,.topbar .lyrrow .chip.fav{box-shadow:none;border-color:var(--line)}
+  .topbar .lyrrow .lyr[aria-pressed="true"]{border-color:var(--ink)}
+  .sheet{top:0;right:auto;width:420px;border-radius:0;box-shadow:2px 0 14px rgba(0,0,0,.12);transition:none}
+  .grab{display:none}
+  .sheetbody{padding-top:calc(var(--tb,150px) + 12px)}
+  .sheet .listhead{touch-action:auto}
+  .app .maphint,.app .mapctl{top:12px}
+  .app .pick{left:auto;right:16px;bottom:16px;width:400px}
+  .app .attr{bottom:6px}
+}
+.lyrrow i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.lyrrow .sq{display:inline-block;width:10px;height:10px;border-radius:3px;background:#e8590c;margin-right:5px;vertical-align:middle}
+@media (max-width:899px){.app .pick .shot{max-height:27vh}}
+.lyrrow .ck{display:none}
+.lyrrow .lyr,.lyrrow .chip.fav{padding:6px 11px}
+.lyrrow .lyr[aria-pressed="false"]{opacity:1;color:var(--muted)}
+.lyrrow .lyr[aria-pressed="false"] i,.lyrrow .lyr[aria-pressed="false"] .sq{opacity:.35;filter:grayscale(1)}
+.lyrrow .lyr[aria-pressed="true"]{box-shadow:0 1px 4px rgba(0,0,0,.18),inset 0 0 0 1px var(--ink)}
 </style>
 
-<div class="wrap">
-  <h1>台灣路況即時影像</h1>
-  <div class="sub"><b id="total">0</b> 支攝影機（國道、省道、市區）<span class="updrow"><span id="updt"></span><button class="updbtn" type="button" id="upd">⟳ 更新清單</button></span></div>
-
-  <div class="search">
-    <div class="srow">
-      <div class="sbox">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="q" type="text" enterkeyhint="search" placeholder="打地名找附近：台北101、中壢、林口交流道、國道1號" autocomplete="off" aria-label="搜尋地名、景點、車站、鄉鎮或道路" role="combobox" aria-expanded="false" aria-controls="sug">
-        <button class="qx" type="button" id="qx" aria-label="清除搜尋" hidden>✕</button>
-        <div class="sug" id="sug" role="listbox" hidden></div>
-      </div>
-      <button class="nearme" type="button" id="nearme" title="找我目前位置附近的攝影機">📍 我附近</button>
-    </div>
-  </div>
-  <div class="scroller" id="counties" role="group" aria-label="快速跳到縣市"></div>
-  <button class="morebtn" type="button" id="counties-more" hidden></button>
-  <div class="scroller" id="towns" role="group" aria-label="選擇鄉鎮市區" hidden></div>
-  <button class="morebtn" type="button" id="towns-more" hidden></button>
-
-  <div class="layout">
-    <div class="mapcol">
-      <section class="nearbox" id="nearbox" hidden aria-label="附近路況"></section>
+<div class="app" id="app">
       <div class="mapbox" id="mapbox">
         <svg id="mapbase" class="maplayer" aria-hidden="true">
           <g id="counties-g"></g>
@@ -324,25 +364,49 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
           <button type="button" id="zall" aria-label="看全台灣" title="看全台灣" style="font-size:13px;font-weight:700">全台</button>
           <button type="button" id="zmap" aria-pressed="true" title="放大時顯示街道圖（路名、路口）" style="font-size:13px;font-weight:700">街道</button>
         </div>
-        <div class="legend" id="legend" role="group" aria-label="地圖要顯示哪些攝影機">
-          <span class="lbl">顯示</span>
+        <span id="lg-ic" hidden></span>
+        <div class="attr" id="attr" hidden></div>
+        <div class="pick" id="pick" hidden></div>
+      </div>
+  <header class="topbar" id="topbar">
+    <div class="brand"><b>台灣路況即時影像</b></div>
+  <div class="search">
+    <div class="srow">
+      <div class="sbox">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="text" enterkeyhint="search" placeholder="打地名找附近：台北101、中壢、林口交流道、國道1號" autocomplete="off" aria-label="搜尋地名、景點、車站、鄉鎮或道路" role="combobox" aria-expanded="false" aria-controls="sug">
+        <button class="qx" type="button" id="qx" aria-label="清除搜尋" hidden>✕</button>
+        <div class="sug" id="sug" role="listbox" hidden></div>
+      </div>
+      <button class="nearme" type="button" id="nearme" title="找我目前位置附近的攝影機">📍 我附近</button>
+    </div>
+  </div>
+    <div class="lyrrow" id="legend" role="group" aria-label="地圖要顯示哪些攝影機">
           <button class="lyr" type="button" data-ly="fw" aria-pressed="true"><i style="background:var(--fw)"></i>國道<span class="ck">✓</span></button>
           <button class="lyr" type="button" data-ly="pr" aria-pressed="true"><i style="background:var(--pr)"></i>省道<span class="ck">✓</span></button>
           <button class="lyr" type="button" data-ly="ct" aria-pressed="true"><i style="background:var(--ct)"></i>市區<span class="ck">✓</span></button>
           <button class="lyr" type="button" data-ly="spot" aria-pressed="false"><i class="sq"></i>景點<span class="ck"></span></button>
-          <span id="lg-ic" hidden><b style="color:var(--fw)">◆</b> 交流道</span>
-        </div>
-        <div class="attr" id="attr" hidden></div>
-        <div class="pick" id="pick" hidden></div>
-      </div>
+      <button class="chip fav" type="button" id="favbtn" aria-pressed="false">★ 最愛 <span class="n" id="favn">0</span></button>
     </div>
-
-    <div class="listcol">
-      <div class="listhead">
+  </header>
+  <section class="sheet" id="sheet" aria-label="攝影機清單">
+    <div class="grab" id="grab" role="button" tabindex="0" aria-label="往上拉看清單"><span></span></div>
+    <div class="sheetbody" id="sheetbody">
+      <div class="listhead" id="listhead">
         <h2 id="title">地圖範圍內的攝影機</h2>
         <button class="nearx" type="button" id="nearx" hidden>✕ 清除地點</button>
         <button class="chip spot" type="button" id="spotbtn" aria-pressed="false" title="觀光署公開的景點即時影像">🏞 景點直播 <span class="n" id="spotn">0</span></button>
-        <button class="chip fav" type="button" id="favbtn" aria-pressed="false">★ 我的最愛 <span class="n" id="favn">0</span></button>
+      </div>
+      <section class="nearbox" id="nearbox" hidden aria-label="附近路況"></section>
+  <div class="sub infobar"><b id="total">0</b> 支攝影機（國道、省道、市區）<span class="updrow"><span id="updt"></span><button class="updbtn" type="button" id="upd">⟳ 更新清單</button></span></div>
+
+      <div class="region">
+        <div class="sect">選地區</div>
+  <div class="scroller" id="counties" role="group" aria-label="快速跳到縣市"></div>
+  <button class="morebtn" type="button" id="counties-more" hidden></button>
+  <div class="scroller" id="towns" role="group" aria-label="選擇鄉鎮市區" hidden></div>
+  <button class="morebtn" type="button" id="towns-more" hidden></button>
+
       </div>
       <div class="roads" id="roads" role="group" aria-label="這一區的道路"></div>
       <button class="morebtn" type="button" id="roads-more" hidden></button>
@@ -350,12 +414,10 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
       <div class="note" id="note" hidden></div>
       <div class="grid" id="grid"></div>
       <button class="more" id="more" type="button" hidden>顯示更多</button>
-    </div>
-  </div>
-
   <footer>影像來源：交通部高速公路局、交通部公路局公開的即時影像。地圖上的點是攝影機實際位置，偶爾會有攝影機維修或畫面延遲。</footer>
+    </div>
+  </section>
 </div>
-
 <div class="toast" id="toast" hidden role="status"></div>
 <div class="viewer" id="sviewer" hidden role="dialog" aria-modal="true" aria-label="景點直播">
   <div class="vbox">
@@ -370,12 +432,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
 </div>
 <div class="viewer" id="viewer" hidden role="dialog" aria-modal="true" aria-label="即時影像">
   <div class="vbox">
-    <div class="vstage"><img id="vimg" alt=""><canvas id="rcv" hidden></canvas></div>
-    <div class="recbar" id="recbar" hidden>
-      <span id="rinfo"></span>
-      <input type="range" id="rslider" min="0" max="1" value="1" step="1" aria-label="回放時間軸：往左拉看較早的畫面">
-      <button class="vbtn" id="rlive" type="button" hidden>回到即時 ▶▶</button>
-    </div>
+    <img id="vimg" alt="">
     <iframe id="vframe" title="即時影像" hidden allow="autoplay; fullscreen" referrerpolicy="no-referrer"></iframe>
     <div class="vbar">
       <span id="vbadge"></span>
@@ -13203,6 +13260,91 @@ b34K+950</script>
 <script>
 (function(){
   const $ = id => document.getElementById(id);
+  // ===== 清單面板 =====
+  // 手機：像 Google 地圖、Apple 地圖一樣，地圖全螢幕，清單在底部面板，可以拉到三種高度
+  //   peek＝只露出標題、half＝一半、full＝幾乎全螢幕（上方仍留一條地圖）
+  //   拉頂端的橫條、或點一下橫條就能切換
+  // 電腦：清單固定在左邊，地圖在右邊
+  const isMobile = () => !matchMedia('(min-width: 900px)').matches;
+  let sheetPos = 'peek', sheetTopPx = 0;
+  const rootStyle = document.documentElement.style;
+  function tbH(){ return $('topbar').getBoundingClientRect().height; }
+  function peekH(){ return 24 + $('listhead').offsetHeight + 14 + Math.max(0, parseFloat(getComputedStyle(document.body).getPropertyValue('--safe-b')) || 0); }
+  function detents(){
+    const H = innerHeight;
+    return {peek: H - peekH(), half: Math.round(H * 0.5), full: Math.round(tbH() + 12)};
+  }
+  function setSheetTop(y, instant){
+    sheetTopPx = y;
+    $('sheet').classList.toggle('dragging', !!instant);
+    rootStyle.setProperty('--sheet-top', y + 'px');
+  }
+  function sheetTo(pos, instant){
+    if (!isMobile()) return;
+    sheetPos = pos;
+    setSheetTop(detents()[pos], instant);
+    $('grab').setAttribute('aria-label', pos === 'peek' ? '往上拉看清單' : pos === 'half' ? '清單在一半高度，點一下展開' : '清單已展開，點一下收起');
+  }
+  // 地圖被面板、上方搜尋列蓋住的部分（讓地圖飛過去時，目標落在看得到的地方）
+  function mapInsets(){
+    if (!isMobile()) return {top: 0, bottom: 0};
+    return {top: tbH(), bottom: Math.max(0, innerHeight - detents()[sheetPos])};
+  }
+  function syncLayout(){
+    rootStyle.setProperty('--tb', tbH() + 'px');
+    rootStyle.setProperty('--peek', isMobile() ? peekH() + 'px' : '0px');
+    if (isMobile()) setSheetTop(detents()[sheetPos], true);
+  }
+  // 拖曳面板
+  {
+    let drag = null;
+    const start = e => {
+      if (!isMobile() || e.target.closest('button, a, input')) return;
+      drag = {y0: e.clientY, t0: sheetTopPx, moved: false, time: performance.now(), el: e.currentTarget};
+      e.currentTarget.setPointerCapture(e.pointerId);
+    };
+    const move = e => {
+      if (!drag) return;
+      const dy = e.clientY - drag.y0;
+      if (Math.abs(dy) > 5) drag.moved = true;
+      if (!drag.moved) return;
+      const d = detents();
+      setSheetTop(Math.min(d.peek, Math.max(d.full, drag.t0 + dy)), true);
+    };
+    const end = e => {
+      if (!drag) return;
+      const g = drag; drag = null;
+      const d = detents(), dy = e.clientY - g.y0, cur = g.t0 + dy;
+      if (!g.moved){
+        // 點一下橫條：依序 只看標題 → 一半 → 全螢幕 → 只看標題；點標題列：從最低展開到一半
+        if (g.el.id === 'grab') sheetTo(sheetPos === 'peek' ? 'half' : sheetPos === 'half' ? 'full' : 'peek');
+        else if (sheetPos === 'peek') sheetTo('half');
+        return;
+      }
+      const v = dy / Math.max(1, performance.now() - g.time);   // 甩動的速度
+      let to;
+      if (v > 0.5) to = cur > d.half ? 'peek' : 'half';
+      else if (v < -0.5) to = cur < d.half ? 'full' : 'half';
+      else to = Object.keys(d).sort((a, b) => Math.abs(d[a] - cur) - Math.abs(d[b] - cur))[0];
+      sheetTo(to);
+    };
+    for (const el of [$('grab'), $('listhead')]){
+      el.addEventListener('pointerdown', start);
+      el.addEventListener('pointermove', move);
+      el.addEventListener('pointerup', end);
+      el.addEventListener('pointercancel', end);
+    }
+    $('grab').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); sheetTo(sheetPos === 'peek' ? 'half' : sheetPos === 'half' ? 'full' : 'peek'); } });
+  }
+  window.addEventListener('resize', syncLayout);
+  // 看地圖：手機把面板收到最低；看清單：展開並捲到指定位置
+  function showMap(){ if (isMobile()) sheetTo('peek'); }
+  function showList(el, pos){
+    if (isMobile()) sheetTo(pos || 'full');
+    const body = $('sheetbody');
+    if (el) setTimeout(() => body.scrollTo({top: Math.max(0, el.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop - 8), behavior: 'smooth'}), 50);
+  }
+
   const SVGNS = 'http://www.w3.org/2000/svg';
 
   // ===== 讀入內嵌資料 =====
@@ -13795,11 +13937,13 @@ b34K+950</script>
   function aspect(){ const r = svg.getBoundingClientRect(); return r.width && r.height ? r.height / r.width : 1.4; }
   function fit(box, pad){
     pad = pad == null ? 0.08 : pad;
-    const a = aspect();
+    const r = svg.getBoundingClientRect(), W = r.width || 400, Hm = r.height || 560;
+    const ins = mapInsets(), visH = Math.max(120, Hm - ins.top - ins.bottom);
+    const a = visH / W;
     let w = box.w * (1 + pad * 2), h = box.h * (1 + pad * 2);
     if (h / w > a) w = h / a; else h = w * a;
-    const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
-    return {x: cx - w / 2, y: cy - h / 2, w, h};
+    const u = w / W, cx = box.x + box.w / 2, cy = box.y + box.h / 2;
+    return {x: cx - w / 2, y: cy - h / 2 - ins.top * u, w, h: Hm * u};
   }
   function apply(){
     const vbs = vb.x + ' ' + vb.y + ' ' + vb.w + ' ' + vb.h;
@@ -13834,16 +13978,28 @@ b34K+950</script>
     hint();
     scheduleList();
   }
+  function ensureVisible(x, y){
+    const r = svg.getBoundingClientRect(); if (!r.height) return;
+    const T = animateTo.target || vb, pk = $('pick'), ins = mapInsets();
+    const top = r.top + ins.top + 8;
+    const bottom = (!pk.hidden ? pk.getBoundingClientRect().top : r.bottom - ins.bottom) - 14;
+    const sc = r.height / T.h, sy = r.top + (y - T.y) * sc, sx = r.left + (x - T.x) * sc;
+    const inX = sx > r.left + 24 && sx < r.right - 64;
+    if (sy > top + 24 && sy < bottom && inX) return;
+    const ty = bottom > top + 80 ? (top + bottom) / 2 : top + 40;
+    animateTo({x: inX ? T.x : x - (r.width / 2) / sc, y: T.y + (sy - ty) / sc, w: T.w, h: T.h}, 320);
+  }
   function animateTo(target, ms){
     ms = ms == null ? 350 : ms;
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) ms = 0;
     const from = Object.assign({}, vb), t0 = performance.now();
     cancelAnimationFrame(animateTo.f);
+    animateTo.target = target;
     const step = now => {
       const k = ms ? Math.min(1, (now - t0) / ms) : 1, e = 1 - Math.pow(1 - k, 3);
       vb = {x: from.x + (target.x - from.x) * e, y: from.y + (target.y - from.y) * e, w: from.w + (target.w - from.w) * e, h: from.h + (target.h - from.h) * e};
       apply();
-      if (k < 1) animateTo.f = requestAnimationFrame(step); else saveView();
+      if (k < 1) animateTo.f = requestAnimationFrame(step); else { animateTo.target = null; saveView(); }
     };
     animateTo.f = requestAnimationFrame(step);
   }
@@ -13970,8 +14126,9 @@ b34K+950</script>
   }
   svg.addEventListener('pointercancel', end);
   svg.addEventListener('wheel', e => { e.preventDefault(); clearCounty(); zoomAt(Math.exp(e.deltaY * 0.0015), e.clientX, e.clientY); }, {passive:false});
-  $('zin').onclick = () => { clearCounty(); const r = svg.getBoundingClientRect(); zoomAt(0.6, r.left + r.width / 2, r.top + r.height / 2); };
-  $('zout').onclick = () => { clearCounty(); const r = svg.getBoundingClientRect(); zoomAt(1 / 0.6, r.left + r.width / 2, r.top + r.height / 2); };
+  const visMid = () => { const r = svg.getBoundingClientRect(), ins = mapInsets(); return [r.left + r.width / 2, r.top + ins.top + (r.height - ins.top - ins.bottom) / 2]; };
+  $('zin').onclick = () => { clearCounty(); zoomAt(0.6, ...visMid()); };
+  $('zout').onclick = () => { clearCounty(); zoomAt(1 / 0.6, ...visMid()); };
   $('zall').onclick = () => { closePick(); clearNear(true); state.county = null; state.town = null; markCounty(); animateTo(fit(ALL, 0)); };
   window.addEventListener('resize', resize);
 
@@ -14020,6 +14177,7 @@ b34K+950</script>
   }
   // 同一個位置有好幾支（例如南下、北上各一支）時，列出來讓使用者選
   function showChooser(list){
+    showMap();
     clearCand();
     state.pick = null; $('selring').setAttribute('hidden', '');
     state.cand = new Set(list.map(c => c.i)); drawDetail();
@@ -14057,6 +14215,7 @@ b34K+950</script>
 
   // ===== 地圖上選到的攝影機 =====
   function selectCam(c, fly){
+    showMap();
     clearCand();
     state.spick = null;
     state.pick = c.i;
@@ -14084,6 +14243,7 @@ b34K+950</script>
       if (c.page){ img.style.display = 'none'; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } else img.src = c.live;
     }
     $('pickx').onclick = closePick;
+    ensureVisible(c.x, c.y);
     document.querySelectorAll('#grid .cam.on').forEach(e => e.classList.remove('on'));
     const card = document.querySelector('#grid .cam[data-i="' + c.i + '"]'); if (card) card.classList.add('on');
     hint();
@@ -14246,7 +14406,7 @@ b34K+950</script>
     else if (state.mode === 'fav') t.textContent = '★ 我的最愛 · ' + (list.length + favSpots0.length) + ' 個';
     else if (state.town != null) t.textContent = state.county + ' ' + TOWNS[state.town].name + ' · ' + list.length + ' 支攝影機';
     else t.textContent = state.county ? state.county + ' · ' + list.length + ' 支攝影機' : '地圖範圍內 ' + list.length + ' 支';
-    $('favn').textContent = favs.size;
+    $('favn').textContent = favs.size || '';
     $('favbtn').setAttribute('aria-pressed', state.mode === 'fav');
 
     const grid = $('grid');
@@ -14302,70 +14462,6 @@ b34K+950</script>
   }
   function stopImg(img){ clearInterval(img._t); if (img.src){ img.removeAttribute('src'); const ph = img.parentElement.querySelector('.ph'); if (ph){ ph.hidden = false; ph.textContent = '載入中…'; } } }
 
-  // ===== 回放：放大看的時候，每 5 秒把畫面存一張在手機記憶體裡，可以往回拉 =====
-  // 政府沒有提供錄影存檔，所以只能回看「你打開這支攝影機之後」的畫面；不會多用網路流量（存的是已經在看的畫面）
-  const REC = new Map();                 // 攝影機 key → [{t: 時間, cv: 縮小的畫面}]
-  const REC_EVERY = 5000, REC_PER_CAM = 180, REC_TOTAL = 360, REC_W = 320;
-  let recCam = null, recTimer = 0, recView = -1;   // recView：-1 = 看即時，其餘 = 正在看第幾張
-  function recTotal(){ let n = 0; for (const L of REC.values()) n += L.length; return n; }
-  function recGrab(){
-    const c = recCam, img = $('vimg');
-    if (!c || img.hidden || !img.naturalWidth) return;
-    const h = Math.round(REC_W * img.naturalHeight / img.naturalWidth);
-    const cv = document.createElement('canvas'); cv.width = REC_W; cv.height = h;
-    try { cv.getContext('2d').drawImage(img, 0, 0, REC_W, h); } catch(e){ return; }
-    let L = REC.get(c.key); if (!L){ L = []; REC.set(c.key, L); }
-    L.push({t: Date.now(), cv});
-    if (L.length > REC_PER_CAM) L.shift();
-    // 總量太多時，先丟掉其他攝影機最舊的畫面（避免手機記憶體不夠）
-    while (recTotal() > REC_TOTAL){
-      let oldK = null, oldT = Infinity;
-      for (const [k, A] of REC) if (A.length && A[0].t < oldT && k !== c.key){ oldT = A[0].t; oldK = k; }
-      if (oldK == null) break;
-      REC.get(oldK).shift(); if (!REC.get(oldK).length) REC.delete(oldK);
-    }
-    recUI();
-  }
-  function recStart(c){
-    clearInterval(recTimer); recCam = c; recView = -1; recShow();
-    recTimer = setInterval(recGrab, REC_EVERY);
-    setTimeout(recGrab, 1500);
-    recUI();
-  }
-  function recStop(){ clearInterval(recTimer); recTimer = 0; recCam = null; recView = -1; recShow(); }
-  const hhmmss = t => { const d = new Date(t); return [d.getHours(), d.getMinutes(), d.getSeconds()].map(v => String(v).padStart(2, '0')).join(':'); };
-  function recUI(){
-    const bar = $('recbar'), c = recCam;
-    if (!c){ bar.hidden = true; return; }
-    bar.hidden = false;
-    const L = REC.get(c.key) || [];
-    const s = $('rslider');
-    if (c.page){ $('rinfo').textContent = '這支是網頁播放器，沒辦法回放'; s.disabled = true; $('rlive').hidden = true; return; }
-    s.disabled = L.length < 2;
-    s.max = Math.max(1, L.length);           // 最右邊 = 即時
-    if (recView < 0) s.value = s.max;
-    const mins = L.length ? Math.round((Date.now() - L[0].t) / 60000) : 0;
-    $('rinfo').textContent = recView >= 0 && L[recView] ? '⏪ 回放 ' + hhmmss(L[recView].t) + '（往右拉回到即時）'
-      : L.length < 2 ? '● 錄製中…往左拉可回看（每 5 秒存一張）' : '● 錄製中 · 可回看 ' + (mins < 1 ? '不到 1' : mins) + ' 分鐘（從 ' + hhmmss(L[0].t).slice(0, 5) + ' 開始）';
-    $('rlive').hidden = recView < 0;
-  }
-  function recShow(){
-    const cv = $('rcv'), img = $('vimg');
-    const L = recCam ? REC.get(recCam.key) || [] : [];
-    const f = recView >= 0 ? L[recView] : null;
-    if (!f){ cv.hidden = true; if (recCam && !recCam.page) img.style.visibility = ''; return; }
-    cv.width = f.cv.width; cv.height = f.cv.height;
-    cv.getContext('2d').drawImage(f.cv, 0, 0);
-    cv.hidden = false; img.style.visibility = 'hidden';
-  }
-  $('rslider').addEventListener('input', e => {
-    const L = recCam ? REC.get(recCam.key) || [] : [];
-    const v = +e.target.value;
-    recView = v >= L.length ? -1 : v;
-    recShow(); recUI();
-  });
-  $('rlive').onclick = () => { recView = -1; recShow(); recUI(); };
-
   // ===== 放大檢視 =====
   let vlist = [], vi = -1;
   // 這些網站的播放器不允許被別的網頁嵌入，點了直接開新分頁
@@ -14379,8 +14475,8 @@ b34K+950</script>
   function showViewer(){
     const c = vlist[vi];
     const vimg = $('vimg'), vf = $('vframe');
-    const asPage = () => { vimg.hidden = true; vimg.removeAttribute('src'); vf.hidden = false; vf.src = c.live; recUI(); };
-    vf.hidden = true; vf.src = 'about:blank'; vimg.hidden = false; vimg.style.visibility = '';
+    const asPage = () => { vimg.hidden = true; vimg.removeAttribute('src'); vf.hidden = false; vf.src = c.live; };
+    vf.hidden = true; vf.src = 'about:blank'; vimg.hidden = false;
     vimg.onerror = () => { if (c.kind === 'ct'){ c.page = true; asPage(); } };
     if (c.page) asPage(); else vimg.src = c.live;
     vimg.alt = META.R[c.r] + ' ' + kmText(c) + ' 即時影像';
@@ -14389,9 +14485,8 @@ b34K+950</script>
     $('vsec').textContent = place(c) + ' · ' + (c.sec || META.R[c.r]);
     $('vopen').href = c.live;
     $('vprev').disabled = vi <= 0; $('vnext').disabled = vi >= vlist.length - 1;
-    recStart(c);
   }
-  function closeViewer(){ recStop(); $('viewer').hidden = true; $('vimg').removeAttribute('src'); $('vframe').src = 'about:blank'; $('vframe').hidden = true; }
+  function closeViewer(){ $('viewer').hidden = true; $('vimg').removeAttribute('src'); $('vframe').src = 'about:blank'; $('vframe').hidden = true; }
   $('vprev').onclick = () => { if (vi > 0){ vi--; showViewer(); } };
   $('vnext').onclick = () => { if (vi < vlist.length - 1){ vi++; showViewer(); } };
   $('vclose').onclick = closeViewer;
@@ -14404,7 +14499,6 @@ b34K+950</script>
       return;
     }
     if ($('viewer').hidden) return;
-    if (document.activeElement && document.activeElement.id === 'rslider' && /Arrow/.test(e.key)) return;
     if (e.key === 'Escape') closeViewer();
     if (e.key === 'ArrowLeft') $('vprev').click();
     if (e.key === 'ArrowRight') $('vnext').click();
@@ -14421,7 +14515,7 @@ b34K+950</script>
     store.set('tw-cctv-favs', [...favs]);
     const on = favs.has(key);
     document.querySelectorAll(sel).forEach(s => { s.setAttribute('aria-pressed', on); s.textContent = favText(on, s.dataset.long === '1'); });
-    $('favn').textContent = favs.size;
+    $('favn').textContent = favs.size || '';
     if (state.mode === 'fav') scheduleList();
   }
   function toggleFav(i){ setFavKey(cams[i].key, '[data-star="' + i + '"]'); }
@@ -14435,7 +14529,7 @@ b34K+950</script>
     if (l){
       const c = cams[+l.dataset.loc];
       clearCounty(); selectCam(c, true);
-      if (window.matchMedia('(max-width: 899px)').matches) $('mapbox').scrollIntoView({behavior:'smooth', block:'start'});
+      showMap();
     }
   });
   $('roads').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.road = b.dataset.r === '' ? null : +b.dataset.r; limit = 60; renderList(); });
@@ -14554,7 +14648,7 @@ b34K+950</script>
       return;
     }
     if (p.type === 'web'){ webSearch(p.q); return; }
-    if (p.type === 'spot'){ clearNear(true); qEl.value = p.name; $('qx').hidden = false; state.county = null; state.town = null; markCounty(); setMode('spot'); selectSpot(p.s, true); if (window.matchMedia('(max-width: 899px)').matches) $('mapbox').scrollIntoView({behavior: 'smooth', block: 'start'}); return; }
+    if (p.type === 'spot'){ clearNear(true); qEl.value = p.name; $('qx').hidden = false; state.county = null; state.town = null; markCounty(); setMode('spot'); selectSpot(p.s, true); showMap(); return; }
     if (p.type === 'county'){ qEl.value = ''; $('qx').hidden = true; selectCounty(p.name); return; }
     setNear(p.type === 'town' ? p.name + '（' + p.sub + '）' : p.name, p.x, p.y, p.type === 'town' ? 6 : 5);
     qEl.value = p.name; $('qx').hidden = false;
@@ -14573,12 +14667,13 @@ b34K+950</script>
     $('pin').removeAttribute('hidden');
     renderList();
     // 地圖框住地點和這些攝影機
+    if (isMobile()) sheetTo('half');
+    $('sheetbody').scrollTo({top: 0});
     let x0 = x, y0 = y, x1 = x, y1 = y;
     for (const c of (state.mode === 'spot' ? nearSpots() : list)){ x0 = Math.min(x0, c.x); y0 = Math.min(y0, c.y); x1 = Math.max(x1, c.x); y1 = Math.max(y1, c.y); }
     const w = Math.max(40, x1 - x0), h = Math.max(40, y1 - y0);
     animateTo(fit({x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - h / 2, w, h}, 0.18));
-    const target = $('nearbox').hidden ? $('mapbox') : $('nearbox');
-    if (window.matchMedia('(max-width: 899px)').matches || !$('nearbox').hidden) target.scrollIntoView({behavior: 'smooth', block: 'start'});
+
   }
   function clearNear(keepText){
     if (!state.near) return;
@@ -14682,6 +14777,7 @@ b34K+950</script>
   }
 
   function selectSpot(s, fly){
+    showMap();
     clearCand();
     state.pick = null;
     state.spick = s.i;
@@ -14695,6 +14791,7 @@ b34K+950</script>
       '<div class="acts">' + playHTML(s) + '<a class="locate off" href="' + official(s) + '" target="_blank" rel="noopener">官方頁面</a>' + favBtn('sstar', s.i, favs.has('spot:' + s.uid), true) + '</div>';
     p.hidden = false;
     $('pickx').onclick = closePick;
+    ensureVisible(s.x, s.y);
     document.querySelectorAll('#grid .cam.on').forEach(e => e.classList.remove('on'));
     const card = document.querySelector('#grid .cam[data-s="' + s.i + '"]'); if (card) card.classList.add('on');
     hint();
@@ -14759,7 +14856,7 @@ b34K+950</script>
   document.addEventListener('click', e => {
     const pl = e.target.closest('[data-splay]'); if (pl){ playSpot(SPOTS[+pl.dataset.splay]); return; }
     const sl = e.target.closest('[data-sloc]');
-    if (sl){ selectSpot(SPOTS[+sl.dataset.sloc], true); if (window.matchMedia('(max-width: 899px)').matches) $('mapbox').scrollIntoView({behavior: 'smooth', block: 'start'}); return; }
+    if (sl){ selectSpot(SPOTS[+sl.dataset.sloc], true); showMap(); return; }
     if (e.target.closest('[data-gospot]')){ closePick(); setMode('spot'); }
   });
   $('spotbtn').onclick = () => {
@@ -14787,8 +14884,8 @@ b34K+950</script>
     box.hidden = false;
   }
   document.addEventListener('click', e => {
-    if (e.target.closest('[data-nbmap]')) $('mapbox').scrollIntoView({behavior: 'smooth', block: 'start'});
-    if (e.target.closest('[data-nball]')) $('title').scrollIntoView({behavior: 'smooth', block: 'start'});
+    if (e.target.closest('[data-nbmap]')) showMap();
+    if (e.target.closest('[data-nball]')) showList($('grid'), 'full');
   });
 
   // ===== 地圖顯示開關 =====
@@ -14906,11 +15003,13 @@ b34K+950</script>
   }
 
   // ===== 開始 =====
+  syncLayout();
   renderCountyChips();
   const saved = store.get('tw-cctv-vb', null);
   vb = saved && saved.w ? saved : fit(ALL, 0);
   resize();
   renderList();
+  requestAnimationFrame(syncLayout);
   const probe = new Image();
   const to = setTimeout(() => setEmbed(false), 8000);
   probe.onload = () => { clearTimeout(to); setEmbed(true); };
