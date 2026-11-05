@@ -1,0 +1,26 @@
+2026-11-05T13:41+08:00
+fw: 失敗 HTTP Error 401: Unauthorized
+hw: 失敗 HTTP Error 401: Unauthorized
+Taipei: 失敗 HTTP Error 401: Unauthorized
+NewTaipei: 失敗 HTTP Error 401: Unauthorized
+Taoyuan: 失敗 HTTP Error 401: Unauthorized
+Taichung: 失敗 HTTP Error 401: Unauthorized
+Tainan: 失敗 HTTP Error 401: Unauthorized
+Kaohsiung: 失敗 HTTP Error 401: Unauthorized
+Keelung: 失敗 HTTP Error 401: Unauthorized
+Hsinchu: 失敗 HTTP Error 401: Unauthorized
+HsinchuCounty: 失敗 HTTP Error 401: Unauthorized
+MiaoliCounty: 失敗 HTTP Error 401: Unauthorized
+ChanghuaCounty: 失敗 HTTP Error 401: Unauthorized
+NantouCounty: 失敗 HTTP Error 401: Unauthorized
+YunlinCounty: 失敗 HTTP Error 401: Unauthorized
+ChiayiCounty: 失敗 HTTP Error 401: Unauthorized
+Chiayi: 失敗 HTTP Error 401: Unauthorized
+PingtungCounty: 失敗 HTTP Error 401: Unauthorized
+YilanCounty: 失敗 HTTP Error 401: Unauthorized
+HualienCounty: 失敗 HTTP Error 401: Unauthorized
+TaitungCounty: 失敗 HTTP Error 401: Unauthorized
+KinmenCounty: 失敗 HTTP Error 401: Unauthorized
+PenghuCounty: 失敗 HTTP Error 401: Unauthorized
+LienchiangCounty: 失敗 HTTP Error 401: Unauthorized
+影像主機格式：{}
