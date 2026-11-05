@@ -76,7 +76,8 @@ textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .qty{grid-row:span 2;align-self:center;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .qty b{font-size:23px;display:block}
 .row.zero,.row.zero .meta,.row.zero .qty small{color:var(--danger);font-weight:700}
-.qty small{font-size:13px;color:var(--muted)}
+.qty small{font-size:13px;color:var(--muted);display:block}
+.qty small.shipq{color:var(--ok);font-weight:700}
 .empty{padding:40px 8px;text-align:center;color:var(--muted)}
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20}
 .sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--surface);border-radius:16px 16px 0 0;max-height:88vh;overflow:auto;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));max-width:760px;margin:0 auto;display:grid;gap:12px;box-sizing:border-box}
@@ -200,7 +201,7 @@ label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
   <label><span id="oQtyLbl">出庫數量</span><div class="step"><button type="button" data-s="oQty" data-d="-1">−</button><input id="oQty" inputmode="numeric" value="1"><button type="button" data-s="oQty" data-d="1">＋</button></div></label>
   <label id="oTagRow">附註（選填）<input id="oTag" placeholder="例如：含毯" autocomplete="off"></label>
   <div><span style="font-size:14px;color:var(--muted)">出庫方式</span>
-    <div class="seg"><label><input type="radio" name="oWhere" value="note" checked> 備註</label><label><input type="radio" name="oWhere" value="memo2"> 客戶寄庫</label><label><input type="radio" name="oWhere" value="ship"> 寄庫出貨</label></div>
+    <div class="seg"><label><input type="radio" name="oWhere" value="note" checked> 備註</label><label><input type="radio" name="oWhere" value="memo2"> 客戶寄庫</label><label><input type="radio" name="oWhere" value="shipped"> 直接出貨</label><label><input type="radio" name="oWhere" value="ship"> 寄庫出貨</label></div>
     <p class="note" id="oHint" style="margin-top:6px"></p></div>
   <div class="out-sum" id="oSum"></div>
   <div class="err" id="oErr" hidden></div>
@@ -307,7 +308,7 @@ function render(){
     if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><span class="grp-lbl">庫存</span></div>`}
     return head+`<button class="row${(num(i.qty)===0||i.red)?' zero':''}${(i.hl||num(i.qty)===0)?' hl':''}" data-id="${i.id}">
       <span class="model">${esc(i.model)}</span>
-      <span class="qty"><b>${fmt(num(i.qty))}</b>${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
+      <span class="qty"><b>${fmt(num(i.qty))}</b>${pubMode&&i.shippedQty?`<small class="shipq">已出貨 ${fmt(i.shippedQty)}</small>`:''}${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
       <span class="meta">${esc([parts.join(' · '),i.note||''].filter(Boolean).join('\n'))}</span>
       ${i.memo2?`<span class="memo2"><b>客戶寄庫</b>\n${esc(i.memo2)}</span>`:''}
       ${i.shipped?`<span class="memo2 ship"><b>已出貨</b>\n${esc(i.shipped)}</span>`:''}
@@ -444,7 +445,7 @@ function outSum(){
   const it=outItem();if(!it){$('oSum').textContent='';return}
   const n=Math.floor(num($('oQty').value)),left=num(it.qty)-n,w=outWhere();
   const ship=w==='ship';$('oSrcRow').hidden=!ship;$('oNameRow').hidden=ship;$('oChips').style.display=ship?'none':'';$('oTagRow').hidden=ship;$('oName').required=!ship;$('oQtyLbl').textContent=ship?'出貨數量':'出庫數量';$('oSave').textContent=ship?'確認出貨':'確認出庫';
-  $('oHint').textContent={note:'扣庫存，並在「備註」加上「對象*數量」。',memo2:'扣庫存，並記在「客戶寄庫」。',ship:'把已經寄庫的貨送出：庫存不變，從「備註」或「客戶寄庫」移到「已出貨」。'}[w];
+  $('oHint').textContent={note:'扣庫存，並在「備註」加上「對象*數量」。',memo2:'扣庫存，並記在「客戶寄庫」。',shipped:'貨直接交給客戶：扣庫存，並記在「已出貨」。',ship:'把已經寄庫的貨送出：庫存不變，從「備註」或「客戶寄庫」移到「已出貨」。'}[w];
   if(ship){const e=curEntry();
     if(!e){$('oSum').innerHTML='<span style="color:var(--muted)">這個品項的備註和客戶寄庫裡沒有可以出貨的寄庫。</span>';return}
     $('oSum').innerHTML=`<span>${esc(e.name)} 寄庫 <b>${fmt(e.n)}</b></span><span class="arrow">出貨 ${fmt(n)} →</span><span>寄庫剩 <b style="color:${e.n-n<0?'var(--danger)':'var(--fg)'}">${fmt(e.n-n)}</b></span><span style="width:100%;font-size:13px;color:var(--muted)">庫存維持 ${fmt(num(it.qty))}</span>`;return}
@@ -788,13 +789,13 @@ async function startPublic(){
 }
 
 /* ---------- 一鍵更新 GitHub 公開頁 ---------- */
-// 按下後：把目前庫存（含備註、客戶寄庫，不含已出貨）整理成快照，
+// 按下後：把目前庫存（含備註、客戶寄庫，已出貨只算台數不含客戶名稱）整理成快照，
 // 交給「更新 Nux 公開頁」排程工作，由它寫進 GitHub 的 nux/data.json；約 3～5 分鐘後公開頁就是新資料。
 const PUB_TASK='trig_01Ljpv9wts2qHvNUPxr14g2C';
 function publicSnap(){
   const list=items.map(i=>{const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,order:num(i.order)};
     if(limits[i.id]!=null)o.init=limits[i.id];
-    if(i.note)o.note=i.note;if(i.memo2)o.memo2=i.memo2;return o});
+    if(i.note)o.note=i.note;if(i.memo2)o.memo2=i.memo2;if(i.shipped){const n=noteTotal(i.shipped);if(n)o.shippedQty=n}return o});
   return {at:new Date().toISOString(),showNotes:true,count:list.length,items:list};
 }
 let pubBusy=false;
