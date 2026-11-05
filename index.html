@@ -68,6 +68,9 @@ h1{margin:0;font-size:22px;font-weight:900;letter-spacing:.02em;text-wrap:balanc
 .nearx{font:inherit;font-size:13px;font-weight:700;border:0;background:var(--chip);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
 .dist{display:inline-block;font-family:var(--font-num);font-weight:700;color:#e8590c;margin-right:4px}
 .pin{pointer-events:none}
+.attr{position:absolute;right:10px;bottom:50px;font-size:10px;color:#333;background:rgba(255,255,255,.8);padding:1px 6px;border-radius:4px;pointer-events:none}
+.mapctl button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.gmap{display:block;text-align:center;font-size:13px;font-weight:700;color:var(--pr);padding:0 12px 12px;text-decoration:none}
 /* 更新清單按鈕與提示 */
 .updrow{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:4px}
 .updbtn{font:inherit;font-size:13px;font-weight:700;border:1.5px solid var(--fw);color:var(--fw);background:var(--panel);border-radius:999px;padding:4px 12px;cursor:pointer}
@@ -292,6 +295,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
           <g id="towns-g"></g>
           <g id="cborder-g"></g>
         </svg>
+        <canvas id="tiles" class="maplayer" aria-hidden="true" style="display:none"></canvas>
         <canvas id="detail" class="maplayer" aria-hidden="true"></canvas>
         <svg id="map" class="maplayer" role="application" aria-label="台灣攝影機地圖，點縣市放大，點攝影機看畫面" tabindex="0">
           <g id="labels-g"></g>
@@ -307,6 +311,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
           <button type="button" id="zin" aria-label="放大">＋</button>
           <button type="button" id="zout" aria-label="縮小">－</button>
           <button type="button" id="zall" aria-label="看全台灣" title="看全台灣" style="font-size:13px;font-weight:700">全台</button>
+          <button type="button" id="zmap" aria-pressed="true" title="放大時顯示街道圖（路名、路口）" style="font-size:13px;font-weight:700">街道</button>
         </div>
         <div class="legend" id="legend" role="group" aria-label="地圖要顯示哪些攝影機">
           <span class="lbl">顯示</span>
@@ -316,6 +321,7 @@ footer{margin-top:28px;font-size:12px;color:var(--muted)}
           <button class="lyr" type="button" data-ly="spot" aria-pressed="false"><i class="sq"></i>景點<span class="ck"></span></button>
           <span id="lg-ic" hidden><b style="color:var(--fw)">◆</b> 交流道</span>
         </div>
+        <div class="attr" id="attr" hidden></div>
         <div class="pick" id="pick" hidden></div>
       </div>
     </div>
@@ -13328,6 +13334,7 @@ b34K+950</script>
   // 地圖顯示開關：國道、省道（景點由「景點模式」控制）
   state.layers = Object.assign({fw: true, pr: true, ct: true}, store.get('tw-cctv-layers', {}));
   if (!state.layers.fw && !state.layers.pr && !state.layers.ct) state.layers = {fw: true, pr: true, ct: true};
+  state.street = store.get('tw-cctv-street', true);
   let limit = 60;
   let canEmbed = null;
 
@@ -13467,7 +13474,73 @@ b34K+950</script>
   }
 
   const cv = $('detail'), g2 = cv.getContext('2d');
+  // ===== 街道底圖：放大時換成國土測繪中心「臺灣通用電子地圖」（有路名、巷弄），看得出是哪個路口 =====
+  // 圖磚是麥卡托投影，這裡把每張圖磚的四個角換算成本地圖座標後貼上（放大到街道層級時誤差很小）
+  const TK = 4095 / 3.5, TKX = TK * Math.cos(23.7 * Math.PI / 180);
+  const STREET_W = 320;                       // 地圖寬度小於這個（約 30 公里）就顯示街道圖
+  const tcv = $('tiles'), tg = tcv.getContext('2d');
+  const tileCache = new Map();
+  let tileRaf = 0, tileSrcUsed = 'nlsc';
+  const streetOn = () => state.street !== false && vb.w < STREET_W;
+  const lon2tx = (lon, n) => (lon + 180) / 360 * n;
+  const lat2ty = (lat, n) => { const r = lat * Math.PI / 180; return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n; };
+  const tx2lon = (x, n) => x / n * 360 - 180;
+  const ty2lat = (y, n) => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI;
+  function getTile(z, x, y){
+    const k = z + '/' + x + '/' + y;
+    let t = tileCache.get(k);
+    if (t) return t;
+    const img = new Image();
+    t = {img, ok: false, fail: false, alt: false};
+    img.onload = () => { t.ok = true; if (!tileRaf) tileRaf = requestAnimationFrame(() => { tileRaf = 0; drawTiles(); }); };
+    // 國土測繪中心連不上時，改用 OpenStreetMap
+    img.onerror = () => { if (!t.alt){ t.alt = true; tileSrcUsed = 'osm'; img.src = 'https://tile.openstreetmap.org/' + z + '/' + x + '/' + y + '.png'; } else t.fail = true; };
+    img.src = 'https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/' + z + '/' + y + '/' + x;
+    tileCache.set(k, t);
+    if (tileCache.size > 500){ const first = tileCache.keys().next().value; tileCache.delete(first); }
+    return t;
+  }
+  function drawTiles(){
+    const rect = svg.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = Math.max(1, Math.round(rect.width * dpr)), H = Math.max(1, Math.round(rect.height * dpr));
+    if (tcv.width !== W || tcv.height !== H){ tcv.width = W; tcv.height = H; }
+    tg.clearRect(0, 0, W, H);
+    const on = streetOn();
+    tcv.style.display = on ? '' : 'none';
+    $('zmap').setAttribute('aria-pressed', state.street !== false);
+    if (!on){ $('attr').hidden = true; return; }
+    const s = W / vb.w;
+    const X = lon => ((lon - 120) * TKX - vb.x) * s, Y = lat => ((25.35 - lat) * TK - vb.y) * s;
+    const latC = 25.35 - (vb.y + vb.h / 2) / TK;
+    const mpp = vb.w * (111320 / TK) / W;          // 每個實際像素幾公尺
+    let z = Math.round(Math.log2(156543.03 * Math.cos(latC * Math.PI / 180) / mpp));
+    z = Math.max(7, Math.min(18, z));
+    const n = 2 ** z;
+    const lonL = 120 + vb.x / TKX, lonR = 120 + (vb.x + vb.w) / TKX, latT = 25.35 - vb.y / TK, latB = 25.35 - (vb.y + vb.h) / TK;
+    const x0 = Math.floor(lon2tx(lonL, n)), x1 = Math.floor(lon2tx(lonR, n)), y0 = Math.floor(lat2ty(latT, n)), y1 = Math.floor(lat2ty(latB, n));
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 120) return;  // 保險：一次最多 120 張
+    let drawn = 0;
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++){
+      const px = X(tx2lon(tx, n)), py = Y(ty2lat(ty, n));
+      const pw = X(tx2lon(tx + 1, n)) - px, ph = Y(ty2lat(ty + 1, n)) - py;
+      const t = getTile(z, tx, ty);
+      if (t.ok){ tg.drawImage(t.img, px, py, pw + 0.5, ph + 0.5); drawn++; continue; }
+      // 還沒載入：先用上一層（較模糊）的圖磚頂著，避免一片空白
+      for (let up = 1; up <= 3; up++){
+        const pz = z - up, f = 2 ** up, p = tileCache.get(pz + '/' + Math.floor(tx / f) + '/' + Math.floor(ty / f));
+        if (p && p.ok){ const sz = 256 / f; tg.drawImage(p.img, (tx % f) * sz, (ty % f) * sz, sz, sz, px, py, pw + 0.5, ph + 0.5); drawn++; break; }
+      }
+    }
+    const at = $('attr');
+    at.hidden = !drawn;
+    at.textContent = tileSrcUsed === 'osm' ? '底圖 © OpenStreetMap' : '底圖：內政部國土測繪中心';
+  }
+  $('zmap').onclick = () => { state.street = state.street === false; store.set('tw-cctv-street', state.street); apply(); };
+
   function drawDetail(){
+    drawTiles();
+    const street = streetOn();
     const rect = svg.getBoundingClientRect();
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = Math.max(1, Math.round(rect.width * dpr)), H = Math.max(1, Math.round(rect.height * dpr));
@@ -13484,8 +13557,8 @@ b34K+950</script>
     const INK = col('--ink'), MUTED = col('--muted'), LAND = col('--land'), FW = col('--fw'), PR = col('--pr'), CTC = col('--ct');
     const kcol = c => c.kind === 'fw' ? FW : c.kind === 'ct' ? CTC : PR;
 
-    // 1. 村里界線（虛線）
-    if (vb.w < 300){
+    // 1. 村里界線（虛線）——街道圖模式不畫
+    if (vb.w < 300 && !street){
       g2.beginPath();
       for (let i = 0; i < ARCS.length; i++){
         if (ARC_KIND[i] || out(ARC_BOX[i])) continue;
@@ -13506,7 +13579,7 @@ b34K+950</script>
         for (let k = 1; k < rl.pts.length; k++) g2.lineTo(X(rl.pts[k][0]), Y(rl.pts[k][1]));
       }
       if (!state.layers[kind] && state.mode !== 'spot') continue; // （市區沒有道路線）
-      g2.globalAlpha = state.mode === 'spot' ? 0.15 : 0.3; g2.strokeStyle = kind === 'fw' ? FW : PR; g2.lineWidth = lw; g2.stroke(); g2.globalAlpha = 1;
+      g2.globalAlpha = state.mode === 'spot' || street ? 0.15 : 0.3; g2.strokeStyle = kind === 'fw' ? FW : PR; g2.lineWidth = lw; g2.stroke(); g2.globalAlpha = 1;
     }
 
     // ===== 攝影機點：太密的地方合併成數字泡泡，點泡泡就放大 =====
@@ -13670,8 +13743,8 @@ b34K+950</script>
         }
       }
     }
-    // 6. 村里名稱
-    if (vb.w < 150){
+    // 6. 村里名稱——街道圖模式不畫
+    if (vb.w < 150 && !street){
       const need = vb.w > 100 ? 7 : vb.w > 60 ? 5 : vb.w > 30 ? 3 : 0;
       for (const v of VILLS){
         if (v.lv < need || v.x < x0 || v.x > x1 || v.y < y0 || v.y > y1) continue;
@@ -13724,7 +13797,7 @@ b34K+950</script>
     $('labels-g').style.display = vb.w < 1300 ? 'none' : '';
     // 放大到縣市以下才顯示鄉鎮市區名稱；太小的區域等放更大再顯示，避免字疊在一起
     const showT = vb.w < 1300;
-    $('tlabels-g').style.display = showT ? '' : 'none';
+    $('tlabels-g').style.display = showT && !streetOn() ? '' : 'none';
     $('tlabels-g').style.fontSize = (12 * px) + 'px';
     $('towns-g').style.display = vb.w < 1600 ? '' : 'none';
     if (showT){
@@ -13985,7 +14058,8 @@ b34K+950</script>
       '<button class="x" type="button" id="pickx" aria-label="關閉">✕</button></div>' +
       '<div class="acts">' + (canEmbed
         ? '<button class="open" type="button" data-view="' + c.i + '">放大看</button>'
-        : '<a class="open" href="' + esc(c.live) + '" target="_blank" rel="noopener"><span class="dot"></span>看即時影像</a>') + favBtn('star', c.i, isFav, true) + '</div>' + navHTML(c);
+        : '<a class="open" href="' + esc(c.live) + '" target="_blank" rel="noopener"><span class="dot"></span>看即時影像</a>') + favBtn('star', c.i, isFav, true) + '</div>' + navHTML(c) +
+      '<a class="gmap" href="https://www.google.com/maps/search/?api=1&amp;query=' + (25.35 - c.y / TK).toFixed(6) + ',' + (120 + c.x / TKX).toFixed(6) + '" target="_blank" rel="noopener">📍 在 Google 地圖看這個位置（可看街景）</a>';
     p.hidden = false;
     if (canEmbed){
       const img = p.querySelector('img'), ph = p.querySelector('.ph');
