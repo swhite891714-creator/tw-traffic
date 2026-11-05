@@ -14722,7 +14722,11 @@ b34K+950</script>
     let add = 0, del = 0; for (const k of b) if (!a.has(k)) add++; for (const k of a) if (!b.has(k)) del++;
     const cityN = Object.keys(CITY_NAMES).reduce((n, k) => n + (src[k] ? src[k].L.length : 0), 0);
     let msg = first ? '已載入各縣市市區攝影機 ' + cityN.toLocaleString('zh-TW') + ' 支' : add || del ? '清單已更新：新增 ' + add + ' 支、減少 ' + del + ' 支' : '清單已是最新，沒有新增或減少';
-    if (quota || failed) msg += '（有 ' + (codes.length - ok) + ' 個來源這次沒抓到，先沿用上次的資料' + (quota ? '；今天的免費查詢次數已用完，明天再按一次即可' : '') + '）';
+    if (quota || failed){
+      // 有些來源沒抓到：老實說只更新了幾個
+      const part = '這次只更新到 ' + ok + '/' + codes.length + ' 個來源，其餘沿用上次的資料' + (quota ? '；今天這個網路的免費查詢次數已用完，明天再按一次即可' : '');
+      msg = first ? msg + '（' + part + '）' : add || del ? msg + '（' + part + '）' : part + '。';
+    }
     try { localStorage.setItem('tw-cctv-dyn', JSON.stringify({v: 1, t: new Date().toISOString(), src})); }
     catch(e){ reset(); toast('手機的瀏覽器儲存空間不足，沒辦法存下最新清單。'); return; }
     if (!first && !add && !del){ DYN && (DYN.t = new Date().toISOString()); reset(); toast(msg); return; }
