@@ -13990,8 +13990,8 @@ b34K+950</script>
     if (canEmbed){
       const img = p.querySelector('img'), ph = p.querySelector('.ph');
       img.onload = () => ph.hidden = true;
-      img.onerror = () => { ph.hidden = false; if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); ph.textContent = '▶ 點開看即時影像'; } else ph.textContent = '這支攝影機暫時沒有畫面'; };
-      if (c.page){ ph.textContent = '▶ 點開看即時影像'; } else img.src = c.live;
+      img.onerror = () => { ph.hidden = false; if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } else ph.textContent = '這支攝影機暫時沒有畫面'; };
+      if (c.page){ ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } else img.src = c.live;
     }
     $('pickx').onclick = closePick;
     document.querySelectorAll('#grid .cam.on').forEach(e => e.classList.remove('on'));
@@ -14203,10 +14203,10 @@ b34K+950</script>
     img.onload = () => { if (ph) ph.hidden = true; const t = img.parentElement.querySelector('.t'); if (t) t.textContent = c.snap ? new Date().toLocaleTimeString('zh-TW', {hour12:false}) : '即時'; };
     img.onerror = () => {
       // 市區攝影機若不是圖片，而是網頁播放器：改成「點開看」
-      if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); if (ph){ ph.hidden = false; ph.textContent = '▶ 點開看即時影像'; } return; }
+      if (c.kind === 'ct'){ c.page = true; img.removeAttribute('src'); if (ph){ ph.hidden = false; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } return; }
       if (ph){ ph.hidden = false; ph.textContent = '這支攝影機暫時沒有畫面'; }
     };
-    if (c.page){ if (ph){ ph.hidden = false; ph.textContent = '▶ 點開看即時影像'; } return; }
+    if (c.page){ if (ph){ ph.hidden = false; ph.textContent = (NOFRAME.test(c.live) ? '▶ 點開看（新分頁）' : '▶ 點開看即時影像'); } return; }
     if (c.snap){ const load = () => { img.src = c.snap + '&t=' + Date.now(); }; load(); clearInterval(img._t); img._t = setInterval(load, SNAP_EVERY); }
     else if (!img.src) img.src = c.live;
   }
@@ -14214,7 +14214,10 @@ b34K+950</script>
 
   // ===== 放大檢視 =====
   let vlist = [], vi = -1;
+  // 這些網站的播放器不允許被別的網頁嵌入，點了直接開新分頁
+  const NOFRAME = /^https?:\/\/atis\.ntpc\.gov\.tw\//i;
   function openViewer(idx){
+    if (NOFRAME.test(cams[idx].live)){ window.open(cams[idx].live, '_blank', 'noopener'); return; }
     vlist = lastList.some(c => c.i === idx) ? lastList : [cams[idx]];
     vi = vlist.findIndex(c => c.i === idx);
     showViewer(); $('viewer').hidden = false; $('vclose').focus();
