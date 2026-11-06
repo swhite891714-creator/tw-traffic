@@ -75,7 +75,7 @@ function keyDialog(reason) {
     dlg.querySelector("#kdSave").onclick = () => {
       const v = dlg.querySelector("#kdInput").value.trim();
       if (!/^sk-ant-/.test(v)) { dlg.querySelector("#kdMsg").textContent = "金鑰應該是 sk-ant- 開頭，請整串貼上。"; return; }
-      setKey(v); dlg.querySelector("#kdInput").value = ""; close(true);
+      setKey(v); dlg.querySelector("#kdInput").value = ""; hideSetupCard(); close(true);
     };
     dlg.querySelector("#kdCancel").onclick = () => close(false);
     dlg.querySelector("#kdDel").onclick = () => { setKey(""); dlg.querySelector("#kdMsg").textContent = "已刪除這支手機上的金鑰。"; };
@@ -103,7 +103,32 @@ function addKeyButton() {
   const h = document.querySelector(".wrap > header");
   if (h) { b.classList.add("kd-inline"); h.appendChild(b); } else document.body.appendChild(b);
 }
-if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", addKeyButton); else addKeyButton();
+// 第一次打開（還沒有金鑰）：在標題下面放一張說明卡，按一下就能設定，不用猜要做什麼
+function addSetupCard() {
+  if (getKey() || document.getElementById("kdCard")) return;
+  const h = document.querySelector(".wrap > header"); if (!h) return;
+  const c = document.createElement("section");
+  c.id = "kdCard";
+  c.innerHTML = `<b>第一次使用：先設定金鑰（約 3 分鐘）</b>
+    <ol>
+      <li>用電腦或手機打開 <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> 並登入</li>
+      <li>先在「Billing」儲值（翻譯依用量計費，一張照片約幾美分）</li>
+      <li>「API Keys」→「Create Key」→ 複製 sk-ant- 開頭的整串</li>
+    </ol>
+    <button type="button" class="kd-main" id="kdCardBtn">貼上金鑰</button>
+    <span class="kd-note">金鑰只存在這支手機裡。</span>`;
+  const css = document.createElement("style");
+  css.textContent = `#kdCard{background:#2a2410;border:1px solid #5a4a1a;border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.6;color:#eee}
+    #kdCard ol{margin:6px 0 10px;padding-left:20px}#kdCard a{color:#f0c050}
+    #kdCard .kd-main{font:inherit;font-weight:700;background:#f0c050;color:#111;border:0;border-radius:99px;padding:8px 18px;cursor:pointer}
+    #kdCard .kd-note{font-size:12px;color:#aaa;margin-left:8px}`;
+  document.head.appendChild(css);
+  h.after(c);
+  c.querySelector("#kdCardBtn").onclick = () => keyDialog("");
+}
+function hideSetupCard() { const c = document.getElementById("kdCard"); if (c && getKey()) c.remove(); }
+function boot() { addKeyButton(); addSetupCard(); }
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 
 // ---------- 圖片轉成 Claude 看得懂的格式 ----------
 async function toImageBlock(img) {

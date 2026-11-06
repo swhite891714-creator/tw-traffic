@@ -173,14 +173,51 @@ details.box summary{cursor:pointer;display:flex;gap:8px;align-items:baseline;col
 .tsmall{font-size:12px;color:var(--muted)}
 /* 放大給對方看：出現在語音畫面最上方的白色大字卡，點一下關閉 */
 .tbig{background:#fff;color:#111;border-radius:14px;display:flex;align-items:center;justify-content:center;padding:16px 14px;font-size:clamp(22px,6.5vw,34px);font-weight:900;line-height:1.35;text-align:center;word-break:break-word;cursor:pointer}
+
+/* ===== 操作介面優化 ===== */
+/* 常用設定：放在最上面，一眼看到要翻成什麼、價格換成什麼 */
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quick .field{gap:4px}
+.quick select{padding-block:8px;font-size:15px}
+/* 下方固定操作列：拇指最好按的位置，捲到哪裡都按得到 */
+.dock{position:sticky;bottom:0;z-index:20;display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px;align-items:stretch;
+  margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:10px max(16px,env(safe-area-inset-left,0px)) max(10px,env(safe-area-inset-bottom,0px));
+  background:linear-gradient(to top,var(--bg) 82%,transparent)}
+.dock .shoot{padding:14px 10px;font-size:17px}
+.dock .side{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:inherit;font-size:12px;font-weight:600;color:var(--fg);
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:8px 4px;cursor:pointer;white-space:nowrap;min-height:52px}
+.dock .side b{font-size:20px;line-height:1}
+.dock .side:active,.dock .shoot:active{transform:scale(.97)}
+/* 結果相關的按鈕：沒有照片前不顯示，讓畫面乾淨 */
+.after[hidden]{display:none}
+details.more{border-top:1px solid var(--line);padding-top:10px}
+details.more>summary{cursor:pointer;font-size:14px;color:var(--muted);padding:6px 0}
+details.more .controls{margin-top:10px}
 </style>
 
 <div class="wrap">
   <header>
     <h1>鏡頭即時翻譯</h1>
-    <span class="tag">線上版・第 21 版</span>
+    <span class="tag">線上版・第 22 版</span>
   </header>
 
+  <!-- 常用設定：翻成哪種語言、價格換成哪種幣別 -->
+  <div class="quick">
+    <label class="field" for="lang"><span class="tag">翻譯成</span>
+      <select id="lang">
+        <option value="繁體中文（台灣用語）">繁體中文</option>
+        <option value="English">English</option>
+        <option value="日本語">日本語</option>
+        <option value="한국어">한국어</option>
+        <option value="Tiếng Việt">Tiếng Việt</option>
+        <option value="ภาษาไทย">ภาษาไทย</option>
+        <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+      </select>
+    </label>
+    <label class="field" for="target"><span class="tag">價格換算成</span>
+      <select id="target"></select>
+    </label>
+  </div>
   <div class="figure" id="figure">
     <canvas id="out" aria-label="翻譯後的畫面"></canvas>
     <canvas id="orig" class="orig" aria-hidden="true"></canvas>
@@ -202,20 +239,12 @@ details.box summary{cursor:pointer;display:flex;gap:8px;align-items:baseline;col
     </div>
   </div>
 
+  <!-- 第二排：照片相關的操作（重新選範圍、放大、儲存、重新翻譯） -->
   <div class="tools">
-    <label class="shoot grow" id="shootBtn" for="cam" role="button" tabindex="0">● 拍照翻譯</label>
-    <input class="hidden-input" type="file" id="cam" accept="image/*" capture="environment">
-  </div>
-  <div class="tools">
-    <button class="shoot grow" id="talkBtn" type="button" style="background:var(--panel);color:var(--fg);border:1px solid var(--line)">🎙 語音翻譯（聽對方說話）</button>
-  </div>
-  <div class="tools">
-    <button class="ghost" id="recropBtn" type="button" hidden>重新選範圍</button>
-    <button class="ghost" id="fullBtn" type="button">放大檢視</button>
-    <button class="ghost" id="saveBtn" type="button" hidden>儲存翻譯圖</button>
-    <label class="ghost" for="pick" role="button" tabindex="0">從相簿選圖</label>
-    <input class="hidden-input" type="file" id="pick" accept="image/*">
-    <button class="ghost" id="retryBtn" type="button" hidden>重新翻譯</button>
+    <button class="ghost" id="recropBtn" type="button" hidden>✂ 重新選範圍</button>
+    <button class="ghost" id="fullBtn" type="button">🔍 放大檢視</button>
+    <button class="ghost" id="saveBtn" type="button" hidden>⬇ 儲存翻譯圖</button>
+    <button class="ghost" id="retryBtn" type="button" hidden>↻ 重新翻譯</button>
   </div>
   <p class="msg" id="msg">按住照片可看原文，或拖曳滑桿對照。點下方項目會在照片上標出位置。</p>
 
@@ -229,18 +258,10 @@ details.box summary{cursor:pointer;display:flex;gap:8px;align-items:baseline;col
     <div class="curline" id="curline" hidden></div>
   </section>
 
-  <div class="controls">
-    <label class="field" for="lang"><span class="tag">翻譯成</span>
-      <select id="lang">
-        <option value="繁體中文（台灣用語）">繁體中文</option>
-        <option value="English">English</option>
-        <option value="日本語">日本語</option>
-        <option value="한국어">한국어</option>
-        <option value="Tiếng Việt">Tiếng Việt</option>
-        <option value="ภาษาไทย">ภาษาไทย</option>
-        <option value="Bahasa Indonesia">Bahasa Indonesia</option>
-      </select>
-    </label>
+  <!-- 比較少改的設定收在這裡 -->
+  <details class="more" id="moreBox">
+    <summary>更多設定（所在地、翻譯風格、匯率）</summary>
+    <div class="controls">
     <label class="field" for="srcCur"><span class="tag">你現在在哪</span>
       <select id="srcCur"></select>
     </label>
@@ -250,17 +271,22 @@ details.box summary{cursor:pointer;display:flex;gap:8px;align-items:baseline;col
         <option value="literal">忠實直譯</option>
       </select>
     </label>
-    <label class="field" for="target"><span class="tag">價格換算成</span>
-      <select id="target"></select>
-    </label>
-  </div>
-
+    </div>
   <details class="box" id="ratesBox">
     <summary><span class="tag">匯率</span> <span id="rateSrc"></span></summary>
     <p class="msg">1 單位外幣兌新台幣。數字可以直接改，改過的會記在這支手機上。</p>
     <div class="rgrid" id="rgrid"></div>
     <button class="ghost" id="resetRates" type="button">還原預設匯率</button>
   </details>
+  </details>
+  <!-- 下方固定操作列：相簿｜拍照翻譯｜語音 -->
+  <div class="dock">
+    <label class="side" for="pick" role="button" tabindex="0"><b>🖼</b>相簿</label>
+    <input class="hidden-input" type="file" id="pick" accept="image/*">
+    <label class="shoot" id="shootBtn" for="cam" role="button" tabindex="0">● 拍照翻譯</label>
+    <input class="hidden-input" type="file" id="cam" accept="image/*" capture="environment">
+    <button class="side" id="talkBtn" type="button"><b>🎙</b>語音</button>
+  </div>
 </div>
 
 <div class="crop" id="crop" hidden role="dialog" aria-label="選擇翻譯範圍">
