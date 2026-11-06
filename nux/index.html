@@ -850,9 +850,28 @@ $('pubGo').onclick=async()=>{
   }
 };
 // 沒登入時：用快照顯示純瀏覽版
+// 讀公開資料：先直接向 GitHub 讀最新的 data.json（推送後幾秒內就是新資料，不用等網站重新部署），
+// 讀不到時再改讀網站上的 data.json
+const GH_RAW='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/nux/data.json?ref=main';
+async function loadPubData(){
+  try{const r=await fetch(GH_RAW+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}});if(r.ok){const j=await r.json();if(j&&j.items)return j}}catch(e){}
+  try{const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});if(r.ok)return await r.json()}catch(e){}
+  return null;
+}
+// 公開頁開著時，每 2 分鐘自動檢查一次；切回這個畫面時也馬上檢查，有新資料就自動換上
+let pubAtNow='';
+async function pubRefresh(){
+  const sn=await loadPubData();
+  if(!sn||!sn.items||!sn.at||sn.at<=pubAtNow)return;
+  pubAtNow=sn.at;items=sn.items;limits={};items.forEach(i=>{if(typeof i.init==='number')limits[i.id]=i.init});
+  $('status').textContent=`資料更新時間：${fmtAt(sn.at)}`;
+  render();
+}
 async function startPublic(){
   let sn=readSnap();
-  if(!sn){try{const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});if(r.ok)sn=await r.json()}catch(e){}}
+  if(!sn){sn=await loadPubData();if(sn&&sn.at)pubAtNow=sn.at;
+    setInterval(()=>{if(!document.hidden)pubRefresh()},120000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)pubRefresh()});}
   document.body.classList.add('ro','pub');canWrite=false;
   ['openOut','openHist','openExp','openPub','pubLink','pubPush'].forEach(id=>$(id).hidden=true);
   $('role').className='role pub';$('role').textContent='公開預覽';$('role').hidden=false;
@@ -864,7 +883,7 @@ async function startPublic(){
 
 /* ---------- 一鍵更新 GitHub 公開頁 ---------- */
 // 按下後：把目前庫存（含備註、客戶寄庫，已出貨只算台數不含客戶名稱）整理成快照，
-// 交給「更新 Nux 公開頁」排程工作，由它寫進 GitHub 的 nux/data.json；約 3～5 分鐘後公開頁就是新資料。
+// 交給「更新 Nux 公開頁」排程工作，由它寫進 GitHub 的 nux/data.json；約 1～2 分鐘後公開頁就會自動換上新資料。
 const PUB_TASK='trig_01Ljpv9wts2qHvNUPxr14g2C';
 function publicSnap(){
   const list=items.map(i=>{const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,order:num(i.order)};
@@ -885,7 +904,7 @@ $('pubPush').onclick=async()=>{
     if(!mcp)throw {code:'unavailable'};
     const text='<<<NUXDATA\n'+JSON.stringify(publicSnap())+'\nNUXDATA>>>';
     await mcp.callTool('Claude Code Remote','fire_trigger',{trigger_id:PUB_TASK,text});
-    toast('已送出更新，約 3～5 分鐘後公開頁會換成最新資料');
+    toast('已送出更新，約 1～2 分鐘後公開頁會自動換成最新資料');
   }catch(e){
     const c=e&&e.code;
     toast(c==='server_not_connected'?'請先在 claude.ai 的「設定 → 連接器」開啟 Claude Code Remote':c==='not_granted'||c==='approval_required'?'需要允許這個頁面使用 Claude Code Remote 才能更新':'更新沒有送出，請稍後再試一次');
