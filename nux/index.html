@@ -77,6 +77,7 @@ textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .qty b{font-size:23px;display:block}
 .row.zero,.row.zero .meta,.row.zero .qty small{color:var(--danger);font-weight:700}
 .qty small{font-size:13px;color:var(--muted);display:block}
+.qty small.split{color:var(--fg);font-weight:600}
 .qty small.shipq{color:var(--ok);font-weight:700}
 .empty{padding:40px 8px;text-align:center;color:var(--muted)}
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20}
@@ -86,7 +87,10 @@ textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .x{border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px}
 label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media (max-width:420px){.two{grid-template-columns:1fr}}
+.bucket{display:grid;gap:8px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.bucket>b{font-size:15px}
+.tot{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+
 .step{display:grid;grid-template-columns:44px 1fr 44px;gap:6px}
 .step input{text-align:center;font-family:var(--mono)}
 .step button{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;font-size:20px;cursor:pointer}
@@ -167,11 +171,19 @@ label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
   <div class="sheet-head"><h2>編輯品項</h2><div class="tools"><button type="button" class="tool primary" id="toOut">出庫這個品項</button><button type="button" class="x" data-close aria-label="關閉">×</button></div></div>
   <label>品類<input id="fCat" required></label>
   <label>型號<input id="fModel" required></label>
+  <div class="bucket"><b>預定單庫存</b><span class="note" id="initHint"></span>
   <div class="two">
-    <label><span>初始庫存 <span id="initHint"></span></span><div class="step"><button type="button" data-s="fInit" data-d="-1">−</button><input id="fInit" inputmode="numeric"><button type="button" data-s="fInit" data-d="1">＋</button></div></label>
-    <label><span>目前數量 <span id="maxHint"></span></span><div class="step"><button type="button" data-s="fQty" data-d="-1">−</button><input id="fQty" inputmode="numeric"><button type="button" data-s="fQty" data-d="1">＋</button></div></label>
+    <label>初始<div class="step"><button type="button" data-s="fInitP" data-d="-1">−</button><input id="fInitP" inputmode="numeric"><button type="button" data-s="fInitP" data-d="1">＋</button></div></label>
+    <label>目前<div class="step"><button type="button" data-s="fQtyP" data-d="-1">−</button><input id="fQtyP" inputmode="numeric"><button type="button" data-s="fQtyP" data-d="1">＋</button></div></label>
   </div>
-  <label class="check" id="fRestockRow" hidden><input type="checkbox" id="fRestock"> <span id="fRestockTxt"></span></label>
+  <label class="check" id="fRestockRowP" hidden><input type="checkbox" id="fRestockP"> <span id="fRestockTxtP"></span></label></div>
+  <div class="bucket"><b>現貨庫存</b>
+  <div class="two">
+    <label>初始<div class="step"><button type="button" data-s="fInitS" data-d="-1">−</button><input id="fInitS" inputmode="numeric"><button type="button" data-s="fInitS" data-d="1">＋</button></div></label>
+    <label>目前<div class="step"><button type="button" data-s="fQtyS" data-d="-1">−</button><input id="fQtyS" inputmode="numeric"><button type="button" data-s="fQtyS" data-d="1">＋</button></div></label>
+  </div>
+  <label class="check" id="fRestockRowS" hidden><input type="checkbox" id="fRestockS"> <span id="fRestockTxtS"></span></label></div>
+  <div class="tot" id="fTot"></div>
   <label>備註<textarea id="fNote" rows="5" placeholder="一行一筆，例如：小新*5"></textarea></label>
   <label>客戶寄庫<textarea id="fMemo2" rows="3" placeholder="一行一筆，例如：Can*17"></textarea></label>
   <label>已出貨<textarea id="fShip" rows="3" placeholder="寄庫的貨送出後記在這裡，例如：小新*5"></textarea></label>
@@ -200,6 +212,8 @@ label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
   <div class="chips" id="oChips"></div>
   <label><span id="oQtyLbl">出庫數量</span><div class="step"><button type="button" data-s="oQty" data-d="-1">−</button><input id="oQty" inputmode="numeric" value="1"><button type="button" data-s="oQty" data-d="1">＋</button></div></label>
   <label id="oTagRow">附註（選填）<input id="oTag" placeholder="例如：含毯" autocomplete="off"></label>
+  <div id="oFromRow"><span style="font-size:14px;color:var(--muted)">從哪裡扣</span>
+    <div class="seg"><label><input type="radio" name="oFrom" value="pre" checked> 預定單庫存</label><label><input type="radio" name="oFrom" value="spot"> 現貨庫存</label></div></div>
   <div><span style="font-size:14px;color:var(--muted)">出庫方式</span>
     <div class="seg"><label><input type="radio" name="oWhere" value="note" checked> 備註</label><label><input type="radio" name="oWhere" value="memo2"> 客戶寄庫</label><label><input type="radio" name="oWhere" value="shipped"> 直接出貨</label><label><input type="radio" name="oWhere" value="ship"> 寄庫出貨</label></div>
     <p class="note" id="oHint" style="margin-top:6px"></p></div>
@@ -248,14 +262,25 @@ label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
 
 <script>
 const $=id=>document.getElementById(id);
-let onlyMis=false,histCount=100,items=[],limits={},histItems=[],db=null,user=null,me=null,editing=null,canWrite=true,delArmed=false,names={},downloads=null;
+let lim2={},onlyMis=false,histCount=100,items=[],limits={},histItems=[],db=null,user=null,me=null,editing=null,canWrite=true,delArmed=false,names={},downloads=null;
 const num=v=>{const n=parseFloat(String(v??'').replace(/,/g,''));return isFinite(n)?n:0};
 const fmt=n=>n.toLocaleString('zh-TW');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const FIELDS=['cat','model','color','qty','note','memo2','shipped','hl','red'];
-const LABEL={init:'初始庫存',cat:'品類',model:'型號',color:'顏色',cbm:'材積',qty:'數量',note:'備註',memo2:'客戶寄庫',shipped:'已出貨',hl:'黃底',red:'紅字'};
+const FIELDS=['cat','model','color','qty','qtyPre','qtySpot','note','memo2','shipped','hl','red'];
+const LABEL={init:'初始庫存',initPre:'預定單初始',initSpot:'現貨初始',qtyPre:'預定單庫存',qtySpot:'現貨庫存',cat:'品類',model:'型號',color:'顏色',cbm:'材積',qty:'數量',note:'備註',memo2:'客戶寄庫',shipped:'已出貨',hl:'黃底',red:'紅字'};
 const pick=o=>o?Object.fromEntries(FIELDS.concat('order').map(k=>[k,o[k]??((k==='hl'||k==='red')?false:'')])):null;
 const same=(a,b)=>JSON.stringify(pick(a))===JSON.stringify(pick(b));
+
+/* ---------- 預定單庫存／現貨庫存 ---------- */
+// 每個品項的庫存分成兩部分：預定單（一開始的庫存）與現貨（後來進貨多出來的）。
+// lim2[id]={pre,spot} 是兩邊的初始庫存；品項的 qtyPre／qtySpot 是兩邊的目前數量，qty 是兩者相加。
+function initOf(id){const l=lim2[id];if(l)return l;const m=limits[id];return m!=null?{pre:m,spot:0}:null}
+// 讀出某品項兩邊的目前數量；舊資料沒有分開時，已扣除的數量先算在預定單
+function splitOf(i){
+  if(i.qtyPre!==''&&i.qtyPre!=null&&i.qtySpot!==''&&i.qtySpot!=null)return {pre:num(i.qtyPre),spot:num(i.qtySpot)};
+  const L=initOf(i.id),q=num(i.qty);if(!L)return {pre:q,spot:0};
+  const used=L.pre+L.spot-q,pre=Math.max(0,L.pre-used);return {pre,spot:Math.max(0,q-pre)};
+}
 
 /* ---------- 備註數量核對 ---------- */
 // 從備註中找出「名稱*數量」的數量並加總（支援 * ＊ × 與全形數字），例如「小新*5」
@@ -308,7 +333,7 @@ function render(){
     if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><span class="grp-lbl">庫存</span></div>`}
     return head+`<button class="row${(num(i.qty)===0||i.red)?' zero':''}${(i.hl||num(i.qty)===0)?' hl':''}" data-id="${i.id}">
       <span class="model">${esc(i.model)}</span>
-      <span class="qty"><b>${fmt(num(i.qty))}</b>${pubMode&&i.shippedQty?`<small class="shipq">已出貨 ${fmt(i.shippedQty)}</small>`:''}${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
+      <span class="qty"><b>${fmt(num(i.qty))}</b>${(sp=>`<small class="split">預定 ${fmt(sp.pre)}／現貨 ${fmt(sp.spot)}</small>`)(splitOf(i))}${pubMode&&i.shippedQty?`<small class="shipq">已出貨 ${fmt(i.shippedQty)}</small>`:''}${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
       <span class="meta">${esc([parts.join(' · '),i.note||''].filter(Boolean).join('\n'))}</span>
       ${i.memo2?`<span class="memo2"><b>客戶寄庫</b>\n${esc(i.memo2)}</span>`:''}
       ${i.shipped?`<span class="memo2 ship"><b>已出貨</b>\n${esc(i.shipped)}</span>`:''}
@@ -323,9 +348,11 @@ function openEdit(item){
   if(!canWrite)return;
   editing=item;delArmed=false;$('del').textContent='刪除';$('err').hidden=true;
   $('fCat').value=item.cat||'';$('fModel').value=item.model||'';
-  $('fQty').value=item.qty??'';const mx=limits[item.id];$('fInit').value=mx??num(item.qty);restockApplied=0;$('fRestock').checked=false;
+  const L=initOf(item.id)||{pre:num(item.qty),spot:0},sp=splitOf(item);
+  $('fInitP').value=L.pre;$('fInitS').value=L.spot;$('fQtyP').value=sp.pre;$('fQtyS').value=sp.spot;
+  restockApplied={P:0,S:0};$('fRestockP').checked=false;$('fRestockS').checked=false;
   // 只有擁有者能改初始庫存，其他人看得到但不能改
-  const own=isOwnerV;$('fInit').readOnly=!own;document.querySelectorAll('[data-s="fInit"]').forEach(b=>b.disabled=!own);$('initHint').textContent=own?'':'（只有擁有者能改）';initChanged();$('fNote').value=item.note||'';$('fMemo2').value=item.memo2||'';$('fShip').value=item.shipped||'';$('fHl').checked=!!item.hl;$('fRed').checked=!!item.red;
+  const own=isOwnerV;['fInitP','fInitS'].forEach(id=>$(id).readOnly=!own);document.querySelectorAll('[data-s="fInitP"],[data-s="fInitS"]').forEach(b=>b.disabled=!own);$('initHint').textContent=own?'':'（初始只有擁有者能改）';initChanged();$('fNote').value=item.note||'';$('fMemo2').value=item.memo2||'';$('fShip').value=item.shipped||'';$('fHl').checked=!!item.hl;$('fRed').checked=!!item.red;
   liveChk();
   $('fHistBox').open=false;renderItemHist();
   show('sheet');
@@ -348,7 +375,7 @@ function renderItemHist(){
     const d=b!=null&&a!=null?a-b:0;
     const dq=d?`<span class="d ${d<0?'minus':'plus'}">${d>0?'+':'−'}${fmt(Math.abs(d))} → ${fmt(a)}</span>`:'<span class="d">數量不變</span>';
     // 其他欄位的變化（數量已在右邊顯示，這裡不重複）
-    const rest=h.before&&h.after?FIELDS.concat('init').filter(k=>k!=='qty'&&JSON.stringify(h.before[k]??'')!==JSON.stringify(h.after[k]??'')).map(k=>{
+    const rest=h.before&&h.after?FIELDS.concat('initPre','initSpot').filter(k=>k!=='qty'&&JSON.stringify(h.before[k]??'')!==JSON.stringify(h.after[k]??'')).map(k=>{
       const v=x=>(k==='hl'||k==='red')?(x?'有':'無'):(x===''||x==null?'空白':esc(x));
       return `${LABEL[k]} <del>${v(h.before[k])}</del> → ${v(h.after[k])}`}).join('<br>'):diff(h.before,h.after);
     return `<div class="e"><span class="w">${when} · ${esc(who)} · ${KIND[h.kind]||'修改'}</span>${dq}${rest?`<span class="c">${rest}</span>`:''}</div>`;
@@ -358,35 +385,46 @@ document.addEventListener('click',e=>{
   if(e.target.closest('[data-close]')||e.target===$('bg')){closeAll();return}
   const r=e.target.closest('.row');if(r){openEdit(items.find(i=>i.id===r.dataset.id));return}
   const s=e.target.closest('[data-s]');if(s&&s.dataset.s==='oQty'){outStep(+s.dataset.d);return}
-  if(s&&s.dataset.s==='fInit'){if($('fInit').readOnly)return;$('fInit').value=Math.max(0,num($('fInit').value)+ +s.dataset.d);initChanged();return}
-  if(s){const f=$(s.dataset.s);let v=Math.max(0,num(f.value)+ +s.dataset.d);const mx=editing&&initVal();if(mx!=null&&v>mx){v=mx;toast(`已達初始庫存 ${fmt(mx)}`)}f.value=v;liveChk();return}
+  if(s&&(s.dataset.s==='fInitP'||s.dataset.s==='fInitS')){const f=$(s.dataset.s);if(f.readOnly)return;f.value=Math.max(0,num(f.value)+ +s.dataset.d);initChanged();return}
+  if(s){const f=$(s.dataset.s);let v=Math.max(0,num(f.value)+ +s.dataset.d);
+    // 目前數量不能超過該邊的初始庫存
+    const cap=s.dataset.s==='fQtyP'?num($('fInitP').value):s.dataset.s==='fQtyS'?num($('fInitS').value):null;
+    if(cap!=null&&v>cap){v=cap;toast(`已達${s.dataset.s==='fQtyP'?'預定單':'現貨'}初始 ${fmt(cap)}`)}f.value=v;liveChk();return}
   const h=e.target.closest('[data-restore]');if(h){restore(h.dataset.restore,h);return}
   const x=e.target.closest('[data-exp]');if(x){doExport(x.dataset.exp,x)}
 });
 // 編輯時即時核對備註與數量
 function liveChk(){
   const box=$('fChk');if(!editing){box.hidden=true;return}
-  const c=check($('fNote').value,$('fQty').value,editing.id,$('fMemo2').value,$('fShip').value,initVal());
+  showTot();const c=check($('fNote').value,qtyVal(),editing.id,$('fMemo2').value,$('fShip').value,initVal());
   if(!c){box.hidden=true;return}
   box.hidden=false;box.className='chk '+(c.bad?'bad':'good');
   box.textContent=c.bad?`⚠ 備註＋寄庫＋出貨合計 ${fmt(c.total)}，已扣除 ${fmt(c.used)}，${c.total>c.used?'多':'少'}了 ${fmt(Math.abs(c.total-c.used))}`:`✓ 備註＋寄庫＋出貨合計 ${fmt(c.total)}，與已扣除相符`;
 }
 // 初始庫存修改：變動多少，就可以選擇讓目前數量也一起變動（進貨）
-let restockApplied=0,isOwnerV=false;
-function initVal(){return editing?Math.max(0,Math.floor(num($('fInit').value))):null}
+let restockApplied={P:0,S:0},isOwnerV=false;
+const intv=id=>Math.max(0,Math.floor(num($(id).value)));
+function initPair(){return {pre:intv('fInitP'),spot:intv('fInitS')}}
+function initVal(){if(!editing)return null;const p=initPair();return p.pre+p.spot}
+function qtyVal(){return intv('fQtyP')+intv('fQtyS')}
+function showTot(){if(!editing)return;$('fTot').textContent=`合計：目前 ${fmt(qtyVal())}／初始 ${fmt(initVal())}`}
+// 某一邊的初始庫存改了多少，就可以勾選讓那一邊的目前數量一起加減（進貨）
 function initChanged(){
   if(!editing)return;
-  const d=initVal()-(limits[editing.id]??num(editing.qty));
-  const row=$('fRestockRow');
-  if(!d){if(restockApplied){$('fQty').value=num($('fQty').value)-restockApplied;restockApplied=0}$('fRestock').checked=false;row.hidden=true;liveChk();return}
-  row.hidden=false;
-  $('fRestockTxt').textContent=d>0?`這是進貨：目前數量也一起 +${fmt(d)}`:`目前數量也一起 −${fmt(-d)}`;
-  const want=$('fRestock').checked?d:0;
-  $('fQty').value=Math.max(0,num($('fQty').value)-restockApplied+want);restockApplied=want;
+  const L=initOf(editing.id)||{pre:num(editing.qty),spot:0},cur=initPair();
+  [['P','pre','預定單'],['S','spot','現貨']].forEach(([k,f,name])=>{
+    const d=cur[f]-L[f],row=$('fRestockRow'+k),q=$('fQty'+k);
+    if(!d){if(restockApplied[k]){q.value=num(q.value)-restockApplied[k];restockApplied[k]=0}$('fRestock'+k).checked=false;row.hidden=true;return}
+    row.hidden=false;
+    $('fRestockTxt'+k).textContent=d>0?`這是進貨：${name}目前數量也一起 +${fmt(d)}`:`${name}目前數量也一起 −${fmt(-d)}`;
+    const want=$('fRestock'+k).checked?d:0;
+    q.value=Math.max(0,num(q.value)-restockApplied[k]+want);restockApplied[k]=want;
+  });
   liveChk();
 }
-$('fInit').oninput=initChanged;$('fRestock').onchange=initChanged;
-$('fNote').oninput=liveChk;$('fMemo2').oninput=liveChk;$('fShip').oninput=liveChk;$('fQty').oninput=liveChk;
+['fInitP','fInitS'].forEach(id=>$(id).oninput=initChanged);['fRestockP','fRestockS'].forEach(id=>$(id).onchange=initChanged);
+['fQtyP','fQtyS'].forEach(id=>$(id).oninput=liveChk);
+$('fNote').oninput=liveChk;$('fMemo2').oninput=liveChk;$('fShip').oninput=liveChk;
 $('misAlert').onclick=()=>{onlyMis=!onlyMis;render();window.scrollTo(0,0)};
 $('q').oninput=render;$('hq').oninput=()=>{histCount=100;renderHist()};$('histMore').onclick=()=>{histCount+=100;renderHist()};$('cat').onchange=render;
 $('openHist').onclick=()=>{histCount=100;$('hq').value='';renderHist();show('histSheet')};
@@ -412,11 +450,12 @@ $('oChips').onclick=e=>{const b=e.target.closest('[data-chip]');if(!b)return;$('
 function openOut(id){
   if(!canWrite)return;
   const list=shown().length?shown():items;
-  $('oItem').innerHTML=list.map(i=>`<option value="${i.id}">${esc(i.model)}${i.color?' '+esc(i.color):''}（庫存 ${fmt(num(i.qty))}）</option>`).join('');
+  $('oItem').innerHTML=list.map(i=>{const sp=splitOf(i);return `<option value="${i.id}">${esc(i.model)}${i.color?' '+esc(i.color):''}（預定 ${fmt(sp.pre)}／現貨 ${fmt(sp.spot)}）</option>`}).join('');
   outId=id||list[0]?.id;$('oItem').value=outId;
   fillNames();
   $('oName').value='';$('oTag').value='';renderChips();$('oQty').value=1;$('oErr').hidden=true;
   document.querySelector('input[name="oWhere"][value="note"]').checked=true;
+  pickFrom();
   outSum();show('outSheet');setTimeout(()=>{try{$('oName').focus()}catch(e){}},50);
 }
 function outItem(){return items.find(i=>i.id===$('oItem').value)}
@@ -438,18 +477,21 @@ function subToken(text,li,ti,n){
 }
 function curEntry(){const it=outItem();if(!it)return null;const es=entries(it);return es[+$('oSrc').value]||null}
 // 出庫數量上限：一般出庫看目前庫存；寄庫出貨看選到的那一筆寄庫數量
-function outMax(){const it=outItem();if(!it)return 0;if(outWhere()==='ship'){const e=curEntry();return e?e.n:0}return num(it.qty)}
-function outStep(d){let v=Math.max(1,num($('oQty').value)+d);const mx=outMax();if(v>mx){v=Math.max(1,mx);toast(outWhere()==='ship'?`這筆寄庫只有 ${fmt(mx)}`:`庫存只剩 ${fmt(mx)}`)}$('oQty').value=v;outSum()}
+function outFrom(){return document.querySelector('input[name="oFrom"]:checked').value}
+// 預設從預定單扣；預定單沒貨就改成現貨
+function pickFrom(){const it=outItem();const sp=it?splitOf(it):{pre:0,spot:0};document.querySelector(`input[name="oFrom"][value="${sp.pre>0||sp.spot===0?'pre':'spot'}"]`).checked=true}
+function outMax(){const it=outItem();if(!it)return 0;if(outWhere()==='ship'){const e=curEntry();return e?e.n:0}return splitOf(it)[outFrom()]}
+function outStep(d){let v=Math.max(1,num($('oQty').value)+d);const mx=outMax();if(v>mx){v=Math.max(1,mx);toast(outWhere()==='ship'?`這筆寄庫只有 ${fmt(mx)}`:`${outFrom()==='pre'?'預定單':'現貨'}只剩 ${fmt(mx)}`)}$('oQty').value=v;outSum()}
 function outSum(){
   $('oErr').hidden=true;
   const it=outItem();if(!it){$('oSum').textContent='';return}
-  const n=Math.floor(num($('oQty').value)),left=num(it.qty)-n,w=outWhere();
-  const ship=w==='ship';$('oSrcRow').hidden=!ship;$('oNameRow').hidden=ship;$('oChips').style.display=ship?'none':'';$('oTagRow').hidden=ship;$('oName').required=!ship;$('oQtyLbl').textContent=ship?'出貨數量':'出庫數量';$('oSave').textContent=ship?'確認出貨':'確認出庫';
+  const n=Math.floor(num($('oQty').value)),w=outWhere(),fr=outFrom(),frN=fr==='pre'?'預定單':'現貨',have=splitOf(it)[fr],left=have-n;
+  const ship=w==='ship';$('oFromRow').hidden=ship;$('oSrcRow').hidden=!ship;$('oNameRow').hidden=ship;$('oChips').style.display=ship?'none':'';$('oTagRow').hidden=ship;$('oName').required=!ship;$('oQtyLbl').textContent=ship?'出貨數量':'出庫數量';$('oSave').textContent=ship?'確認出貨':'確認出庫';
   $('oHint').textContent={note:'扣庫存，並在「備註」加上「對象*數量」。',memo2:'扣庫存，並記在「客戶寄庫」。',shipped:'貨直接交給客戶：扣庫存，並記在「已出貨」。',ship:'把已經寄庫的貨送出：庫存不變，從「備註」或「客戶寄庫」移到「已出貨」。'}[w];
   if(ship){const e=curEntry();
     if(!e){$('oSum').innerHTML='<span style="color:var(--muted)">這個品項的備註和客戶寄庫裡沒有可以出貨的寄庫。</span>';return}
     $('oSum').innerHTML=`<span>${esc(e.name)} 寄庫 <b>${fmt(e.n)}</b></span><span class="arrow">出貨 ${fmt(n)} →</span><span>寄庫剩 <b style="color:${e.n-n<0?'var(--danger)':'var(--fg)'}">${fmt(e.n-n)}</b></span><span style="width:100%;font-size:13px;color:var(--muted)">庫存維持 ${fmt(num(it.qty))}</span>`;return}
-  $('oSum').innerHTML=`<span>目前庫存 <b>${fmt(num(it.qty))}</b></span><span class="arrow">出庫 ${fmt(n)} →</span><span>剩下 <b style="color:${left<=0?'var(--danger)':'var(--fg)'}">${fmt(left)}</b></span>`;
+  $('oSum').innerHTML=`<span>${frN} <b>${fmt(have)}</b></span><span class="arrow">出庫 ${fmt(n)} →</span><span>剩下 <b style="color:${left<=0?'var(--danger)':'var(--fg)'}">${fmt(left)}</b></span>`;
 }
 function outWhere(){return document.querySelector('input[name="oWhere"]:checked').value}
 // 出貨對象建議清單；寄庫出貨時列出這個品項所有寄庫（備註＋客戶寄庫）
@@ -472,7 +514,8 @@ function addLine(text,name,n,tag){
 }
 $('openOut').onclick=()=>openOut();
 $('toOut').onclick=()=>{const id=editing&&editing.id;openOut(id)};
-$('oItem').onchange=()=>{$('oQty').value=1;fillNames();outSum()};
+$('oItem').onchange=()=>{$('oQty').value=1;fillNames();pickFrom();outSum()};
+document.querySelectorAll('input[name="oFrom"]').forEach(r=>r.onchange=outSum);
 $('oSrc').onchange=()=>{const e=curEntry();$('oQty').value=e?e.n:1;outSum()};
 $('oQty').oninput=outSum;document.querySelectorAll('input[name="oWhere"]').forEach(r=>r.onchange=()=>{fillNames();if(outWhere()==='ship'){const e=curEntry();$('oQty').value=e?e.n:1}outSum()});$('oName').oninput=()=>{renderChips();outSum()};
 $('outSheet').onsubmit=async e=>{
@@ -493,10 +536,12 @@ $('outSheet').onsubmit=async e=>{
     after={...before,[e.f]:subToken(before[e.f],e.li,e.ti,n),shipped:addLine(before.shipped,e.name,n,e.tag)};
     msg=`已出貨 ${after.model} ${fmt(n)} 台給 ${e.name}（從${e.lab}），寄庫剩 ${fmt(e.n-n)}`;
   }else{
-    if(n>num(it.qty))return err(`庫存只剩 ${fmt(num(it.qty))}，不能出庫 ${fmt(n)}。`);
-    after={...before,qty:num(it.qty)-n};
+    const fr=outFrom(),sp=splitOf(it),frN=fr==='pre'?'預定單':'現貨';
+    if(n>sp[fr])return err(`${frN}只剩 ${fmt(sp[fr])}，不能出庫 ${fmt(n)}。`);
+    sp[fr]-=n;
+    after={...before,qtyPre:sp.pre,qtySpot:sp.spot,qty:sp.pre+sp.spot};
     after[where]=addLine(before[where],name,n,tag);
-    msg=`已出庫 ${after.model} ${fmt(n)} 台給 ${name}，剩 ${fmt(after.qty)}`;
+    msg=`已從${frN}出庫 ${after.model} ${fmt(n)} 台給 ${name}，剩 預定 ${fmt(after.qtyPre)}／現貨 ${fmt(after.qtySpot)}`;
   }
   $('oSave').disabled=true;
   try{
@@ -509,18 +554,20 @@ $('outSheet').onsubmit=async e=>{
 // 寫入前先比對：資料庫裡這個品項必須還是「修改前」的樣子，否則代表剛被別人改過，
 // 為了不蓋掉別人的修改，直接停止並請使用者重新確認（還原例外，它本來就是要蓋過去）
 class Stale extends Error{constructor(){super('stale');this.code='stale'}}
+// 兩組初始庫存有沒有不同
+const pairChg=(a,b)=>!!b&&(!a||a.pre!==b.pre||a.spot!==b.spot);
 async function commit(id,before,after,kind,initB,initA){
   const ref=db.collection('items').doc(id);
-  const initChg=initA!=null&&initA!==initB;
+  const initChg=pairChg(initB,initA);
   if(kind!=='restore'){
     let cur=items.find(i=>i.id===id)||null;
     try{const d=await ref.get();cur=d&&d.exists?{id,...d.data()}:null}catch(e){}
     if(before?!same(cur,before):!!cur)throw new Stale();
   }
   // 初始庫存有變就先寫入（只有擁有者能寫），再寫品項；修改紀錄一併記下初始庫存
-  if(initChg){await db.collection('limits').doc(id).set({max:initA});limits[id]=initA}
+  if(initChg){await db.collection('limits').doc(id).set({max:initA.pre+initA.spot,pre:initA.pre,spot:initA.spot});limits[id]=initA.pre+initA.spot;lim2[id]=initA}
   if(after)await ref.set(pick(after));else await ref.delete();
-  const withInit=(o,v)=>o?(initChg?{...pick(o),init:v}:pick(o)):null;
+  const withInit=(o,v)=>o?(initChg&&v?{...pick(o),init:v.pre+v.spot,initPre:v.pre,initSpot:v.spot}:pick(o)):null;
   try{
     await db.collection('histItems').doc().set({itemId:id,model:(after||before).model||'',before:withInit(before,initB),after:withInit(after,initA),kind,at:new Date().toISOString(),by:me||''});
   }catch(e){}
@@ -545,20 +592,20 @@ $('sheet').onsubmit=async e=>{
   e.preventDefault();
   const before=pick(editing),id=editing.id;
   const after={cat:$('fCat').value.trim(),model:$('fModel').value.trim(),color:editing.color||'',
-    qty:num($('fQty').value),
+    qtyPre:intv('fQtyP'),qtySpot:intv('fQtyS'),qty:qtyVal(),
     note:$('fNote').value.trim(),memo2:$('fMemo2').value.trim(),shipped:$('fShip').value.trim(),hl:$('fHl').checked,red:$('fRed').checked,order:editing.order};
-  const initB=limits[id]??null,initA=isOwnerV?initVal():initB;
-  if(initA!=null&&after.qty>initA){$('err').textContent=`目前數量不能超過初始庫存 ${fmt(initA)}。要增加數量，請先把初始庫存調高。`;$('err').hidden=false;return}
-  if(same(before,after)&&initA===initB){closeAll();return}
+  const initB=initOf(id),initA=isOwnerV?initPair():initB;
+  if(initA&&(after.qtyPre>initA.pre||after.qtySpot>initA.spot)){$('err').textContent=`${after.qtyPre>initA.pre?'預定單':'現貨'}的目前數量不能超過它的初始庫存。要增加數量，請先把初始調高。`;$('err').hidden=false;return}
+  if(same(before,after)&&!pairChg(initB,initA)){closeAll();return}
   $('save').disabled=true;
-  try{await commit(id,before,after,'edit',initB,initA);closeAll();toast(`已儲存 ${after.model}${initA!==initB?`（初始庫存 ${fmt(initB??0)} → ${fmt(initA)}）`:''}${check(after.note,after.qty,id,after.memo2,after.shipped,initA)?.bad?'（⚠ 備註數量與已扣除不符）':''}`,()=>commit(id,after,before,'undo',initA,initB))}
+  try{await commit(id,before,after,'edit',initB,initA);closeAll();toast(`已儲存 ${after.model}${pairChg(initB,initA)?`（初始 預定 ${fmt(initA.pre)}／現貨 ${fmt(initA.spot)}）`:''}${check(after.note,after.qty,id,after.memo2,after.shipped,initA?initA.pre+initA.spot:null)?.bad?'（⚠ 備註數量與已扣除不符）':''}`,()=>commit(id,after,before,'undo',initA,initB))}
   catch(err){if(err&&err.code==='stale'){
       // 保留你剛輸入的內容，只把「修改前」換成最新資料，並列出別人改了什麼；再按一次儲存才會寫入
       const n=items.find(i=>i.id===id);
       if(!n){$('err').textContent='這個品項剛被刪除了，無法儲存。';$('err').hidden=false;return}
       const nb=pick(n),what=diff(before,nb);
       // 你沒動過的欄位自動換成最新值，你改過的欄位保留你的內容
-      const F={cat:'fCat',model:'fModel',qty:'fQty',note:'fNote',memo2:'fMemo2',shipped:'fShip'};
+      const F={cat:'fCat',model:'fModel',qtyPre:'fQtyP',qtySpot:'fQtyS',note:'fNote',memo2:'fMemo2',shipped:'fShip'};
       Object.entries(F).forEach(([k,el])=>{if(String(after[k]??'')===String(before[k]??''))$(el).value=nb[k]??''});
       if(after.hl===!!before.hl)$('fHl').checked=!!nb.hl;if(after.red===!!before.red)$('fRed').checked=!!nb.red;
       editing=n;liveChk();renderItemHist();
@@ -576,7 +623,7 @@ $('del').onclick=async()=>{
 function diff(b,a){
   if(!b&&a)return '恢復這個品項';
   if(b&&!a)return '刪除這個品項';
-  return FIELDS.concat('init').filter(k=>JSON.stringify(b[k]??'')!==JSON.stringify(a[k]??'')).map(k=>{
+  return FIELDS.concat('initPre','initSpot').filter(k=>JSON.stringify(b[k]??'')!==JSON.stringify(a[k]??'')).map(k=>{
     const v=x=>(k==='hl'||k==='red')?(x?'有':'無'):(x===''||x==null?'空白':esc(x));
     return `${LABEL[k]} <del>${v(b[k])}</del> → ${v(a[k])}`}).join('，')||'無變更';
 }
@@ -610,23 +657,26 @@ async function restore(hid,btn){
   btn.disabled=true;
   const cur=items.find(i=>i.id===h.itemId);
   // 這筆紀錄有改過初始庫存，就連初始庫存一起還原（只有擁有者可以）
-  const initB=limits[h.itemId]??null,initA=(h.before&&h.before.init!=null&&isOwnerV)?h.before.init:initB;
-  if(h.before&&initA!=null&&num(h.before.qty)>initA){btn.textContent='超過初始庫存，無法還原';btn.disabled=true;return}
-  try{await commit(h.itemId,cur?pick(cur):null,h.before,'restore',initB,initA);toast(`已還原 ${h.model}`);closeAll()}
+  const initB=initOf(h.itemId),initA=(h.before&&h.before.initPre!=null&&isOwnerV)?{pre:h.before.initPre,spot:h.before.initSpot}:initB;
+  // 舊紀錄沒有分預定單／現貨，就照「已扣除先算預定單」分開
+  let tgt=h.before?pick(h.before):null;
+  if(tgt&&(tgt.qtyPre===''||tgt.qtySpot==='')){const sp=splitOf({...tgt,id:h.itemId,qtyPre:'',qtySpot:''});tgt.qtyPre=sp.pre;tgt.qtySpot=sp.spot}
+  if(tgt&&initA&&(num(tgt.qtyPre)>initA.pre||num(tgt.qtySpot)>initA.spot)){btn.textContent='超過初始庫存，無法還原';btn.disabled=true;return}
+  try{await commit(h.itemId,cur?pick(cur):null,tgt,'restore',initB,initA);toast(`已還原 ${h.model}`);closeAll()}
   catch(e){btn.disabled=false;btn.textContent='還原失敗';}
 }
 
 /* ---------- export ---------- */
-const COLS=['品類','型號','顏色','初始庫存','已扣除','目前數量','備註','客戶寄庫'];
+const COLS=['品類','型號','顏色','初始庫存','已扣除','目前數量','預定單庫存','現貨庫存','備註','客戶寄庫'];
 // 匯出用的核對註記：備註＋客戶寄庫合計與已扣除不符時寫出差多少，相符則留空
 const misNote=i=>{const m=misOf(i);return m?`⚠ 合計${m.total>m.used?'多':'少'} ${Math.abs(m.total-m.used)}（合計 ${m.total}／已扣 ${m.used}）`:''};
 // 客戶寄庫欄：先放你自己填的內容，若備註數量與已扣除不符，再加上自動提醒
-function rows(){return shown().map(i=>{const q=num(i.qty),ini=limits[i.id]??q;return [i.cat,i.model,i.color,ini,ini-q,q,i.note||'',[i.memo2||'',misNote(i)].filter(Boolean).join('\n')]})}
+function rows(){return shown().map(i=>{const q=num(i.qty),ini=limits[i.id]??q,sp=splitOf(i);return [i.cat,i.model,i.color,ini,ini-q,q,sp.pre,sp.spot,i.note||'',[i.memo2||'',misNote(i)].filter(Boolean).join('\n')]})}
 const stamp=()=>{const d=new Date();return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`};
 function drawCanvas(){
   const r=rows(),hl=shown().map(i=>(i.hl||num(i.qty)===0)),all=[COLS,...r];
   // 匯出圖片／PDF 的字體大小與欄寬
-  const FS=18,W=[220,270,95,95,90,95,270,160],MIS=7,LH=26,PADV=9,PAD=28,TH=74,S=2,NOTE=6;
+  const FS=18,W=[200,250,90,95,90,95,100,95,250,150],MIS=9,LH=26,PADV=9,PAD=28,TH=74,S=2,NOTE=8;
   const F='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
   const m=document.createElement('canvas').getContext('2d');m.font=`400 ${FS}px ${F}`;
   const wrap=(text,max)=>{const out=[];String(text).split('\n').forEach(par=>{let line='';for(const ch of par){if(m.measureText(line+ch).width>max&&line){out.push(line);line=ch}else line+=ch}out.push(line)});return out};
@@ -659,7 +709,7 @@ function drawCanvas(){
       const zero=zr[ri];g.font=`${ri===0||zero?700:400} ${FS}px ${F}`;g.fillStyle=zero?'#c0362c':'#17202b';
       // 核對不符的格子：淺橘底、橘色粗體
       if(ci===MIS&&ri>0&&misW[ri]){g.fillStyle='#ffe3c2';g.fillRect(x+1,y+1,W[ci]-1,rh-1)}
-      const right=ci>=3&&ci<=5;g.textAlign=right?'right':'left';
+      const right=ci>=3&&ci<=7;g.textAlign=right?'right':'left';
       lines[ri][ci].forEach((t,li)=>{
         // 核對欄中自動提醒的那幾行用橘色粗體，你填的內容維持一般顏色
         if(ci===MIS&&ri>0){const warn=li>=(misN[ri]||0);g.font=`${warn||zr[ri]?700:400} ${FS}px ${F}`;g.fillStyle=warn?'#a14a00':(zr[ri]?'#c0362c':'#17202b')}
@@ -683,7 +733,7 @@ async function doExport(kind,btn){
     if(!r.length)throw {code:'empty'};
     btn.disabled=true;
     if(kind==='copy'){
-      const lines=r.map(x=>`${x[1]}${x[2]?' '+x[2]:''}：${x[5]}（初始 ${x[3]}）${x[7]?'｜客戶寄庫：'+x[7].replace(/\n/g,' '):''}`);
+      const lines=r.map(x=>`${x[1]}${x[2]?' '+x[2]:''}：${x[5]}（預定 ${x[6]}／現貨 ${x[7]}，初始 ${x[3]}）${x[9]?'｜客戶寄庫：'+x[9].replace(/\n/g,' '):''}`);
       const text=`Nux 產品出貨清單（${new Date().toLocaleDateString('zh-TW')}）\n`+lines.join('\n');
       try{await navigator.clipboard.writeText(text);toast('已複製，可直接貼上')}catch(e){$('expErr').textContent='這個環境不允許自動複製，請改用其他匯出格式。';$('expErr').hidden=false}
       return;
@@ -694,7 +744,7 @@ async function doExport(kind,btn){
       await save(base+'.csv',csv);
     }else if(kind==='xlsx'){
       const ws=XLSX.utils.aoa_to_sheet([COLS,...r]);
-      ws['!cols']=[26,28,20,10,10,10,40,32].map(w=>({wch:w}));
+      ws['!cols']=[26,28,20,10,10,10,12,10,40,32].map(w=>({wch:w}));
       const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'合併清單');
       await save(base+'.xlsx',XLSX.write(wb,{type:'array',bookType:'xlsx'}));
     }else{
@@ -795,6 +845,7 @@ const PUB_TASK='trig_01Ljpv9wts2qHvNUPxr14g2C';
 function publicSnap(){
   const list=items.map(i=>{const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,order:num(i.order)};
     if(limits[i.id]!=null)o.init=limits[i.id];
+    {const sp=splitOf(i);o.qtyPre=sp.pre;o.qtySpot=sp.spot}
     if(i.note)o.note=i.note;if(i.memo2)o.memo2=i.memo2;if(i.shipped){const n=noteTotal(i.shipped);if(n)o.shippedQty=n}return o});
   return {at:new Date().toISOString(),showNotes:true,count:list.length,items:list};
 }
@@ -838,7 +889,7 @@ $('pubPush').onclick=async()=>{
     render();
     if(!$('histSheet').hidden)renderHist();
   },()=>{$('status').textContent='連線中斷，請重新整理'});
-  db.collection('limits').onSnapshot(snap=>{limits={};snap.docs.forEach(d=>{const m=d.data().max;if(typeof m==='number')limits[d.id]=m});render()},()=>{});
+  db.collection('limits').onSnapshot(snap=>{limits={};lim2={};snap.docs.forEach(d=>{const x=d.data(),m=x.max;if(typeof m==='number'){limits[d.id]=m;lim2[d.id]=typeof x.pre==='number'?{pre:x.pre,spot:num(x.spot)}:{pre:m,spot:0}}});render()},()=>{});
   db.collection('histItems').orderBy('at','desc').limit(1000).onSnapshot(snap=>{
     histItems=snap.docs.map(d=>({id:d.id,...d.data()}));
     if(!$('histSheet').hidden)renderHist();
