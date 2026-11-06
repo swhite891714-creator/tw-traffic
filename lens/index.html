@@ -1,0 +1,1593 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="鏡頭翻譯">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="manifest" href="manifest.json">
+<!-- 連接 Claude：用你自己的 API 金鑰（只存在你的手機裡） -->
+<script src="claude-api.js" charset="utf-8"></script>
+<title>鏡頭即時翻譯</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one column. Translated photo first (the answer), then a reading card that pairs names with prices, then settings. */
+:root{
+  --bg:#101214; --panel:#1a1d20; --line:#2b3035; --fg:#eef0ee; --muted:#9aa3a8;
+  --focus:#f2c14e; --focus-ink:#1a1405; --err:#ff8a7a;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.55;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+[hidden]{display:none!important}
+.wrap{max-width:560px;margin:0 auto;padding-block:16px 48px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-size:20px;font-weight:700;margin:0;text-wrap:balance}
+.tag{font-family:var(--f-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+.figure{position:relative;border-radius:14px;overflow:hidden;background:#000;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:pan-y}
+.figure canvas{display:block;width:100%;height:auto;max-width:100%}
+.figure canvas.orig{position:absolute;inset:0;width:100%;height:100%;clip-path:inset(0 calc(100% - var(--split,0%)) 0 0)}
+.hl{position:absolute;inset:0;pointer-events:none}
+.hl i{position:absolute;border:3px solid var(--focus);border-radius:6px;animation:pulse 1.2s ease-out 2}
+@keyframes pulse{0%{transform:scale(1.2);opacity:0}40%{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.hl i,.scan{animation:none}}
+.badge{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.62);color:#fff;font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;padding:4px 10px;border-radius:99px;white-space:nowrap;pointer-events:none}
+.splitline{position:absolute;top:0;bottom:0;left:var(--split,0%);width:0;border-left:2px solid #fff;box-shadow:0 0 8px rgba(0,0,0,.6);pointer-events:none}
+.splitline::after{content:"原文 ｜ 譯文";position:absolute;top:50%;left:0;transform:translate(-50%,-50%);background:#fff;color:#111;font:700 11px/1 var(--f-body);padding:6px 8px;border-radius:99px;white-space:nowrap}
+.busy{position:absolute;inset:0;background:rgba(10,12,14,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-weight:500;color:#fff}
+.scan{width:60%;height:2px;background:var(--focus);box-shadow:0 0 12px var(--focus);animation:scan 1.4s ease-in-out infinite alternate}
+@keyframes scan{from{transform:translateY(-40px)}to{transform:translateY(40px)}}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tools .grow{flex:1 1 auto}
+input[type=range]{width:100%;accent-color:var(--focus)}
+.slider{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted)}
+.slider span{white-space:nowrap}
+
+.shoot{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--focus);color:var(--focus-ink);font:inherit;font-size:17px;font-weight:700;border:0;border-radius:999px;padding:14px 22px;cursor:pointer;white-space:nowrap}
+.shoot[aria-disabled="true"]{opacity:.5;pointer-events:none}
+.ghost{font:inherit;font-size:13px;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;white-space:nowrap}
+.ghost[aria-pressed="true"]{border-color:var(--focus);color:var(--focus)}
+.shoot:focus-visible,button:focus-visible,select:focus-visible,label[role=button]:focus-visible,input:focus-visible,.rows li:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.hidden-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.msg{font-size:14px;color:var(--muted);margin:0}
+.msg.err{color:var(--err)}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.summary{font-size:16px;font-weight:500;margin:0;text-wrap:pretty}
+.curline{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:13px;color:var(--muted);padding-top:10px;border-top:1px solid var(--line)}
+.curline b{color:var(--focus)}
+.curline .warn{color:var(--err);flex-basis:100%}
+.curline select{width:auto;font-size:12px;padding:3px 8px;border-radius:8px;margin-left:auto}
+.sec h3{margin:6px 0 2px;font-size:12px;font-weight:700;letter-spacing:.08em;color:var(--muted)}
+.rows{list-style:none;margin:0;padding:0}
+.rows li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 14px;padding:12px 8px;margin:0 -8px;border-radius:10px;cursor:pointer;border-bottom:1px solid var(--line)}
+.rows li:last-child{border-bottom:0}
+.rows li.on{background:color-mix(in srgb,var(--focus) 12%,transparent)}
+.rows .name{font-size:17px;font-weight:700;line-height:1.35;min-width:0;overflow-wrap:anywhere;grid-column:1}
+.rows .orig{font-size:13px;color:var(--muted);min-width:0;overflow-wrap:anywhere;grid-column:1}
+.rows .note{font-size:13px;color:var(--fg);opacity:.8;grid-column:1;min-width:0}
+.rows .px{grid-column:2;grid-row:1/4;align-self:center;text-align:right;display:flex;flex-direction:column;gap:2px}
+.rows .px b{font-family:var(--f-mono);font-size:17px;color:var(--focus);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rows .px span{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+select{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+details.box{border-top:1px solid var(--line);padding-top:10px}
+details.box summary{cursor:pointer;display:flex;gap:8px;align-items:baseline;color:var(--muted);font-size:13px}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin:10px 0}
+.rgrid label{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-family:var(--f-mono);font-size:12px;min-width:0}
+.rgrid input{font:inherit;color:var(--fg);background:transparent;border:0;width:100%;min-width:0;text-align:right;font-variant-numeric:tabular-nums}
+
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:99px;padding:2px;background:var(--panel)}
+.seg button{font:inherit;font-size:13px;border:0;background:transparent;color:var(--muted);padding:6px 12px;border-radius:99px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg);font-weight:700}
+.slider.grow{flex:1 1 180px}
+
+.crop{position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.cbar{display:flex;align-items:center;gap:10px;padding:10px max(14px,env(safe-area-inset-right,0px)) 10px max(14px,env(safe-area-inset-left,0px))}
+.cbar .grow{flex:1}
+.cbar .ghost{color:#fff;border-color:#444}
+.cbar .shoot{font-size:15px;padding:12px 20px}
+.crot{display:flex;align-items:center;gap:8px;padding:6px max(14px,env(safe-area-inset-right,0px)) 0 max(14px,env(safe-area-inset-left,0px));color:#fff;font-size:13px;flex-wrap:wrap}
+.crot .ghost{color:#fff;border-color:#444;padding:7px 12px}
+.crot input[type=range]{flex:1 1 140px;min-width:120px}
+.crot .cdeg{font-family:var(--f-mono);min-width:4.5em;text-align:right;color:#ccc}
+.crot .cnote{width:100%;color:var(--focus);font-size:12px;min-height:1em}
+.ctitle{flex:1;text-align:center;color:#fff;font-weight:500;font-size:14px}
+.cstage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:14px max(22px,env(safe-area-inset-right,0px)) 14px max(22px,env(safe-area-inset-left,0px))}
+.cbox{position:relative;touch-action:none;-webkit-user-select:none;user-select:none}
+.cbox canvas{display:block}
+.crect{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.6);cursor:move;background-image:linear-gradient(rgba(255,255,255,.25) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.25) 1px,transparent 1px);background-size:33.34% 33.34%;background-position:-1px -1px}
+.cbox{overflow:hidden}
+.crect .hd{position:absolute;width:30px;height:30px;border:4px solid var(--focus)}
+.crect .nw{top:0;left:0;border-right:0;border-bottom:0;cursor:nwse-resize}
+.crect .ne{top:0;right:0;border-left:0;border-bottom:0;cursor:nesw-resize}
+.crect .sw{bottom:0;left:0;border-right:0;border-top:0;cursor:nesw-resize}
+.crect .se{bottom:0;right:0;border-left:0;border-top:0;cursor:nwse-resize}
+.crect .hd::after{content:"";position:absolute;inset:-14px}
+.crect .ed{position:absolute}
+.crect .n,.crect .s{left:30px;right:30px;height:28px}.crect .n{top:-14px;cursor:ns-resize}.crect .s{bottom:-14px;cursor:ns-resize}
+.crect .w,.crect .e{top:30px;bottom:30px;width:28px}.crect .w{left:-14px;cursor:ew-resize}.crect .e{right:-14px;cursor:ew-resize}
+
+.changes{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:color-mix(in srgb,var(--bg) 40%,var(--panel))}
+.changes>summary{cursor:pointer;font-weight:700;font-size:14px}
+.chlist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column}
+.chlist li{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;padding:8px 6px;margin:0 -6px;border-radius:8px;border-top:1px solid var(--line);cursor:pointer;font-size:14px}
+.chlist li.on{background:color-mix(in srgb,var(--focus) 12%,transparent)}
+.chlist .where{font-size:11px;color:var(--focus-ink);background:var(--focus);border-radius:99px;padding:1px 8px;font-weight:700}
+.chlist .from{color:var(--muted);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--muted) 60%,transparent);min-width:0;overflow-wrap:anywhere}
+.chlist .arrow{color:var(--muted);font-size:12px}
+.chlist .to{font-weight:700;min-width:0;overflow-wrap:anywhere}
+.chlist .lit{flex-basis:100%;font-size:12px;color:var(--muted)}
+.chlist .kind{flex-basis:100%;font-size:12px;color:var(--focus)}
+
+.full{position:fixed;inset:0;z-index:50;background:#000;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.full .bar{display:flex;gap:8px;align-items:center;padding:10px max(12px,env(safe-area-inset-right,0px)) 10px max(12px,env(safe-area-inset-left,0px))}
+.full .bar .grow{flex:1}
+.full .scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.full img{display:block;max-width:none;margin:0 auto}
+.full .ghost{color:#fff;border-color:#444}
+
+/* ===== 語音翻譯對話 ===== */
+/* 語音畫面直接放在頁面裡（不用蓋在最上層），在 Claude App 裡才不會跑版、點不到 */
+.talk{max-width:560px;margin:0 auto;padding-block:8px 48px;display:flex;flex-direction:column;gap:10px}
+.talk .thead{display:flex;gap:6px;align-items:center;padding:8px 0 4px;flex-wrap:nowrap}
+.talk .thead .ghost{padding:7px 10px}
+.talk .thead h2{font-size:17px;margin:0 auto 0 0}
+.talk select{width:auto;min-width:0;flex:0 1 auto;font:inherit;font-size:15px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.tlog{display:flex;flex-direction:column;gap:8px;padding:4px 0}
+.tlog:empty::before{font-size:13px!important;content:"對方說話時，按上方黃色按鈕用手機錄影（只要錄到聲音即可，畫面不重要），停止後幾秒就會出現中文翻譯。第一次使用要下載約 100MB 的辨識模型，建議連 Wi-Fi。";color:var(--muted);font-size:14px;line-height:1.7;margin:auto 4px}
+.tb{max-width:88%;border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:4px}
+.tb.them{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
+.tb.me{align-self:flex-end;background:#2a2410;border:1px solid #5a4a1a}
+.tb .to{font-size:12px;color:var(--muted)}
+.tb .tt{font-size:16px;font-weight:700;line-height:1.45}
+.tb .tg{font-size:12px;color:var(--focus)}
+.tb .ta{display:flex;gap:6px;flex-wrap:wrap}
+.tbtn{font:inherit;font-size:12px;color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:99px;padding:5px 10px;cursor:pointer}
+.tsug{display:flex;flex-wrap:wrap;gap:6px;border-top:1px dashed var(--line);padding-top:8px}
+.tsl{width:100%;font-size:12px;color:var(--muted)}
+.tchip{font:inherit;font-size:13px;color:var(--focus-ink);background:var(--focus);border:0;border-radius:99px;padding:6px 12px;cursor:pointer}
+.tfoot{display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.tfoot .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tfoot textarea{display:block;width:100%;box-sizing:border-box;min-height:56px;max-height:40vh;resize:none;font:inherit;font-size:17px;line-height:1.5;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px}
+.tfoot textarea:focus{outline:2px solid var(--focus);outline-offset:0;border-color:transparent}
+.tfoot .tsend{flex:1 1 130px;min-width:0;font-size:16px;padding:12px 16px}
+.tfoot .row .ghost{padding:11px 14px;font-size:14px}
+
+.tstatus{font-size:13px;color:var(--muted)}
+.tstatus:empty{display:none}
+#tThemRow{flex-wrap:nowrap}
+#tThemRow .shoot{min-width:0;font-size:16px;padding-inline:12px;white-space:nowrap}
+.tstatus.err{color:var(--err)}
+.tbar{height:4px;background:var(--line);border-radius:4px;overflow:hidden}
+.tbar i{display:block;height:100%;width:0;background:var(--focus);transition:width .2s}
+.tsmall{font-size:12px;color:var(--muted)}
+/* 放大給對方看：出現在語音畫面最上方的白色大字卡，點一下關閉 */
+.tbig{background:#fff;color:#111;border-radius:14px;display:flex;align-items:center;justify-content:center;padding:16px 14px;font-size:clamp(22px,6.5vw,34px);font-weight:900;line-height:1.35;text-align:center;word-break:break-word;cursor:pointer}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>鏡頭即時翻譯</h1>
+    <span class="tag">線上版・第 21 版</span>
+  </header>
+
+  <div class="figure" id="figure">
+    <canvas id="out" aria-label="翻譯後的畫面"></canvas>
+    <canvas id="orig" class="orig" aria-hidden="true"></canvas>
+    <div class="splitline" id="splitline" hidden></div>
+    <div class="hl" id="hl"></div>
+    <span class="badge" id="badge">範例畫面</span>
+    <div class="busy" id="busy" hidden><div class="scan"></div><span id="busyText">辨識並翻譯中…</span></div>
+  </div>
+
+  <div class="tools">
+    <div class="seg" role="group" aria-label="照片上要換掉哪些字">
+      <button type="button" data-ov="all" aria-pressed="true">全部翻譯</button>
+      <button type="button" data-ov="price" aria-pressed="false">只換價格</button>
+    </div>
+    <div class="slider grow">
+      <span>譯文</span>
+      <input type="range" id="split" min="0" max="100" value="0" aria-label="拖曳對照原文">
+      <span>原文</span>
+    </div>
+  </div>
+
+  <div class="tools">
+    <label class="shoot grow" id="shootBtn" for="cam" role="button" tabindex="0">● 拍照翻譯</label>
+    <input class="hidden-input" type="file" id="cam" accept="image/*" capture="environment">
+  </div>
+  <div class="tools">
+    <button class="shoot grow" id="talkBtn" type="button" style="background:var(--panel);color:var(--fg);border:1px solid var(--line)">🎙 語音翻譯（聽對方說話）</button>
+  </div>
+  <div class="tools">
+    <button class="ghost" id="recropBtn" type="button" hidden>重新選範圍</button>
+    <button class="ghost" id="fullBtn" type="button">放大檢視</button>
+    <button class="ghost" id="saveBtn" type="button" hidden>儲存翻譯圖</button>
+    <label class="ghost" for="pick" role="button" tabindex="0">從相簿選圖</label>
+    <input class="hidden-input" type="file" id="pick" accept="image/*">
+    <button class="ghost" id="retryBtn" type="button" hidden>重新翻譯</button>
+  </div>
+  <p class="msg" id="msg">按住照片可看原文，或拖曳滑桿對照。點下方項目會在照片上標出位置。</p>
+
+  <section class="card" id="card" aria-label="整理後的內容">
+    <p class="summary" id="summary"></p>
+    <details class="changes" id="changes" open hidden>
+      <summary id="chTitle"></summary>
+      <ol class="chlist" id="chList"></ol>
+    </details>
+    <div id="sections"></div>
+    <div class="curline" id="curline" hidden></div>
+  </section>
+
+  <div class="controls">
+    <label class="field" for="lang"><span class="tag">翻譯成</span>
+      <select id="lang">
+        <option value="繁體中文（台灣用語）">繁體中文</option>
+        <option value="English">English</option>
+        <option value="日本語">日本語</option>
+        <option value="한국어">한국어</option>
+        <option value="Tiếng Việt">Tiếng Việt</option>
+        <option value="ภาษาไทย">ภาษาไทย</option>
+        <option value="Bahasa Indonesia">Bahasa Indonesia</option>
+      </select>
+    </label>
+    <label class="field" for="srcCur"><span class="tag">你現在在哪</span>
+      <select id="srcCur"></select>
+    </label>
+    <label class="field" for="style"><span class="tag">翻譯風格</span>
+      <select id="style">
+        <option value="local">在地化（像商品文案）</option>
+        <option value="literal">忠實直譯</option>
+      </select>
+    </label>
+    <label class="field" for="target"><span class="tag">價格換算成</span>
+      <select id="target"></select>
+    </label>
+  </div>
+
+  <details class="box" id="ratesBox">
+    <summary><span class="tag">匯率</span> <span id="rateSrc"></span></summary>
+    <p class="msg">1 單位外幣兌新台幣。數字可以直接改，改過的會記在這支手機上。</p>
+    <div class="rgrid" id="rgrid"></div>
+    <button class="ghost" id="resetRates" type="button">還原預設匯率</button>
+  </details>
+</div>
+
+<div class="crop" id="crop" hidden role="dialog" aria-label="選擇翻譯範圍">
+  <div class="cbar">
+    <button class="ghost" type="button" id="cropCancel">取消</button>
+    <span class="ctitle">整張都會翻譯・只要一部分再拖框線</span>
+    <span></span>
+  </div>
+  <div class="cstage" id="cropStage">
+    <div class="cbox" id="cropBox">
+      <canvas id="cropCv" aria-label="拍攝的照片"></canvas>
+      <div class="crect" id="cropRect">
+        <i data-h="nw" class="hd nw"></i><i data-h="ne" class="hd ne"></i><i data-h="sw" class="hd sw"></i><i data-h="se" class="hd se"></i>
+        <i data-h="n" class="ed n"></i><i data-h="s" class="ed s"></i><i data-h="w" class="ed w"></i><i data-h="e" class="ed e"></i>
+      </div>
+    </div>
+  </div>
+  <!-- 照片拍歪了：轉 90 度、自動拉正、手動微調角度，不用重拍 -->
+  <div class="crot">
+    <button class="ghost" type="button" id="rotL" aria-label="向左轉 90 度">↺ 90°</button>
+    <button class="ghost" type="button" id="rotR" aria-label="向右轉 90 度">↻ 90°</button>
+    <button class="ghost" type="button" id="rotAuto">自動拉正</button>
+    <input type="range" id="rotFine" min="-15" max="15" step="0.5" value="0" aria-label="微調角度">
+    <span class="cdeg" id="rotDeg">0°</span>
+    <span class="cnote" id="rotNote"></span>
+  </div>
+  <div class="cbar">
+    <button class="ghost" type="button" id="cropAll">整張翻譯</button>
+    <span class="grow"></span>
+    <button class="shoot" type="button" id="cropGo">翻譯框內範圍</button>
+  </div>
+</div>
+
+<div class="full" id="full" hidden>
+  <div class="bar">
+    <button class="ghost" type="button" id="fzOut" aria-label="縮小">−</button>
+    <button class="ghost" type="button" id="fzIn" aria-label="放大">＋</button>
+    <button class="ghost" type="button" id="fOrig" aria-pressed="false">看原文</button>
+    <span class="grow"></span>
+    <button class="ghost" type="button" id="fClose">關閉</button>
+  </div>
+  <div class="scroll" id="fScroll"><img id="fImg" alt="翻譯後的畫面（放大）"></div>
+</div>
+
+<!-- ===== 語音翻譯對話畫面 ===== -->
+<div class="talk" id="talk" hidden>
+  <div class="thead">
+    <h2>語音翻譯</h2>
+    <label class="tsmall" for="tLang">對方說</label>
+    <select id="tLang"></select>
+    <button class="ghost" type="button" id="tClear">清除</button>
+    <button class="ghost" type="button" id="tClose">關閉</button>
+  </div>
+  <div class="tbig" id="tBig" hidden role="button" aria-label="點一下關閉"><span id="tBigText"></span></div>
+  <div class="tfoot">
+    <div class="tbar" id="tBar" hidden><i></i></div>
+    <div class="tstatus" id="tStatus"></div>
+    <div class="row" id="tThemRow">
+      <label class="shoot" style="flex:1" for="tThem" role="button" tabindex="0" id="tThemBtn">● 錄下對方說話</label>
+      <input class="hidden-input" type="file" id="tThem" accept="video/*" capture="user">
+      <label class="ghost" for="tThemFile" role="button" tabindex="0">選錄音檔</label>
+      <input class="hidden-input" type="file" id="tThemFile" accept="audio/*,video/*">
+    </div>
+    <div class="tsmall" id="tReplyTitle">我要回話</div>
+    <textarea id="tInput" rows="2" placeholder="打中文，例如：請問廁所在哪裡？" enterkeyhint="send"></textarea>
+    <div class="row">
+      <button class="ghost" type="button" id="tKbd" hidden>⌄ 收起鍵盤</button>
+      <label class="ghost" for="tMe" role="button" tabindex="0">🎙 錄我說的</label>
+      <input class="hidden-input" type="file" id="tMe" accept="video/*" capture="user">
+      <button class="shoot tsend" type="button" id="tSend">翻譯給對方</button>
+    </div>
+  </div>
+  <div class="tlog" id="tLog" aria-live="polite"></div>
+</div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const orig=$("orig"),src=document.createElement("canvas"),wk=document.createElement("canvas"),out=$("out"),figure=$("figure"),hl=$("hl"),busy=$("busy"),badge=$("badge"),msg=$("msg");
+  let region={x:0,y:0,w:1,h:1},maxImages=1,items=[],sections=[],summary="",scene=null,curOverride=null,lastFile=null,sample=null,downloads=null,ctl=null,activeRow=null,pixels=null;
+
+  // ================= Currency =================
+  const RATE_DATE="臺灣銀行 2026/10/20 牌告中價";
+  const DEFAULT_RATES={TWD:1,USD:32.57,JPY:0.2054,KRW:0.02475,EUR:36.54,CNY:4.876,HKD:4.15,THB:0.9746,VND:0.001245,SGD:25.46,GBP:43.38,AUD:22.73,CAD:23.12,CHF:39.425,MYR:7.72,PHP:0.517,IDR:0.00178};
+  const CUR={TWD:["新台幣","NT$",0],USD:["美元","US$",2],JPY:["日圓","¥",0],KRW:["韓元","₩",0],EUR:["歐元","€",2],CNY:["人民幣","CN¥",2],HKD:["港幣","HK$",1],THB:["泰銖","฿",0],VND:["越南盾","₫",0],SGD:["新加坡幣","S$",2],GBP:["英鎊","£",2],AUD:["澳幣","A$",2],CAD:["加幣","C$",2],CHF:["瑞士法郎","CHF ",2],MYR:["馬幣","RM",2],PHP:["披索","₱",0],IDR:["印尼盾","Rp",0]};
+  const REGIONS=[["JP","日本","JPY"],["KR","韓國","KRW"],["TW","台灣","TWD"],["CN","中國","CNY"],["HK","香港","HKD"],["TH","泰國","THB"],["VN","越南","VND"],["SG","新加坡","SGD"],["MY","馬來西亞","MYR"],["PH","菲律賓","PHP"],["ID","印尼","IDR"],["US","美國","USD"],["CA","加拿大","CAD"],["AU","澳洲","AUD"],["GB","英國","GBP"],["EU","歐元區國家","EUR"],["CH","瑞士","CHF"]];
+  const REGION={};REGIONS.forEach(r=>REGION[r[0]]={name:r[1],cur:r[2]});
+  const EXPLICIT=[
+    [/NT\$|NTD|新台幣|新臺幣|台幣|臺幣/i,"TWD"],[/US\$|USD|美元|美金/i,"USD"],[/HK\$|HKD|港幣|港元/i,"HKD"],
+    [/S\$|SGD|新幣/i,"SGD"],[/C\$|CA\$|CAD|加幣/i,"CAD"],[/A\$|AUD|澳幣/i,"AUD"],
+    [/CN¥|RMB|CNY|人民幣/i,"CNY"],[/JPY|円|日圓|日幣/i,"JPY"],[/₩|원|KRW|韓元/i,"KRW"],
+    [/€|EUR\b|歐元/i,"EUR"],[/£|GBP|英鎊/i,"GBP"],[/฿|บาท|THB|泰銖/i,"THB"],
+    [/₫|VND|đồng|\d\s*đ(?![a-zà-ỹ])/i,"VND"],[/₱|PHP\b|披索/i,"PHP"],[/\bRp\.?\s?\d|IDR|rupiah/i,"IDR"],
+    [/\bRM\s?\d|MYR|ringgit|令吉/i,"MYR"],[/CHF|Fr\.\s?\d/i,"CHF"]
+  ];
+  const AMBIG=[[/\$/,"$",["USD","TWD","HKD","SGD","AUD","CAD"]],[/[¥￥]/,"¥",["JPY","CNY"]],[/元/,"元",["TWD","CNY","HKD"]]];
+  function detectFromText(t){
+    for(const [re,c] of EXPLICIT) if(re.test(t)) return {code:c};
+    for(const [re,sym,list] of AMBIG) if(re.test(t)) return {code:null,sym,list};
+    return null;
+  }
+  let rates={...DEFAULT_RATES};
+  try{const r=JSON.parse(localStorage.getItem("lens.rates")||"null");if(r)for(const k in r)if(k in rates&&r[k]>0)rates[k]=r[k];}catch(e){}
+  const tgtSel=$("target"),srcSel=$("srcCur");
+  tgtSel.add(new Option("不換算",""));for(const k in CUR)tgtSel.add(new Option(`${CUR[k][0]} ${k}`,k));
+  srcSel.add(new Option("讓 AI 判斷",""));REGIONS.forEach(r=>srcSel.add(new Option(`${r[1]}（${r[2]}）`,r[0])));
+  tgtSel.value="TWD";
+  try{const t=localStorage.getItem("lens.target");if(t!==null)tgtSel.value=t;}catch(e){}
+  try{const r=localStorage.getItem("lens.region");if(r&&REGION[r])srcSel.value=r;}catch(e){}
+  try{const s=localStorage.getItem("lens.lang");if(s)$("lang").value=s;}catch(e){}
+  try{const s=localStorage.getItem("lens.style");if(s)$("style").value=s;}catch(e){}
+  $("style").addEventListener("change",e=>{try{localStorage.setItem("lens.style",e.target.value)}catch(_){}});
+  tgtSel.addEventListener("change",()=>{try{localStorage.setItem("lens.target",tgtSel.value)}catch(_){}refresh()});
+  srcSel.addEventListener("change",()=>{try{localStorage.setItem("lens.region",srcSel.value)}catch(_){}refresh()});
+  $("lang").addEventListener("change",e=>{try{localStorage.setItem("lens.lang",e.target.value)}catch(_){}});
+  $("rateSrc").textContent=RATE_DATE;
+
+  function fmt(v,c){let d=CUR[c]?CUR[c][2]:2;if(v<1&&v>0)d=Math.max(d,3);if(v>=1000)d=0;return (CUR[c]?CUR[c][1]:c+" ")+v.toLocaleString("en-US",{maximumFractionDigits:d,minimumFractionDigits:0})}
+  // order: your pick → marker written in the price → where you are → AI read of the scene
+  function resolveCur(p){
+    if(!p)return null;
+    if(curOverride&&CUR[curOverride])return {code:curOverride,how:"manual"};
+    const d=detectFromText(p.original||"");
+    if(d&&d.code)return {code:d.code,how:"text"};
+    const reg=REGION[srcSel.value];
+    if(reg&&(!d||d.list.includes(reg.cur)))return {code:reg.cur,how:"region",sym:d&&d.sym};
+    const ai=(p.currency&&CUR[p.currency])?p.currency:(scene&&CUR[scene.code]?scene.code:null);
+    if(ai)return {code:ai,how:"ai",sym:d&&d.sym,list:d&&d.list};
+    return {code:null,how:"unknown",sym:d&&d.sym,list:d&&d.list};
+  }
+  function convert(p){
+    const r=resolveCur(p),to=tgtSel.value;if(!r||!r.code)return null;
+    const amt=Number(p.amount);if(!isFinite(amt))return null;
+    if(!to||!rates[r.code]||!rates[to]||r.code===to)return {from:r.code,to:r.code,amt,out:amt,same:true};
+    return {from:r.code,to,amt,out:amt*rates[r.code]/rates[to],same:false};
+  }
+  function buildRates(){
+    const g=$("rgrid");g.innerHTML="";
+    for(const k in CUR){if(k==="TWD")continue;
+      const l=document.createElement("label");l.htmlFor="rate-"+k;l.textContent=k;
+      const i=document.createElement("input");i.id="rate-"+k;i.type="number";i.inputMode="decimal";i.step="any";i.value=rates[k];
+      i.addEventListener("change",()=>{const v=parseFloat(i.value);if(v>0){rates[k]=v;saveRates();refresh()}else i.value=rates[k]});
+      l.appendChild(i);g.appendChild(l);
+    }
+  }
+  function saveRates(){try{localStorage.setItem("lens.rates",JSON.stringify(rates))}catch(e){}}
+  $("resetRates").addEventListener("click",()=>{rates={...DEFAULT_RATES};try{localStorage.removeItem("lens.rates")}catch(e){}buildRates();refresh()});
+  buildRates();
+
+  // ================= Translated image: cover each original text with its surrounding color, draw the translation in =================
+  const boxOf=it=>{const b=it&&Array.isArray(it.box)&&it.box.length===4?it.box.map(Number):null;
+    if(!b||!b.every(n=>isFinite(n)))return null;
+    const x=Math.min(Math.max(0,b[0]),.99),y=Math.min(Math.max(0,b[1]),.99);
+    return [x,y,Math.min(Math.max(b[2],.002),1-x),Math.min(Math.max(b[3],.002),1-y)]};   // 最小 0.2%：長條照片裡的小字框不會被硬撐大
+  const lum=c=>{const f=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)};return .2126*f(c[0])+.7152*f(c[1])+.0722*f(c[2])};
+  const contrast=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
+  const rgb=c=>`rgb(${c[0]|0},${c[1]|0},${c[2]|0})`;
+  function px(x,y){x=Math.max(0,Math.min(src.width-1,x|0));y=Math.max(0,Math.min(src.height-1,y|0));const i=(y*src.width+x)*4;return [pixels[i],pixels[i+1],pixels[i+2]]}
+  function edgeColor(x,y,w,h){
+    const s=[],step=Math.max(2,Math.round((w+h)/80));
+    for(let i=0;i<=w;i+=step){s.push(px(x+i,y));s.push(px(x+i,y+h))}
+    for(let j=0;j<=h;j+=step){s.push(px(x,y+j));s.push(px(x+w,y+j))}
+    const med=k=>{const a=s.map(c=>c[k]).sort((p,q)=>p-q);return a[a.length>>1]};
+    return [med(0),med(1),med(2)];
+  }
+  function inkColor(x,y,w,h,bg){
+    const cand=[],step=Math.max(1,Math.round(Math.sqrt(w*h)/40));
+    for(let j=0;j<h;j+=step)for(let i=0;i<w;i+=step){const c=px(x+i,y+j);const d=Math.abs(c[0]-bg[0])+Math.abs(c[1]-bg[1])+Math.abs(c[2]-bg[2]);if(d>90)cand.push([d,c])}
+    let ink=null;
+    if(cand.length>8){cand.sort((a,b)=>b[0]-a[0]);const top=cand.slice(0,Math.max(4,cand.length*.3|0));ink=[0,1,2].map(k=>top.reduce((s,v)=>s+v[1][k],0)/top.length)}
+    if(!ink||contrast(ink,bg)<3)ink=lum(bg)>.35?[20,20,22]:[250,250,248];
+    return ink;
+  }
+  const TOKEN=/[⺀-鿿가-힯豈-﫿＀-￯　-〿]|[^\s⺀-鿿가-힯豈-﫿＀-￯　-〿]+|\s+/g;
+  function wrap(ctx,text,maxW){
+    const toks=text.match(TOKEN)||[text];const lines=[];let cur="";
+    for(const t of toks){
+      const next=cur+t;
+      if(ctx.measureText(next.trimEnd()).width<=maxW||!cur.trim()){cur=next}
+      else{lines.push(cur.trim());cur=t.trimStart()}
+    }
+    if(cur.trim())lines.push(cur.trim());
+    return lines;
+  }
+  function balance(ctx,text,maxW){
+    const greedy=wrap(ctx,text,maxW);if(greedy.length<2)return greedy;
+    let lo=maxW*.5,hi=maxW,best=greedy;
+    for(let i=0;i<12;i++){const mid=(lo+hi)/2,L=wrap(ctx,text,mid);if(L.length<=greedy.length){best=L;hi=mid}else lo=mid}
+    return best;
+  }
+  const FAM="'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif";
+  function rr(ctx,x,y,w,h,r){ctx.beginPath();if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else ctx.rect(x,y,w,h);ctx.fill()}
+  // ---------- Find text lines in the photo itself (edges → horizontal smear → connected blobs) ----------
+  let comps=null;
+  function detectComps(){
+    const W=src.width,H=src.height,s=Math.min(1,720/Math.max(W,H)),w=Math.max(8,Math.round(W*s)),h=Math.max(8,Math.round(H*s));
+    const t=document.createElement("canvas");t.width=w;t.height=h;const tc=t.getContext("2d",{willReadFrequently:true});tc.drawImage(src,0,0,w,h);
+    const d=tc.getImageData(0,0,w,h).data,g=new Float32Array(w*h);
+    for(let i=0;i<w*h;i++)g[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
+    const e=new Float32Array(w*h);let sum=0,sq=0;
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;const v=Math.abs(g[i+1]-g[i-1])+Math.abs(g[i+w]-g[i-w]);e[i]=v;sum+=v;sq+=v*v}
+    const n=w*h,mean=sum/n,sd=Math.sqrt(Math.max(0,sq/n-mean*mean)),thr=Math.max(36,mean+1.2*sd);
+    const m=new Uint8Array(n);for(let i=0;i<n;i++)m[i]=e[i]>thr?1:0;
+    const k=Math.max(3,Math.round(w/80));
+    for(let y=0;y<h;y++){let last=-1;for(let x=0;x<w;x++){if(m[y*w+x]){if(last>=0&&x-last>1&&x-last<=k)for(let z=last+1;z<x;z++)m[y*w+z]=2;last=x}}}
+    for(let x=0;x<w;x++){let last=-1;for(let y=0;y<h;y++){if(m[y*w+x]){if(last>=0&&y-last>1&&y-last<=2)for(let z=last+1;z<y;z++)m[z*w+x]=2;last=y}}}
+    const lab=new Int32Array(n),out=[],st=[];let id=0;
+    for(let i=0;i<n;i++){if(!m[i]||lab[i])continue;id++;let x0=w,y0=h,x1=0,y1=0,c=0;st.push(i);lab[i]=id;
+      while(st.length){const j=st.pop(),x=j%w,y=(j/w)|0;c++;if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+        if(x>0&&m[j-1]&&!lab[j-1]){lab[j-1]=id;st.push(j-1)}if(x<w-1&&m[j+1]&&!lab[j+1]){lab[j+1]=id;st.push(j+1)}
+        if(y>0&&m[j-w]&&!lab[j-w]){lab[j-w]=id;st.push(j-w)}if(y<h-1&&m[j+w]&&!lab[j+w]){lab[j+w]=id;st.push(j+w)}}
+      const bw=x1-x0+1,bh=y1-y0+1;
+      if(bh>=4&&bw>=4&&bh<=h*.3&&c/(bw*bh)>.22&&!(bw>w*.9&&bh>h*.15))out.push({x:x0/s,y:y0/s,w:bw/s,h:bh/s})}
+    return out;
+  }
+  // Move each AI box onto the text lines actually found near it
+  function snap(A){
+    if(!comps||!comps.length)return A;
+    const E={x:A.x-(A.w*.15+A.h*.5),y:A.y-A.h*.6,x2:A.x+A.w+(A.w*.15+A.h*.5),y2:A.y+A.h*1.6};
+    const c=comps.filter(b=>{const cx=b.x+b.w/2,cy=b.y+b.h/2;return cx>E.x&&cx<E.x2&&cy>E.y&&cy<E.y2&&b.h<=A.h*2.2&&(b.h>=A.h*.3||(cy>=A.y&&cy<=A.y+A.h&&cx>=A.x-A.h&&cx<=A.x+A.w+A.h))});
+    if(!c.length)return A;
+    let x1=Math.max(E.x,Math.min(...c.map(b=>b.x))),y1=Math.max(E.y,Math.min(...c.map(b=>b.y)));
+    let x2=Math.min(E.x2,Math.max(...c.map(b=>b.x+b.w))),y2=Math.min(E.y2,Math.max(...c.map(b=>b.y+b.h)));
+    const U={x:x1,y:y1,w:x2-x1,h:y2-y1};
+    if(U.w<4||U.h<4||U.h>A.h*1.9||U.w>A.w*1.9+A.h)return A;
+    return U;
+  }
+  // Split boxes that overlap so one erase never eats another's text
+  function separate(rs){
+    for(let i=0;i<rs.length;i++)for(let j=i+1;j<rs.length;j++){
+      const a=rs[i],b=rs[j];
+      const ox=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x),oy=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);
+      if(ox<=0||oy<=0)continue;
+      if(oy<=ox){const [t,u]=a.y<=b.y?[a,b]:[b,a];const m=Math.max(t.y,u.y)+oy/2;t.h=Math.max(4,m-t.y-1);const bot=u.y+u.h;u.y=m+1;u.h=Math.max(4,bot-u.y)}
+      else{const [l,q]=a.x<=b.x?[a,b]:[b,a];const m=Math.max(l.x,q.x)+ox/2;l.w=Math.max(4,m-l.x-1);const right=q.x+q.w;q.x=m+1;q.w=Math.max(4,right-q.x)}
+    }
+  }
+  // how many text lines sit inside a box, from the lines found in the photo
+  function countLines(r){
+    if(!comps)return 1;
+    const c=comps.filter(b=>{const cx=b.x+b.w/2,cy=b.y+b.h/2;return cx>=r.x&&cx<=r.x+r.w&&cy>=r.y&&cy<=r.y+r.h&&b.w>b.h*.5}).sort((a,b)=>(a.y+a.h/2)-(b.y+b.h/2));
+    if(c.length<2)return 1;
+    const top=Math.max(...c.map(b=>b.h));const big=c.filter(b=>b.h>=top*.55);
+    if(big.length<2)return 1;
+    const hs=big.map(b=>b.h).sort((a,b)=>a-b),mh=hs[hs.length>>1];
+    if(r.h<mh*1.7)return 1;
+    let n=1,last=big[0].y+big[0].h/2;for(const b of big.slice(1)){const cy=b.y+b.h/2;if(cy-last>mh*.6){n++;last=cy}}
+    return Math.max(1,Math.min(n,Math.round(r.h/(mh*.9))));
+  }
+  const isCJK=t=>/[⺀-鿿가-힯぀-ヿ]/.test(t);
+  let overlayMode="all";
+  // the result is always the whole original photo, same size; only the framed area is replaced
+  function composite(){
+    if(!orig.width)return;
+    out.width=orig.width;out.height=orig.height;const c=out.getContext("2d");c.drawImage(orig,0,0);
+    if(wk.width)c.drawImage(wk,0,0,wk.width,wk.height,region.x*orig.width,region.y*orig.height,region.w*orig.width,region.h*orig.height);
+  }
+  const toFull=b=>[region.x+b[0]*region.w,region.y+b[1]*region.h,b[2]*region.w,b[3]*region.h];
+  function paint(){
+    if(!src.width)return;
+    const W=src.width,H=src.height;
+    wk.width=W;wk.height=H;const o=wk.getContext("2d");o.drawImage(src,0,0);
+    if(!comps)comps=detectComps();
+    const minRead=Math.max(11,Math.min(W,H)/34);
+    const jobs=[],fixedR=[];   // fixedR：不用翻譯、保持原樣的字（型號、數量…）的位置，擦別的字時不能碰到
+    items.forEach(it=>{
+      const b=boxOf(it);if(!b)return;
+      const c=it.price?convert(it.price):null,isPrice=!!(c&&!c.same);
+      const keep=()=>fixedR.push({x:b[0]*W,y:b[1]*H,w:b[2]*W,h:b[3]*H});
+      if(overlayMode==="price"&&!isPrice)return keep();
+      if(!isPrice&&(it.translation||"").replace(/\s+/g,"")===(it.original||"").replace(/\s+/g,""))return keep();
+      const r={x:b[0]*W,y:b[1]*H,w:b[2]*W,h:b[3]*H};
+      jobs.push({it,r,boxH:r.h,isPrice,text:isPrice?fmt(c.out,c.to):it.translation,vertical:!!it.vertical&&r.h>r.w*1.6});
+    });
+    jobs.forEach(j=>{j.r.x=Math.max(0,j.r.x);j.r.y=Math.max(0,j.r.y);j.r.w=Math.min(W-j.r.x,j.r.w);j.r.h=Math.min(H-j.r.y,j.r.h)});
+
+    // ---- 1) erase the original letters and rebuild the photo behind them ----
+    // Stage 1 removes the letters: a morphological filter wider than a stroke estimates what is behind
+    //   them (it keeps anything larger: wood grain, objects, gradients); only letter-coloured pixels are replaced.
+    // Stage 2 removes what is left of a drop shadow or outline the same way, but only right around the letters.
+    // Both blend in with soft edges and the photo's own grain, so no box or blur is left.
+    const img=o.getImageData(0,0,W,H),D=img.data;
+    const m1d=(a,n,rad,isMax,out)=>{ // van Herk / Gil-Werman running max/min, edge-replicated
+      const k=2*rad+1,m=n+2*rad,g=new Float32Array(m),h=new Float32Array(m),A=new Float32Array(m);
+      for(let i=0;i<m;i++)A[i]=a[Math.min(n-1,Math.max(0,i-rad))];
+      for(let i=0;i<m;i++)g[i]=(i%k===0)?A[i]:(isMax?Math.max(g[i-1],A[i]):Math.min(g[i-1],A[i]));
+      for(let i=m-1;i>=0;i--)h[i]=(i%k===k-1||i===m-1)?A[i]:(isMax?Math.max(h[i+1],A[i]):Math.min(h[i+1],A[i]));
+      for(let i=0;i<n;i++){const x=h[i],y=g[Math.min(m-1,i+k-1)];out[i]=isMax?Math.max(x,y):Math.min(x,y)}
+    };
+    const m2d=(ch,w,h,rad,isMax)=>{const t=new Float32Array(w*h),row=new Float32Array(Math.max(w,h)),res=new Float32Array(Math.max(w,h));
+      for(let y=0;y<h;y++){for(let x=0;x<w;x++)row[x]=ch[y*w+x];m1d(row,w,rad,isMax,res);for(let x=0;x<w;x++)t[y*w+x]=res[x]}
+      const o2=new Float32Array(w*h);for(let x=0;x<w;x++){for(let y=0;y<h;y++)row[y]=t[y*w+x];m1d(row,h,rad,isMax,res);for(let y=0;y<h;y++)o2[y*w+x]=res[y]}return o2};
+    const opening=(c,w,h,rad)=>m2d(m2d(c,w,h,rad,false),w,h,rad,true);   // removes thin light features
+    const closing=(c,w,h,rad)=>m2d(m2d(c,w,h,rad,true),w,h,rad,false);   // removes thin dark features
+    const boxBlur=(ch,w,h,rad)=>{if(rad<1)return ch;const t=new Float32Array(w*h),o2=new Float32Array(w*h);
+      for(let y=0;y<h;y++){let s=0;for(let x=-rad;x<=rad;x++)s+=ch[y*w+Math.min(w-1,Math.max(0,x))];for(let x=0;x<w;x++){t[y*w+x]=s/(2*rad+1);s+=ch[y*w+Math.min(w-1,x+rad+1)]-ch[y*w+Math.max(0,x-rad)]}}
+      for(let x=0;x<w;x++){let s=0;for(let y=-rad;y<=rad;y++)s+=t[Math.min(h-1,Math.max(0,y))*w+x];for(let y=0;y<h;y++){o2[y*w+x]=s/(2*rad+1);s+=t[Math.min(h-1,y+rad+1)*w+x]-t[Math.max(0,y-rad)*w+x]}}return o2};
+    let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+    const lumOf=(C,k)=>.299*C[0][k]+.587*C[1][k]+.114*C[2][k];
+    // replace masked pixels of C (in place) with the estimate B, softly, with grain
+    function blendIn(C,B,mask,pw,ph,rad,noGrain){
+      let a=m2d(mask,pw,ph,Math.max(1,Math.round(rad*.45)),true);
+      a=boxBlur(a,pw,ph,Math.max(1,Math.round(rad*.3)));
+      const Bs=B.map(c=>boxBlur(c,pw,ph,Math.max(1,Math.round(rad*.4))));
+      // grain: the fine noise of the surface right next to the area (not the whole patch, which may hold other objects)
+      const ringO=m2d(mask,pw,ph,Math.max(3,Math.round(rad*2)),true),Lh=Float32Array.from({length:pw*ph},(_,k)=>.299*C[0][k]+.587*C[1][k]+.114*C[2][k]),Lb1=boxBlur(Lh,pw,ph,1);
+      const dv=[];for(let k=0;k<pw*ph;k++){if(ringO[k]&&a[k]<.01)dv.push(Math.abs(Lh[k]-Lb1[k]))}dv.sort((x,y)=>x-y);
+      const gn=dv.length,gs=gn?Math.pow((dv[gn>>1]||0)*1.48,2)*gn:0;   // robust: letter edges nearby don't count
+      const grain=noGrain?0:gn>20?Math.min(8,Math.sqrt(gs/gn)*1.2):0;
+      const Bs2=noGrain?B:Bs;
+      for(let k=0;k<pw*ph;k++){const al=Math.min(1,a[k]);if(al<=.01)continue;const n=grain?(rnd()+rnd()+rnd()-1.5)*grain*1.1:0;
+        for(let c=0;c<3;c++)C[c][k]=C[c][k]*(1-al)+(Bs2[c][k]+n)*al}
+      return a;
+    }
+    // smooth fill of unknown pixels (known=0 in mask) from the known ones: average down a pyramid, interpolate back up
+    function pullPush(C,mask,pw,ph){
+      const lv=[];const W0=new Float32Array(pw*ph),C0=[new Float32Array(pw*ph),new Float32Array(pw*ph),new Float32Array(pw*ph)];
+      for(let k=0;k<pw*ph;k++){if(mask[k]<.5){W0[k]=1;for(let c=0;c<3;c++)C0[c][k]=C[c][k]}}
+      lv.push({w:pw,h:ph,W:W0,C:C0});
+      while(lv[lv.length-1].w>1||lv[lv.length-1].h>1){
+        const a=lv[lv.length-1],nw=Math.ceil(a.w/2),nh=Math.ceil(a.h/2),Wn=new Float32Array(nw*nh),Cn=[new Float32Array(nw*nh),new Float32Array(nw*nh),new Float32Array(nw*nh)];
+        for(let y=0;y<nh;y++)for(let x=0;x<nw;x++){let ws=0,s0=0,s1=0,s2=0;
+          for(let dy=0;dy<2;dy++)for(let dx=0;dx<2;dx++){const xx=x*2+dx,yy=y*2+dy;if(xx>=a.w||yy>=a.h)continue;const k=yy*a.w+xx,wt=a.W[k];if(!wt)continue;ws+=wt;s0+=a.C[0][k]*wt;s1+=a.C[1][k]*wt;s2+=a.C[2][k]*wt}
+          const k=y*nw+x;if(ws>0){Cn[0][k]=s0/ws;Cn[1][k]=s1/ws;Cn[2][k]=s2/ws}Wn[k]=Math.min(1,ws)}
+        lv.push({w:nw,h:nh,W:Wn,C:Cn});
+      }
+      for(let l=lv.length-2;l>=0;l--){const a=lv[l],b=lv[l+1];
+        for(let y=0;y<a.h;y++)for(let x=0;x<a.w;x++){const k=y*a.w+x,wt=a.W[k];if(wt>=1)continue;
+          const fx=Math.min(b.w-1,Math.max(0,(x+.5)/2-.5)),fy=Math.min(b.h-1,Math.max(0,(y+.5)/2-.5)),x0=Math.floor(fx),y0=Math.floor(fy),x1=Math.min(b.w-1,x0+1),y1=Math.min(b.h-1,y0+1),tx=fx-x0,ty=fy-y0;
+          for(let c=0;c<3;c++){const Q=b.C[c];a.C[c][k]=wt*a.C[c][k]+(1-wt)*((Q[y0*b.w+x0]*(1-tx)+Q[y0*b.w+x1]*tx)*(1-ty)+(Q[y1*b.w+x0]*(1-tx)+Q[y1*b.w+x1]*tx)*ty)}
+          a.W[k]=1}}
+      return lv[0].C;
+    }
+    // 擦掉一段原文（self：這段文字本人，用來分辨「其他段」的範圍；第二遍補擦時會用一個複製的工作）
+    const eraseJob=(j,self)=>{self=self||j;
+      // 直書（由上往下）的字：一「行」是一直排，字的大小看框的寬度，不是高度
+      // （以前用整個框的高度當字高，擦除範圍會大到把旁邊的圖案一起抹糊）
+      const V=!!j.vertical,r=j.r,nL=Math.max(1,Math.round(Number(j.it.lines)||1)),lineH=V?r.w/nL:r.h/nL;
+      const rad=Math.max(2,Math.round(lineH*.17));                 // wider than any stroke at this text size
+      const mv=rad*4+3+(V?Math.round(lineH*.6):0),mh=V?rad*4+3:mv+Math.round(lineH*3);                  // look a little past the box for missed letters
+      const P={x:Math.max(0,Math.floor(r.x-mh)),y:Math.max(0,Math.floor(r.y-mv))};P.x2=Math.min(W-1,Math.ceil(r.x+r.w+mh));P.y2=Math.min(H-1,Math.ceil(r.y+r.h+mv));
+      const pw=P.x2-P.x+1,ph=P.y2-P.y+1,N=pw*ph;j.P=P;
+      const C=[new Float32Array(N),new Float32Array(N),new Float32Array(N)];
+      for(let y=0;y<ph;y++)for(let x=0;x<pw;x++){const k=y*pw+x,q=((P.y+y)*W+P.x+x)*4;C[0][k]=D[q];C[1][k]=D[q+1];C[2][k]=D[q+2]}
+      const L=new Float32Array(N);for(let k=0;k<N;k++)L[k]=lumOf(C,k);
+      let ix0=Math.max(0,Math.round(r.x-P.x)),iy0=Math.max(0,Math.round(r.y-P.y)),ix1=Math.min(pw-1,Math.round(r.x+r.w-P.x)),iy1=Math.min(ph-1,Math.round(r.y+r.h-P.y));
+      // are the letters lighter or darker than what is behind them?
+      // decide by colour, not just brightness (red on brown is barely lighter but clearly different)
+      // compare the strongest features only: letters are the highest-contrast thing in the box, grain is not
+      const SL=new Float32Array(N),SD=new Float32Array(N);
+      for(let c=0;c<3;c++){const Co=opening(C[c],pw,ph,rad),Cc=closing(C[c],pw,ph,rad);
+        for(let k=0;k<N;k++){SL[k]+=Math.max(0,C[c][k]-Co[k]);SD[k]+=Math.max(0,Cc[k]-C[c][k])}}
+      const pct=(A,q)=>{const v=[];for(let y=iy0;y<=iy1;y++)for(let x=ix0;x<=ix1;x++)v.push(A[y*pw+x]);v.sort((a,b)=>a-b);return v[Math.min(v.length-1,Math.floor(v.length*q))]||0};
+      // letters are the pixels far from the box's typical (background) brightness: which side has more of them?
+      let light;{const v=[];for(let y=iy0;y<=iy1;y++)for(let x=ix0;x<=ix1;x++)v.push(L[y*pw+x]);v.sort((a,b)=>a-b);
+        const med=v[v.length>>1];let up=0,dn=0;for(const t of v){if(t>med+40)up+=t-med;else if(t<med-40)dn+=med-t}
+        light=(up||dn)?up>dn:pct(SL,.97)+pct(SL,.9)>pct(SD,.97)+pct(SD,.9)}
+      let aiInk=Array.isArray(j.it.color)?j.it.color:null;
+      if(!aiInk){
+        // 沒有提供文字顏色時：把框內「和一般顏色差很多」的點分成兩群，取顏色最一致的那群當文字色
+        const med=[0,1,2].map(c=>{const v=[];for(let y=iy0;y<=iy1;y+=2)for(let x=ix0;x<=ix1;x+=2)v.push(C[c][y*pw+x]);v.sort((a,b)=>a-b);return v[v.length>>1]||0});
+        const pts=[];for(let y=iy0;y<=iy1;y++)for(let x=ix0;x<=ix1;x++){const k=y*pw+x,d=Math.abs(C[0][k]-med[0])+Math.abs(C[1][k]-med[1])+Math.abs(C[2][k]-med[2]);if(d>70)pts.push(k)}
+        if(pts.length>20){
+          const step=Math.max(1,Math.floor(pts.length/3000)),S=[];for(let i=0;i<pts.length;i+=step)S.push(pts[i]);
+          let cA=[C[0][S[0]],C[1][S[0]],C[2][S[0]]],cB=cA;let far=-1;
+          for(const k of S){const d=Math.abs(C[0][k]-cA[0])+Math.abs(C[1][k]-cA[1])+Math.abs(C[2][k]-cA[2]);if(d>far){far=d;cB=[C[0][k],C[1][k],C[2][k]]}}
+          let gA=[],gB=[];
+          for(let it=0;it<6;it++){gA=[];gB=[];
+            for(const k of S){const p=[C[0][k],C[1][k],C[2][k]],dA=Math.abs(p[0]-cA[0])+Math.abs(p[1]-cA[1])+Math.abs(p[2]-cA[2]),dB=Math.abs(p[0]-cB[0])+Math.abs(p[1]-cB[1])+Math.abs(p[2]-cB[2]);(dA<=dB?gA:gB).push(p)}
+            const mean=g=>g.length?[0,1,2].map(c=>g.reduce((t,q)=>t+q[c],0)/g.length):null;cA=mean(gA)||cA;cB=mean(gB)||cB}
+          // 文字：和背景（框內一般顏色）差最多的那一群，而且數量不能太少
+          const far2=(g,c)=>(Math.abs(c[0]-med[0])+Math.abs(c[1]-med[1])+Math.abs(c[2]-med[2]))*(g.length<S.length*.12?.3:1);
+          aiInk=(far2(gA,cA)>=far2(gB,cB)?cA:cB).map(Math.round);
+        }
+      }
+      let chLight=[null,null,null];
+      if(aiInk){
+        // compare the AI's letter colour with the typical colour in the box (mostly background)
+        const bgm=[0,1,2].map(c=>{const v=[];for(let y=iy0;y<=iy1;y++)for(let x=ix0;x<=ix1;x++)v.push(C[c][y*pw+x]);v.sort((a,b)=>a-b);return v[v.length>>1]||128});
+        const sc=(aiInk[0]-bgm[0])+(aiInk[1]-bgm[1])+(aiInk[2]-bgm[2]);
+        const li=.299*aiInk[0]+.587*aiInk[1]+.114*aiInk[2],lb=.299*bgm[0]+.587*bgm[1]+.114*bgm[2];
+        if(Math.abs(li-lb)>25)light=li>lb;else if(Math.abs(sc)>30)light=sc>0;
+        // coloured letters can be lighter in one channel and darker in another (red on brown): treat each channel its own way
+        chLight=[0,1,2].map(c=>Math.abs(aiInk[c]-bgm[c])>20?aiInk[c]>bgm[c]:null)}
+      // stage 1 estimate and letter strength
+      const B=C.map((c,i)=>{const lt=chLight[i]===null?light:chLight[i];return lt?opening(c,pw,ph,rad):closing(c,pw,ph,rad)});
+      const dif=new Float32Array(N);
+      const dirc=[0,1,2].map(c=>chLight[c]===null?(light?1:-1):(chLight[c]?1:-1));   // 每個顏色通道「往文字色」的方向
+      for(let k=0;k<N;k++){let d=0,sg=0;for(let c=0;c<3;c++){const v=C[c][k]-B[c][k];d+=Math.abs(v);sg+=v*dirc[c]}dif[k]=sg>0?d:0}
+      // ---- 表格線、框線、底線：很長的橫線或直線不是文字，擦字時一律保留 ----
+      // （以前會被當成文字的筆畫一起擦掉，表格的格線就斷掉了）
+      const LN=new Float32Array(N);
+      // 只在「乾淨的底」（紙張、文件、螢幕截圖、包裝）上找線：照片裡的木紋、毛髮也會有長長的直條，不能當成線
+      let smooth;{const v=[];for(let y=1;y<ph-1;y+=2)for(let x=1;x<pw-1;x+=2){const k=y*pw+x;if(dif[k]>25)continue;v.push(Math.abs(4*L[k]-L[k-1]-L[k+1]-L[k-pw]-L[k+pw]))}
+        v.sort((a,b)=>a-b);smooth=v.length>50&&v[Math.floor(v.length*.6)]<8}
+      // 線要「細」：線的上下（橫線）或左右（直線）幾點外就是乾淨的底，木紋、毛髮那種一整片的紋路不算
+      const clr=k=>k>=0&&k<N&&dif[k]<=40;
+      const thinH=k=>(clr(k-3*pw)||clr(k-5*pw))&&(clr(k+3*pw)||clr(k+5*pw)),thinV=k=>(clr(k-3)||clr(k-5))&&(clr(k+3)||clr(k+5));
+      if(smooth){const dk=k=>dif[k]>40,hMin=Math.max(Math.round(lineH*3.5),40),vMin=Math.max(Math.round(lineH*(V?3:1.8)),24);
+        // 一段連續的深色：夠長，而且大部分是「細」的（線和線交叉的地方不細也沒關係）才算線
+        for(let y=0;y<ph;y++){let s0=-1,nt=0;for(let x=0;x<=pw;x++){const k=y*pw+x,on=x<pw&&dk(k);if(on){if(s0<0){s0=x;nt=0}if(thinH(k))nt++}else if(s0>=0){if(x-s0>=hMin&&nt>=(x-s0)*.6)for(let z=s0;z<x;z++)LN[y*pw+z]=1;s0=-1}}}
+        for(let x=0;x<pw;x++){let s0=-1,nt=0;for(let y=0;y<=ph;y++){const k=y*pw+x,on=y<ph&&dk(k);if(on){if(s0<0){s0=y;nt=0}if(thinV(k))nt++}else if(s0>=0){if(y-s0>=vMin&&nt>=(y-s0)*.6)for(let z=s0;z<y;z++)LN[z*pw+x]=1;s0=-1}}}}
+      const LNd=m2d(LN,pw,ph,1,true);                 // 線旁邊 1 點（反鋸齒的邊）也算線
+      const isLine=k=>LNd[k]>0;
+      // ---- 這段字所在的「格子」：從框的中心往外走，碰到線就停 ----
+      // 表格裡每一格底色可能不同（例如綠色欄位），補背景時只參考同一格裡的顏色，也不會塗到隔壁格
+      const cell=new Uint8Array(N);let cellN=0;
+      {const cx=Math.round((ix0+ix1)/2),cy=Math.round((iy0+iy1)/2),st=[];
+        for(const [dx,dy] of [[0,0],[-3,0],[3,0],[0,-2],[0,2]]){const k=(cy+dy)*pw+cx+dx;if(cx+dx>=0&&cx+dx<pw&&cy+dy>=0&&cy+dy<ph&&!isLine(k)&&!cell[k]){cell[k]=1;st.push(k)}}
+        while(st.length){const k=st.pop();cellN++;const x=k%pw,y=(k/pw)|0;
+          if(x>0&&!cell[k-1]&&!isLine(k-1)){cell[k-1]=1;st.push(k-1)}if(x<pw-1&&!cell[k+1]&&!isLine(k+1)){cell[k+1]=1;st.push(k+1)}
+          if(y>0&&!cell[k-pw]&&!isLine(k-pw)){cell[k-pw]=1;st.push(k-pw)}if(y<ph-1&&!cell[k+pw]&&!isLine(k+pw)){cell[k+pw]=1;st.push(k+pw)}}}
+      // 格子太小（中心剛好落在線上等等）就不限制
+      const boxA=(ix1-ix0+1)*(iy1-iy0+1),useCell=cellN>boxA*.5&&cellN<N;
+      const inCell=k=>!useCell||cell[k]===1;
+      const C0=useCell?C.map(c=>Float32Array.from(c)):null;   // 原本的顏色：格子外面的東西最後要原封不動放回去
+      const med3=ks=>[0,1,2].map(c=>{const v=ks.map(k=>C[c][k]).sort((a,b)=>a-b);return v[v.length>>1]});
+      const boxpx=(ix1-ix0+1)*(iy1-iy0+1);
+      // the letters' own colour: pixels matching the colour the AI saw; otherwise the most distinct pixels
+      let inkC=null;
+      if(aiInk){const dd=k=>Math.abs(C[0][k]-aiInk[0])+Math.abs(C[1][k]-aiInk[1])+Math.abs(C[2][k]-aiInk[2]);
+        const set=[];for(let y=iy0;y<=iy1;y++)for(let x=ix0;x<=ix1;x++){const k=y*pw+x;if(dd(k)<75&&dif[k]>20&&!isLine(k))set.push(k)}
+        if(set.length>=Math.max(12,boxpx*.01))inkC=med3(set)}
+      // 像不像文字的顏色：和文字色很接近，或是「比起背景更接近文字色」
+      // （長長一排直書字、大字常常上下光線不同，上半部的字會比較淡，只用固定門檻會漏擦）
+      let likeInk=k=>{if(!inkC)return true;const di=Math.abs(C[0][k]-inkC[0])+Math.abs(C[1][k]-inkC[1])+Math.abs(C[2][k]-inkC[2]);
+        if(di<95)return true;const db=Math.abs(C[0][k]-B[0][k])+Math.abs(C[1][k]-B[1][k])+Math.abs(C[2][k]-B[2][k]);return di<db*.6};
+      let peak=0;for(let y=iy0;y<=iy1;y++)for(let x=ix0;x<=ix1;x++){const k=y*pw+x;if(likeInk(k)&&!isLine(k)&&dif[k]>peak)peak=dif[k]}
+      const thr=Math.max(28,peak*.22);
+      const cand=[];for(let y=iy0;y<=iy1;y++)for(let x=ix0;x<=ix1;x++){const k=y*pw+x;if(dif[k]>peak*.45&&likeInk(k)&&!isLine(k))cand.push(k)}
+      if(!inkC){cand.sort((a,b)=>dif[b]-dif[a]);const top=cand.slice(0,Math.max(4,Math.round(cand.length*.15)));
+        inkC=top.length?med3(top):(aiInk||null)}
+      const isLetter=k=>dif[k]>thr&&likeInk(k)&&!isLine(k)&&inCell(k);
+      // letters the AI box missed on the same line: extend left/right while letters keep coming
+      const minC=Math.max(2,Math.round((iy1-iy0+1)*.06));
+      const colHas=x=>{let c=0;for(let y=iy0;y<=iy1;y++){const k=y*pw+x;if(dif[k]>peak*.4&&likeInk(k)&&!isLine(k)&&inCell(k))c++}return c>=minC};
+      // 這一直排是不是表格的直線（往旁邊找漏掉的字時，碰到格線就停，不會跑進隔壁格）
+      const lineCol=x=>{let c=0;for(let y=iy0;y<=iy1;y++)if(isLine(y*pw+x))c++;return c>(iy1-iy0+1)*.5};
+      const others=jobs.filter(k=>k!==self).map(k=>k.r).concat(fixedR);
+      const blocked=x=>{const gx=P.x+x,cy=r.y+r.h/2;return others.some(q=>gx>=q.x&&gx<=q.x+q.w&&cy>=q.y&&cy<=q.y+q.h)};
+      if(!V)for(const dir of [1,-1]){let x=dir>0?ix1+1:ix0-1,gap=0,last=dir>0?ix1:ix0;   // 橫書才往左右找漏掉的字
+        while(x>=0&&x<pw&&gap<lineH*.55&&!blocked(x)&&!lineCol(x)){if(colHas(x)){last=x;gap=0}else gap++;x+=dir}
+        if(dir>0)ix1=last;else ix0=last}
+      // the real top and bottom of the letters: the band of rows with letters at the box's centre
+      if(nL===1&&!V){
+        // 每一列（橫排）有幾個文字點 → 從文字最密的那一列往上下延伸，直到連續空白為止
+        // （比舊方法穩定：中間有空隙、筆畫細、或 AI 的框高度不準都能量對）
+        const lo=Math.max(0,Math.round(iy0-lineH*.35)),hi=Math.min(ph-1,Math.round(iy1+lineH*.35));
+        // 每一列算「筆畫段數」而不是點數：一整片同色的東西（白色杯緣、色塊）只有一兩段，文字會有很多段
+        const ithr=Math.max(28,peak*.22);
+        const rowc=[];for(let y=lo;y<=hi;y++){let c=0,on=false,run=0;
+          for(let x=ix0;x<=ix1+1;x++){const k=y*pw+x,v=x<=ix1&&dif[k]>ithr&&likeInk(k)&&!isLine(k);
+            if(v){run++;on=true}else{if(on&&run<=lineH*.5)c++;on=false;run=0}}
+          rowc.push(c)}
+        let pk=-1,pv=0;const c0=Math.round((iy0+iy1)/2)-lo,half=Math.max(2,Math.round((iy1-iy0)/2));
+        for(let i=Math.max(0,c0-half);i<=Math.min(rowc.length-1,c0+half);i++)if(rowc[i]>pv){pv=rowc[i];pk=i}
+        if(pk>=0&&pv>=3){
+          const thr=Math.max(1,pv*.05),gapMax=Math.max(2,Math.round(lineH*.12));
+          let t0=pk,b0=pk,g=0;
+          for(let i=pk-1;i>=0&&g<=gapMax;i--){if(rowc[i]>=thr){t0=i;g=0}else g++}
+          g=0;for(let i=pk+1;i<rowc.length&&g<=gapMax;i++){if(rowc[i]>=thr){b0=i;g=0}else g++}
+          t0+=lo;b0+=lo;const nh=b0-t0+1;
+          if(nh>=lineH*.45&&nh<=lineH*1.3){j.inkTop=P.y+t0;j.inkH=nh;iy0=Math.min(iy0,t0);iy1=Math.max(iy1,b0)}}
+      }
+      r.x=P.x+ix0;r.w=ix1-ix0;if(j.inkH){r.y=j.inkTop;r.h=j.inkH}
+      // stage 1: replace the letters
+      const mx=Math.max(1,Math.round(rad*.6)),up=Math.max(mx,Math.round(lineH*.15)),dn=Math.max(mx,Math.round(lineH*(/[gjpqyQ,;()（）]/.test(j.it.original||"")?.32:.12)));  // descenders (g, y, p) hang below the band
+      const zone=k=>{const x=k%pw,y=(k/pw)|0;return x>=ix0-mx&&x<=ix1+mx&&y>=iy0-up&&y<=iy1+dn};
+      const m1=new Float32Array(N);let cnt=0;
+      // 不碰到其他段文字的範圍：避免擦這一行時，把上下相鄰那一行的字頭或字尾也擦掉
+      const inOther=k=>{const gx=P.x+k%pw,gy=P.y+((k/pw)|0);return others.some(q=>gx>=q.x+q.w*.03&&gx<=q.x+q.w*.97&&gy>=q.y+q.h*.08&&gy<=q.y+q.h*.92)};
+      // cnt：只算「顏色和文字色很接近」的點，用來判斷字的粗細（放寬的條件只用在擦除，不影響粗細判斷）
+      const strictInk=k=>!inkC||Math.abs(C[0][k]-inkC[0])+Math.abs(C[1][k]-inkC[1])+Math.abs(C[2][k]-inkC[2])<95;
+      for(let k=0;k<N;k++)if(zone(k)&&isLetter(k)&&!inOther(k)){m1[k]=1;if(strictInk(k))cnt++}
+      j.cover=cnt/Math.max(1,(ix1-ix0+1)*(iy1-iy0+1));
+      // ---- one area to rebuild: the letters plus, when there is one, their drop shadow ----
+      j.shadow=false;j.glow=false;
+      const M=new Float32Array(N);for(let k=0;k<N;k++)M[k]=m1[k];
+      if(cnt>20){
+        // reference brightness around the letters, ignoring the letters themselves
+        const wx=m2d(m1,pw,ph,Math.max(1,Math.round(rad*.4)),true),ww=new Float32Array(N);for(let k=0;k<N;k++)ww[k]=wx[k]?0:1;
+        const rbl=Math.max(2,rad*3),nu=boxBlur(L.map((v,k)=>v*ww[k]),pw,ph,rbl),de=boxBlur(ww,pw,ph,rbl);
+        const Lm=new Float32Array(N);for(let k=0;k<N;k++)Lm[k]=de[k]>.05?nu[k]/de[k]:L[k];
+        // a drop shadow is the letter shape shifted a little to one side
+        const pts=[];for(let k=0;k<N;k++)if(m1[k])pts.push(k);
+        const step=Math.max(1,Math.floor(pts.length/1500)),S=Math.max(2,Math.round(lineH*.1));
+        const score=(dx,dy)=>{let sc=0,n=0;
+          for(let i=0;i<pts.length;i+=step){const k=pts[i],x=k%pw+dx,y=((k/pw)|0)+dy;if(x<0||y<0||x>=pw||y>=ph)continue;const kk=y*pw+x;if(m1[kk])continue;
+            sc+=light?Lm[kk]-L[kk]:L[kk]-Lm[kk];n++}
+          return n>pts.length/step*.25?sc/n:-1e9};
+        let best=null,bs=0;
+        for(let dy=-S;dy<=S;dy++)for(let dx=-S;dx<=S;dx++){if(!dx&&!dy)continue;const sc=score(dx,dy);if(sc>bs){bs=sc;best=[dx,dy]}}
+        if(best){const opp=score(-best[0],-best[1]);if(opp<-1e8||bs<=opp*1.25+5)best=null}
+        if(best&&bs>16){
+          const sh=new Float32Array(N);
+          for(const k of pts){const x=k%pw+best[0],y=((k/pw)|0)+best[1];if(x>=0&&y>=0&&x<pw&&y<ph)sh[y*pw+x]=1}
+          const fp=m2d(sh,pw,ph,Math.max(1,Math.round(rad*.8)),true);
+          for(let k=0;k<N;k++)if(fp[k])M[k]=1;
+          // where the letters blend into a same-coloured surface only the shadow shows: take the dark parts of the line too
+          const LcD=light?closing(L,pw,ph,Math.round(rad*2.4)):opening(L,pw,ph,Math.round(rad*2.4));
+          const sv=k=>light?LcD[k]-L[k]:L[k]-LcD[k];
+          const sy0=Math.max(0,iy0+Math.min(0,best[1])-2),sy1=Math.min(ph-1,iy1+Math.max(0,best[1])+2);
+          for(let y=sy0;y<=sy1;y++)for(let x=ix0;x<=ix1;x++){const k=y*pw+x;if(sv(k)>Math.max(10,bs*.35))M[k]=1}
+          j.shadow=light;j.glow=!light;j.shOff=best;
+        }
+        // an outline (stroke) hugs the letters on every side, in the opposite brightness: take it too
+        const ring=m2d(m1,pw,ph,Math.max(2,Math.round(rad*.9)),true);let nr=0,no=0;
+        const ov=k=>light?Lm[k]-L[k]:L[k]-Lm[k];   // darker than surroundings for light letters, lighter for dark ones
+        for(let k=0;k<N;k++){if(!ring[k]||m1[k])continue;nr++;if(ov(k)>30)no++}
+        if(nr&&no>nr*.35){for(let k=0;k<N;k++){if(ring[k]&&!m1[k]&&ov(k)>15)M[k]=1}
+          j.outline=true;j.outlineColor=null;
+          {const ks=[];for(let k=0;k<N;k++)if(ring[k]&&!m1[k]&&ov(k)>40)ks.push(k);if(ks.length)j.outlineColor=med3(ks)}}
+      }
+      // ---- rebuild: texture from the morphological estimate, brightness from the clean surroundings ----
+      const Md=m2d(M,pw,ph,Math.max(1,Math.round(rad*(j.shadow||j.glow?.6:.35))),true);
+      const PP=pullPush(C,useCell?Md.map((v,k)=>(v||!cell[k])?1:0):Md,pw,ph);   // 只從同一格（線以外）取顏色                                   // smooth fill from outside the area only
+      const sb=Math.max(2,Math.round(rad*1.2));
+      // brightness + texture: the letters removed from the brightness channel only (so no colour can drift);
+      // its local level is matched to the clean surroundings (this also undoes a shadow)
+      const Lmo=light?opening(L,pw,ph,rad):closing(L,pw,ph,rad);
+      const lPP=Float32Array.from({length:N},(_,k)=>.299*PP[0][k]+.587*PP[1][k]+.114*PP[2][k]);
+      const bM=boxBlur(Lmo,pw,ph,sb),bP=boxBlur(lPP,pw,ph,sb);
+      const F=[new Float32Array(N),new Float32Array(N),new Float32Array(N)];
+      for(let k=0;k<N;k++){const g=Math.min(2.2,Math.max(.5,bP[k]/Math.max(4,bM[k])));const Lf=Lmo[k]*g;
+        // colour: from the clean surroundings, scaled to that brightness
+        const sc=Lf/Math.max(4,lPP[k]);for(let c=0;c<3;c++)F[c][k]=Math.min(255,PP[c][k]*sc)}
+      let surf=null;   // 擬合出來的背景曲面（給下面的條紋補法參考光影）
+      // 背景如果是平的（紙、招牌、包裝底色）：直接用周圍顏色算出一個「平面漸層」整塊補上，
+      // 不用推算，所以密密麻麻的小字擦掉後不會留下模糊色塊或殘影
+      {const ring=m2d(Md,pw,ph,Math.max(3,Math.round(lineH*.35)),true);
+        let pts=[];for(let k=0;k<N;k++)if(ring[k]&&!Md[k]&&!inOther(k)&&!isLine(k)&&inCell(k))pts.push(k);
+        if(pts.length>40){
+          // 每個顏色通道做最小平方法擬合：先試「平面」（顏色 = a + b·x + c·y），
+          // 再試「曲面」（多加 x²、xy、y²，圓瓶、弧形標籤中間亮兩邊暗的光影也能貼合），取誤差小的
+          const nx=1/Math.max(1,pw),ny=1/Math.max(1,ph);
+          const basis=(x,y,q)=>{const u=x*nx,v=y*ny;return q?[1,u,v,u*u,u*v,v*v]:[1,u,v]};
+          const solve=(M,b)=>{const n=b.length,A=M.map((r,i)=>[...r,b[i]]);   // 高斯消去法解聯立方程
+            for(let i=0;i<n;i++){let mx=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[mx][i]))mx=r;[A[i],A[mx]]=[A[mx],A[i]];
+              if(Math.abs(A[i][i])<1e-9)return null;for(let r=0;r<n;r++){if(r===i)continue;const f=A[r][i]/A[i][i];for(let c=i;c<=n;c++)A[r][c]-=f*A[i][c]}}
+            return A.map((r,i)=>r[n]/r[i])};
+          const fitSurf=q=>{const m=q?6:3,AtA=Array.from({length:m},()=>new Array(m).fill(0)),Atb=[0,1,2].map(()=>new Array(m).fill(0));
+            for(const k of pts){const x=k%pw,y=(k/pw)|0,f=basis(x,y,q);for(let i=0;i<m;i++){for(let j2=0;j2<m;j2++)AtA[i][j2]+=f[i]*f[j2];for(let c=0;c<3;c++)Atb[c][i]+=f[i]*C[c][k]}}
+            const co=[0,1,2].map(c=>solve(AtA,Atb[c]));if(co.some(v=>!v))return null;
+            const val=(c,x,y)=>{const f=basis(x,y,q);let v=0;for(let i=0;i<m;i++)v+=co[c][i]*f[i];return v};
+            const err=pts.filter((_,i)=>i%3===0).map(k=>{const x=k%pw,y=(k/pw)|0;let e=0;for(let c=0;c<3;c++)e+=Math.abs(C[c][k]-val(c,x,y));return e/3}).sort((a,b)=>a-b);
+            return {val,med:err[err.length>>1]??99}};
+          let f1=fitSurf(false),f2=pts.length>120?fitSurf(true):null;
+          // 去掉離群點（旁邊的字、雜物）再擬合一次，讓結果更穩
+          {const b0=[f1,f2].filter(Boolean).sort((a,b)=>a.med-b.med)[0];
+            if(b0&&b0.med<12){const keep=pts.filter(k=>{const x=k%pw,y=(k/pw)|0;let e=0;for(let c=0;c<3;c++)e+=Math.abs(C[c][k]-b0.val(c,x,y));return e/3<Math.max(6,b0.med*3)});
+              if(keep.length>pts.length*.6&&keep.length>40){const all=pts;pts=keep;f1=fitSurf(false);f2=pts.length>120?fitSurf(true):null;
+                // 誤差還是要用「全部」周圍點來算：有紋理的背景（毛髮、木紋）不能因為去掉離群點就被當成平的
+                const medAll=f=>{if(!f)return;const e=all.filter((_,i)=>i%3===0).map(k=>{const x=k%pw,y=(k/pw)|0;let v=0;for(let c=0;c<3;c++)v+=Math.abs(C[c][k]-f.val(c,x,y));return v/3}).sort((a,b)=>a-b);
+                  const m=e[e.length>>1]??99;f.med=Math.max(f.med,m*.85)};   // 最多只放寬一點點（別段文字被排除後誤差本來就會小一些）
+                medAll(f1);medAll(f2)}}}
+          const best=[f1,f2].filter(Boolean).sort((a,b)=>a.med-b.med)[0];if(best&&best.med<14)surf=best;
+          if(best){
+            const med=best.med,plane=null;
+            if(med<5){
+              // 平的背景：整個文字框（含上下延伸）都換成平面顏色，連漏抓的細筆畫也一起清掉
+              const ex=Math.max(2,Math.round(rad*.8)),ey0=Math.max(2,Math.round(lineH*.12)),ey1=Math.max(2,Math.round(lineH*.2));
+              for(let y=Math.max(0,iy0-ey0);y<=Math.min(ph-1,iy1+ey1);y++)for(let x=Math.max(0,ix0-ex);x<=Math.min(pw-1,ix1+ex);x++){const k=y*pw+x;if(!inOther(k)&&!isLine(k)&&inCell(k))M[k]=1}
+              for(let k=0;k<N;k++){const x=k%pw,y=(k/pw)|0;for(let c=0;c<3;c++)F[c][k]=best.val(c,x,y)}
+              j.flatBg=true;j.flatMed=med;
+            }
+          }
+        }}
+      // 橫向的條紋（金邊、色帶、分隔線）穿過文字時：每一列用文字「左邊」和「右邊」的顏色接起來補，
+      // 條紋就會接上，不會被抹成一團（只在左右兩邊同一列顏色一致、而且上下各列顏色明顯不同時使用）
+      // （就算上面已經用「平面／曲面」補過，有條紋時也改用這個，條紋才不會被抹掉）
+      if(!V){const ex2=Math.max(mx,Math.round(rad*.8))+1,ey2=Math.max(up,Math.round(lineH*.2));
+        const yA=Math.max(0,iy0-ey2),yB=Math.min(ph-1,iy1+Math.max(dn,ey2)),xl=ix0-ex2-3,xr=ix1+ex2+3;
+        if(xl>=6&&xr<pw-6&&yB>yA){
+          const side=(x0,y,dir)=>[0,1,2].map(c=>{let t=0;for(let i=0;i<4;i++)t+=C[c][y*pw+x0+dir*i];return t/4});
+          const Ls=[],Rs=[];
+          for(let y=yA;y<=yB;y++){Ls.push(side(xl,y,-1));Rs.push(side(xr,y,1))}
+          // 比的是「每一列和平均的差」：左右兩邊亮度本來就不同（圓瓶的光影）也沒關係，只要條紋的位置對得上
+          const mean=A=>[0,1,2].map(c=>A.reduce((t,v)=>t+v[c],0)/A.length),mL=mean(Ls),mR=mean(Rs);
+          let dLR=0;Ls.forEach((a,i)=>{const b=Rs[i];for(let c=0;c<3;c++)dLR+=Math.abs((a[c]-mL[c])-(b[c]-mR[c]))});dLR/=Ls.length;
+          const lum3=v=>.299*v[0]+.587*v[1]+.114*v[2],lv=Ls.map(lum3),range=Math.max(...lv)-Math.min(...lv);
+          // 左右兩側取色的地方要在同一格裡（不能跨過表格線取到隔壁格的顏色）
+          const sameCell=[yA,(yA+yB)>>1,yB].every(y=>inCell(y*pw+Math.max(0,xl-3))&&inCell(y*pw+Math.min(pw-1,xr+3)));
+          const clean=sameCell&&!others.some(q=>{const gy=P.y+(yA+yB)/2;return gy>=q.y&&gy<=q.y+q.h&&((P.x+xl>=q.x&&P.x+xl<=q.x+q.w)||(P.x+xr>=q.x&&P.x+xr<=q.x+q.w))});
+          let rough=0;for(let y=yA;y<=yB;y++){const a=side(xl,y,-1),a2=side(xl-6,y,-1),b=side(xr,y,1),b2=side(xr+6,y,1);
+            for(let c=0;c<3;c++)rough+=Math.abs(a[c]-a2[c])+Math.abs(b[c]-b2[c])}
+          rough/=(yB-yA+1)*6;   // 左右兩側往外 6 點的顏色變化（平均每個通道）
+          if(clean&&dLR<36&&range>40&&rough<5&&xl>=12&&xr<pw-12){
+            // 有擬合出的背景光影時：只內插「條紋和光影的差」，再加回光影，圓瓶標籤中間就不會變暗
+            const S=(c,x,y)=>surf?surf.val(c,x,y):0;
+            for(let y=yA;y<=yB;y++){const a=Ls[y-yA],b=Rs[y-yA];
+              for(let x=Math.max(0,xl-1);x<=Math.min(pw-1,xr+1);x++){const t=Math.min(1,Math.max(0,(x-xl)/(xr-xl))),k=y*pw+x;
+                for(let c=0;c<3;c++)F[c][k]=(a[c]-S(c,xl-2,y))*(1-t)+(b[c]-S(c,xr+2,y))*t+S(c,x,y);
+                if(x>=ix0-ex2&&x<=ix1+ex2&&!inOther(k)&&!isLine(k)&&inCell(k))M[k]=1}}
+            j.rowFill=true;
+          }
+        }
+      }
+      blendIn(C,F,M,pw,ph,rad,!!j.rowFill||(j.flatBg&&j.flatMed<2.5));   // 很乾淨的底（螢幕截圖、文件）不加雜訊顆粒   // 條紋補法不要再模糊，條紋才會清楚
+      if(C0)for(let k=0;k<N;k++)if(!cell[k])for(let c=0;c<3;c++)C[c][k]=C0[c][k];   // 格線和隔壁格完全不動
+      for(let y=0;y<ph;y++)for(let x=0;x<pw;x++){const k=y*pw+x,q=((P.y+y)*W+P.x+x)*4;D[q]=C[0][k];D[q+1]=C[1][k];D[q+2]=C[2][k]}
+      // colours for the new text
+      let br=0,bg2=0,bb=0,bn=0;for(let y=iy0;y<=iy1;y++)for(let x=ix0;x<=ix1;x++){const k=y*pw+x;br+=C[0][k];bg2+=C[1][k];bb+=C[2][k];bn++}
+      j.bg=bn?[br/bn,bg2/bn,bb/bn]:[128,128,128];
+      j.ink=inkC||(light?[250,250,248]:[20,20,22]);if(j===self)j.inkC0=inkC;
+      // keep the letters' real colour unless it truly vanishes into the background
+      const cd=Math.abs(j.ink[0]-j.bg[0])+Math.abs(j.ink[1]-j.bg[1])+Math.abs(j.ink[2]-j.bg[2]);
+      if(contrast(j.ink,j.bg)<1.25&&cd<90)j.ink=lum(j.bg)>.35?[20,20,22]:[250,250,248];
+    };
+    jobs.forEach(j=>eraseJob(j));
+    // ---- 第二遍：檢查每段文字附近還有沒有沒擦乾淨的原文 ----
+    // （AI 給的位置偏掉一點時，字頭、字尾或前一兩個字母會留下來）有的話就框住剩下的字再擦一次
+    jobs.forEach(j=>{
+      if(j.vertical||!j.ink||!j.bg||!j.inkC0||!(j.flatBg||j.rowFill))return;
+      const r=j.r,h=r.h,x0=Math.max(0,Math.floor(r.x-h)),x1=Math.min(W-1,Math.ceil(r.x+r.w+h)),y0=Math.max(0,Math.floor(r.y-h*.5)),y1=Math.min(H-1,Math.ceil(r.y+h*1.5));
+      const oth=jobs.filter(k=>k!==j).map(k=>k.r),ink=j.inkC0,bg=j.bg;
+      let n=0,tot=0,bx0=1e9,bx1=-1,by0=1e9,by1=-1;
+      for(let y=y0;y<=y1;y+=1)for(let x=x0;x<=x1;x+=1){
+        if(oth.some(q=>x>=q.x-2&&x<=q.x+q.w+2&&y>=q.y-2&&y<=q.y+q.h+2))continue;tot++;
+        const q=(y*W+x)*4,di=Math.abs(D[q]-ink[0])+Math.abs(D[q+1]-ink[1])+Math.abs(D[q+2]-ink[2]),db=Math.abs(D[q]-bg[0])+Math.abs(D[q+1]-bg[1])+Math.abs(D[q+2]-bg[2]);
+        if(di<80&&db>110){n++;if(x<bx0)bx0=x;if(x>bx1)bx1=x;if(y<by0)by0=y;if(y>by1)by1=y}}
+      if(n<Math.max(25,tot*.004))return;
+      const bh=by1-by0+1;if(bh>h*1.7||bh<h*.25)return;   // 範圍太高（可能是瓶身、背景）或太小（雜點）就不動
+      eraseJob({it:{...j.it,lines:1},r:{x:bx0-2,y:by0-2,w:bx1-bx0+5,h:bh+4},isPrice:j.isPrice,text:j.text},j);
+    });
+    o.putImageData(img,0,0);
+    separate(jobs.map(j=>j.r));
+
+    // ---- 2) set the translation in the original's place, size, colour and alignment ----
+    jobs.forEach(j=>{
+      const r=j.r,orig=j.it.original||"";
+      j.n=Math.max(1,Math.min(40,Math.round(Number(j.it.lines)||0)||countLines(r)));
+      // font size so the new letters are as tall as the original ones: measure how tall the original string is per px of font size
+      // 量字高（在 100px 字級下）：去掉逗號、句點、括號這類很小或很低的符號，避免影響判斷
+      const strip=t=>(t||"").replace(/[,.;:'"`、。，．·・()（）\[\]「」『』$¥￥€£₩₫฿₱]/g,"")||t||"字";
+      const met=(t,keepCur)=>{o.font=`700 100px ${FAM}`;const m=o.measureText(keepCur?(t||"").replace(/[,.;:'"`、。，．·・()（）\[\]「」『』]/g,"")||t:strip(t));return {a:Math.max(1,m.actualBoundingBoxAscent||0),d:Math.max(0,m.actualBoundingBoxDescent||0)}};
+      if(j.n===1&&j.inkH){
+        // 原文字高 inkH 裡「基線以上」的部分，對應到譯文「基線以上」的高度 → 換算譯文字級
+        // 例：英文大寫 ORGANIC 翻成「有機」，中文字不會比原本的大寫字母高；日文翻成英文，英文大寫和原本的字一樣高
+        const mo=met(orig),mt2=met(j.text,true);
+        let f;
+        if(!isCJK(j.text)&&isCJK(orig))f=j.inkH*.9/(mt2.a/100);              // 中日韓 → 英文等：英文大寫高度 ＝ 原字的 9 成
+        else if(isCJK(j.text)&&!isCJK(orig)&&!/[a-z]/.test(strip(orig)))f=j.inkH/(mt2.a/100);   // 全大寫英文 → 中文：中文字高 ＝ 大寫字母高
+        else if(isCJK(j.text)&&!isCJK(orig))f=j.inkH/((mo.a+mo.d)/100);   // 大小寫混合的英文 → 中文：先推算原文的字級，中文用同一個字級（不受 g、y 這類下伸字母影響）
+        else if(isCJK(j.text)&&isCJK(orig))f=j.inkH/((mo.a+mo.d)/100);       // 中日韓之間：推算原文的字級，譯文用同一個字級（假名本身比漢字小一點）
+        else{const mt3=met(j.text.replace(/[gjpqy]/g,""),true);f=j.inkH/((mt3.a+mt3.d)/100)}   // 其他：譯文整體字高 ＝ 原文整體字高
+        const tot=f*(mt2.a+mt2.d)/100;if(tot>j.inkH*1.1)f*=j.inkH*1.1/tot;     // 譯文整體高度不超過原文的 1.1 倍
+        j.fs=Math.min(f,(j.boxH||j.inkH)*1.3);
+      }else j.fs=j.n===1?Math.min(r.h,(j.boxH||r.h)*1.15)*(isCJK(orig)?.92:1.05):r.h/j.n/1.18;   // 量不到字高時：以 AI 原本的框為準（框被合併變大時不會跟著變大）
+    });
+    // alignment: follow the column the original text sat in (shared left, right or centre edge)
+    const tol=Math.max(4,W*.015);
+    jobs.forEach(j=>{
+      const L=j.r.x,Rt=j.r.x+j.r.w,C=L+j.r.w/2;let nl=0,nr=0,nc=0;
+      jobs.forEach(k=>{if(k===j)return;if(Math.abs(k.r.x-L)<tol)nl++;if(Math.abs(k.r.x+k.r.w-Rt)<tol)nr++;if(Math.abs(k.r.x+k.r.w/2-C)<tol)nc++});
+      const centred=Math.abs(C-W/2)<W*.05;
+      if(j.isPrice&&nr>=nl)j.align="right";
+      else if(centred&&nc>=1&&j.r.w<W*.9)j.align="center";
+      else if(nc>nl&&nc>nr)j.align="center";
+      else if(nr>nl)j.align="right";
+      else if(nl>0)j.align="left";
+      else j.align=centred?"center":j.isPrice?"right":"left";
+    });
+    // text that looked the same size in the original stays the same size, and the same weight
+    // 同一欄（對齊同一邊、字級相近）的文字用同一種粗細，版面才一致
+    jobs.forEach(j=>{const e=k=>k.align==="left"?k.r.x:k.align==="right"?k.r.x+k.r.w:k.r.x+k.r.w/2;
+      const peers=jobs.filter(k=>k.align===j.align&&k.isPrice===j.isPrice&&Math.abs(e(k)-e(j))<tol*2&&Math.abs(k.fs-j.fs)<=j.fs*.15);
+      const cv=peers.map(k=>k.cover).sort((a,b)=>a-b);j.colCover=cv[cv.length>>1]});
+    const sorted=[...jobs].sort((a,b)=>a.fs-b.fs);
+    jobs.forEach(j=>{j.group=sorted.filter(k=>Math.abs(k.fs-j.fs)<=j.fs*.08&&k.isPrice===j.isPrice&&(k.n>1)===(j.n>1));
+      const f=j.group.map(k=>k.fs),c=j.group.map(k=>k.colCover!=null?k.colCover:k.cover).sort((a,b)=>a-b);j.fs2=f[f.length>>1]||j.fs;const mc=c[c.length>>1];j.weight=mc>.34?900:mc>.2?700:500});
+    jobs.forEach(j=>{j.fs=j.fs2});
+    // 同一欄的價格（右邊對齊、大小相近）統一用同一個字級：逗號、小數點會讓量到的高度差一點點
+    jobs.forEach(j=>{if(!j.isPrice)return;const e=k=>k.r.x+k.r.w;
+      const col=jobs.filter(k=>k.isPrice&&Math.abs(e(k)-e(j))<tol*3&&Math.abs(k.fs-j.fs)<=j.fs*.25).map(k=>k.fs).sort((a,b)=>a-b);
+      j.fs3=col[col.length>>1]});
+    jobs.forEach(j=>{if(j.fs3)j.fs=j.fs3});
+    // 從文字框往左（dir=-1）或往右（dir=1）找「底色突然改變」的位置：那就是標籤／招牌的邊緣
+    function surfaceEdge(j,dir){
+      const r=j.r,bg=j.bg||[128,128,128],y0=r.y+r.h*.15,y1=r.y+r.h*.85,ys=[];
+      for(let i=0;i<5;i++)ys.push(y0+(y1-y0)*i/4);
+      const step=Math.max(1,Math.round(r.h/12)),lim=dir>0?W-4:4;let x=dir>0?r.x+r.w:r.x,run=0,last=x;
+      while(dir>0?x<lim:x>lim){x+=dir*step;
+        // 這一直排的顏色（取中間值，避免被一兩個雜點影響）
+        const cs=ys.map(y=>px(x,y)),med=[0,1,2].map(c=>cs.map(v=>v[c]).sort((a,b)=>a-b)[2]);
+        const d=Math.abs(med[0]-bg[0])+Math.abs(med[1]-bg[1])+Math.abs(med[2]-bg[2]);
+        if(d>350)break;                    // 很深的直線（表格框線）：馬上停
+        if(d>150){if(++run>=3)break}else{run=0;last=x}}
+      return dir>0?Math.min(lim,last-r.h*.15):Math.max(lim,last+r.h*.15);
+    }
+    // room each line may use: up to the next text on the same line, or the photo edge
+    jobs.forEach(j=>{
+      const r=j.r,same=jobs.filter(k=>k!==j&&Math.min(k.r.y+k.r.h,r.y+r.h)-Math.max(k.r.y,r.y)>Math.min(k.r.h,r.h)*.3);
+      const gap=r.h*.5;
+      const rightLim=Math.min(W-4,...same.filter(k=>k.r.x>=r.x+r.w*.5).map(k=>k.r.x-gap));
+      const leftLim=Math.max(4,...same.filter(k=>k.r.x+k.r.w<=r.x+r.w*.5).map(k=>k.r.x+k.r.w+gap));
+      // 譯文比原文長時可以往旁邊延伸，但只能延伸到「同一塊底色」的邊緣為止
+      // （例如酒標、招牌、貼紙的邊界），不會超出標籤蓋到瓶身或背景
+      const sR=surfaceEdge(j,1),sL=surfaceEdge(j,-1);
+      const RL=Math.min(rightLim,sR),LL=Math.max(leftLim,sL);
+      if(j.align==="left")j.room={a:r.x,b:Math.max(r.x+r.w,RL)};
+      else if(j.align==="right")j.room={a:Math.min(r.x,LL),b:r.x+r.w};
+      else{const half=Math.min(r.x+r.w/2-LL,RL-(r.x+r.w/2));j.room={a:r.x+r.w/2-Math.max(r.w/2,half),b:r.x+r.w/2+Math.max(r.w/2,half)}}
+    });
+    // fit each item, then give the whole group one size so nothing looks randomly bigger or smaller
+    const fitOne=(j,fs)=>{
+      const r=j.r;
+      if(j.n===1){
+        const avail=j.room.b-j.room.a;o.font=`${j.weight} ${fs}px ${FAM}`;const tw=o.measureText(j.text).width;
+        if(tw<=avail)return {fs,lines:[j.text]};
+        const s=avail/tw;if(s>=.62)return {fs:fs*s*.98,lines:[j.text]};
+        for(let f=fs;f>=6;f-=Math.max(.5,f*.05)){o.font=`${j.weight} ${f}px ${FAM}`;const L=balance(o,j.text,avail);if(L.length*f*1.12<=r.h*1.15||f<=6)return {fs:f,lines:L}}
+      }
+      for(let f=fs;f>=6;f-=Math.max(.5,f*.04)){o.font=`${j.weight} ${f}px ${FAM}`;const L=balance(o,j.text,r.w);if(L.length*f*1.18<=r.h*1.04||f<=6)return {fs:f,lines:L}}
+      return {fs:6,lines:[j.text]};
+    };
+    jobs.forEach(j=>{if(!j.vertical)j.fit=fitOne(j,j.fs)});
+    jobs.forEach(j=>{if(j.vertical)return;
+      const fits=j.group.filter(k=>k.fit).map(k=>k.fit.fs).sort((a,b)=>a-b);if(!fits.length)return;
+      const g=Math.max(fits[0],fits[fits.length>>1]*.93);   // one size for the group unless one line truly needs less
+      if(j.fit.fs>g)j.fit=fitOne(j,g);
+    });
+    // ---- 譯文比原文短很多時（例如 LEADER → 領袖、SCOTTISH → 蘇格蘭）----
+    // 1. 在不碰到上下其他文字的前提下，把字放大一點（最多 1.35 倍），同一組大小的字一起放大，版面才一致
+    // 2. 還是比原文窄很多，就把字距拉開，讓譯文大致佔滿原文的寬度，不會留下一大片擦掉的空白
+    const glyphH=(t,fs)=>{o.font=`700 ${fs}px ${FAM}`;const m=o.measureText(t);return Math.max(1,(m.actualBoundingBoxAscent||0)+(m.actualBoundingBoxDescent||0))};
+    const chars=t=>[...t];
+    jobs.forEach(j=>{j.grow=1;if(!j.text||j.vertical||!j.fit||j.isPrice||j.n>1||j.fit.lines.length>1)return;
+      const r=j.r,{fs}=j.fit;o.font=`${j.weight} ${fs}px ${FAM}`;const tw=o.measureText(j.text).width;
+      if(tw>=r.w*.6||isCJK(j.it.original||"")||!isCJK(j.text))return;
+      // 上下的空間：同一欄、上下最近的文字之間的距離
+      const hov=jobs.filter(k=>k!==j&&k.text&&Math.min(k.r.x+k.r.w,r.x+r.w)-Math.max(k.r.x,r.x)>0);
+      const above=Math.min(r.h,...hov.filter(k=>k.r.y+k.r.h/2<r.y+r.h/2).map(k=>r.y-(k.r.y+k.r.h)));
+      const below=Math.min(r.h,...hov.filter(k=>k.r.y+k.r.h/2>r.y+r.h/2).map(k=>k.r.y-(r.y+r.h)));
+      const gh=glyphH(j.text,fs),allowH=Math.min(r.h*1.15,r.h+2*Math.max(0,Math.min(above,below))*.55);
+      j.grow=Math.max(1,Math.min(1.15,allowH/gh,(r.w*.92)/tw,(j.room.b-j.room.a)/tw));
+    });
+    const maxFs=Math.max(1,...jobs.filter(k=>k.fit&&!k.vertical).map(k=>k.fit.fs));
+    jobs.forEach(j=>{if(!j.fit||j.grow===undefined)return;
+      // 同一組（原本一樣大的字）用同一個放大倍數；組裡有一個不能放大，就都不放大
+      const g=Math.min(...j.group.filter(k=>k.fit&&!k.vertical&&k.text).map(k=>k.grow??1));
+      if(g>1.04)j.fit={fs:j.fit.fs*g,lines:j.fit.lines};
+      j.ls=0;
+      if(j.isPrice||j.vertical||j.fit.lines.length>1||/\s/.test(j.text.trim()))return;
+      // 只用在標題、品牌名這類「大字」（字級至少是整張圖最大字的 75%），內文小字拉開字距會很怪
+      if(j.fit.fs<maxFs*.75||/[・·、，,.。:：()（）]/.test(j.text))return;
+      const n=chars(j.text).length;if(n<2||n>6||!isCJK(j.text)||isCJK(j.it.original||""))return;
+      o.font=`${j.weight} ${j.fit.fs}px ${FAM}`;const tw=o.measureText(j.text).width;
+      if(tw<j.r.w*.7)j.ls=Math.min(j.fit.fs*.3,(j.r.w*.8-tw)/(n-1));   // 字距最多 0.3 個字寬，太開會散掉
+      if(j.ls<j.fit.fs*.06)j.ls=0;
+    });
+    // ---- 同一欄（表格的一欄、清單）原本大小差不多的字，譯文統一用同一個字級 ----
+    // 例：「Nux Digital Drum Kit」和「Nux Piano Stand」在同一欄，譯成「Nux 電子鼓組」「Nux 琴架」要一樣大
+    {const done=new Set(),edge=k=>k.align==="left"?k.r.x:k.align==="right"?k.r.x+k.r.w:k.r.x+k.r.w/2;
+      jobs.forEach(j=>{if(done.has(j)||!j.fit||!j.text||j.vertical||j.isPrice||j.fit.lines.length>1)return;
+        const col=jobs.filter(k=>!done.has(k)&&k.fit&&k.text&&!k.vertical&&k.isPrice===j.isPrice&&k.fit.lines.length===1&&k.align===j.align&&Math.abs(edge(k)-edge(j))<tol*2&&Math.abs(k.fit.fs-j.fit.fs)<=j.fit.fs*.13);   // 原本大小差 13% 以內才算同一種字
+        col.forEach(k=>done.add(k));if(col.length<3)return;   // 至少三行才算一欄
+        const fs=col.map(k=>k.fit.fs).sort((a,b)=>a-b),med=fs[fs.length>>1];
+        col.forEach(k=>{if(Math.abs(k.fit.fs-med)>med*.02){k.fit=fitOne(k,med);if(k.ls)k.ls=0}})})}
+    // ---- 最後檢查：上下兩段譯文如果疊在一起，兩段一起等比例縮小，直到中間留一點空隙 ----
+    const extent=j=>{const {fs,lines}=j.fit,lh=fs*(j.n>1||lines.length>1?1.18:1.12);o.font=`${j.weight} ${fs}px ${FAM}`;
+      const tw=Math.max(...lines.map(l=>o.measureText(l).width+(j.ls||0)*(chars(l).length-1)));
+      const gh=Math.max(...lines.map(l=>l?glyphH(l,fs):0)),h=(lines.length-1)*lh+gh,cy=j.r.y+j.r.h/2;
+      const x0=j.align==="left"?j.r.x:j.align==="right"?j.r.x+j.r.w-tw:j.r.x+j.r.w/2-tw/2;
+      return {x0,x1:x0+tw,y0:cy-h/2,y1:cy+h/2,cy,h}};
+    const live=jobs.filter(j=>j.fit&&!j.vertical&&j.text);
+    live.forEach(j=>{j.fs0=j.fit.fs});
+    for(let pass=0;pass<4;pass++){let moved=false;
+      for(let a=0;a<live.length;a++)for(let b=a+1;b<live.length;b++){
+        const A=live[a],B=live[b],ea=extent(A),eb=extent(B);
+        if(Math.min(ea.x1,eb.x1)-Math.max(ea.x0,eb.x0)<=0)continue;          // 左右沒有重疊：不用管
+        const d=Math.abs(ea.cy-eb.cy);if(d<Math.min(ea.h,eb.h)*.3)continue;   // 同一行（左右並排）：不在這裡處理
+        const gap=Math.min(A.fit.fs,B.fit.fs)*.12;
+        if(Math.min(ea.y1,eb.y1)-Math.max(ea.y0,eb.y0)+gap<=0)continue;      // 上下已經分開
+        const f=Math.max(.6,(2*d-2*gap)/(ea.h+eb.h));
+        [A,B].forEach(J=>{J.fit={fs:Math.max(J.fs0*.6,J.fit.fs*f),lines:J.fit.lines};if(J.ls)J.ls*=f});moved=true}
+      if(!moved)break}
+    jobs.forEach(j=>{
+      const r=j.r;o.textBaseline="middle";o.lineJoin="round";
+      const draw=(t,x,y,fs)=>{o.font=`${j.weight} ${fs}px ${FAM}`;o.save();
+        if(j.shadow){o.shadowColor="rgba(0,0,0,.6)";o.shadowBlur=fs*.09;const so=j.shOff||[1,1],sl2=Math.hypot(so[0],so[1])||1;o.shadowOffsetX=so[0]/sl2*fs*.06;o.shadowOffsetY=so[1]/sl2*fs*.06}
+        if(j.outline&&j.outlineColor){o.lineWidth=Math.max(2,fs*.14);o.strokeStyle=rgb(j.outlineColor);o.strokeText(t,x,y)}
+        else if(j.glow){o.lineWidth=Math.max(1,fs*.1);o.strokeStyle="rgba(255,255,255,.75)";o.strokeText(t,x,y)}
+        o.fillStyle=rgb(j.ink);
+        if(j.ls){
+          // 拉開字距：一個字一個字畫，起點依對齊方式算好
+          const cs=chars(t),ws=cs.map(c=>o.measureText(c).width),tot=ws.reduce((a,b)=>a+b,0)+j.ls*(cs.length-1);
+          let cx=o.textAlign==="left"?x:o.textAlign==="right"?x-tot:x-tot/2;const al=o.textAlign;o.textAlign="left";
+          cs.forEach((c,i)=>{if(j.outline&&j.outlineColor||j.glow)o.strokeText(c,cx,y);o.fillText(c,cx,y);cx+=ws[i]+j.ls});o.textAlign=al;
+        }else o.fillText(t,x,y);
+        o.restore()};
+      if(j.vertical){
+        // 直書：一個字一格，由上往下排；字的大小約等於原本一直排的寬度，從框的上緣開始排
+        const nl=Math.max(1,Math.round(Number(j.it.lines)||1)),ch=[...j.text.replace(/\s+/g,"")];
+        const fs=Math.max(8,Math.min(r.w/nl*.95,r.h/Math.max(ch.length,1)*.98));
+        // 譯文比原文短很多時，把字距拉開一點，讓整排大致佔滿原本的高度（最多拉開半個字）
+        const gap=ch.length>1?Math.max(fs*.02,Math.min(fs*.5,(r.h*.95-fs*ch.length)/(ch.length-1))):0;
+        // 英文字母、數字在直書裡改成全形，才會站在格子正中間、大小一致
+        const fw=c=>/[!-~]/.test(c)?String.fromCharCode(c.charCodeAt(0)+0xFEE0):c;
+        o.textAlign="center";let cy=r.y+fs*.52;for(const c of ch){draw(fw(c),r.x+r.w/2,cy,fs);cy+=fs+gap}return}
+      if(j.n>1&&j.align==="right")j.align="left";
+      const {fs,lines}=j.fit;
+      const lh=fs*(j.n>1||lines.length>1?1.18:1.12),cy0=r.y+r.h/2-(lines.length-1)*lh/2;
+      o.textAlign=j.align;let ax=j.align==="left"?r.x:j.align==="right"?r.x+r.w:r.x+r.w/2;
+      {o.font=`${j.weight} ${fs}px ${FAM}`;const tw=Math.max(...lines.map(l=>o.measureText(l).width+(j.ls||0)*(chars(l).length-1))),mg=Math.max(4,fs*.2);
+       const left=j.align==="left"?ax:j.align==="right"?ax-tw:ax-tw/2;if(left+tw>W-mg)ax-=left+tw-(W-mg);if(left<mg)ax+=mg-left}
+      lines.forEach((l,i)=>draw(l,ax,cy0+i*lh,fs));
+    });
+    composite();
+    if(!$("full").hidden)openFull(true);
+  }
+
+  // compare: slider + press-and-hold
+  const splitIn=$("split"),splitLine=$("splitline");
+  function setSplit(v){figure.style.setProperty("--split",v+"%");splitLine.hidden=v<=0||v>=100;splitIn.value=v}
+  splitIn.addEventListener("input",()=>setSplit(+splitIn.value));
+  document.querySelectorAll("[data-ov]").forEach(b=>b.addEventListener("click",()=>{overlayMode=b.dataset.ov;document.querySelectorAll("[data-ov]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));paint();renderChanges()}));
+  let holdT=null,held=false;
+  figure.addEventListener("pointerdown",()=>{if(!busy.hidden)return;holdT=setTimeout(()=>{held=true;setSplit(100)},180)});
+  const release=()=>{clearTimeout(holdT);if(held){held=false;setSplit(0)}};
+  ["pointerup","pointercancel","pointerleave"].forEach(t=>figure.addEventListener(t,release));
+  figure.addEventListener("contextmenu",e=>e.preventDefault());
+
+  function highlight(ids){
+    hl.innerHTML="";
+    (ids||[]).forEach(i=>{let b=boxOf(items[i]);if(!b)return;b=toFull(b);const el=document.createElement("i");
+      Object.assign(el.style,{left:`calc(${b[0]*100}% - 5px)`,top:`calc(${b[1]*100}% - 5px)`,width:`calc(${b[2]*100}% + 10px)`,height:`calc(${b[3]*100}% + 10px)`});hl.appendChild(el)});
+  }
+
+  // ================= Reading card =================
+  function rowPrice(row){
+    const pid=(row.price_ids||[]).find(i=>items[i]&&items[i].price);
+    return pid!=null?items[pid].price:null;
+  }
+  function where(b){
+    const f=toFull(b),cx=f[0]+f[2]/2,cy=f[1]+f[3]/2;
+    const v=cy<.34?"上方":cy>.66?"下方":"中間",h=cx<.34?"左":cx>.66?"右":"";
+    return v==="中間"&&!h?"正中間":(h?(v==="中間"?h+"側中間":h+v.replace("方","")):v);
+  }
+  function renderChanges(){
+    const box=$("changes"),ol=$("chList");ol.innerHTML="";
+    const done=items.map((it,i)=>({it,i,b:boxOf(it)})).filter(x=>x.b).filter(x=>{
+      const c=x.it.price?convert(x.it.price):null,isPrice=!!(c&&!c.same);return overlayMode!=="price"||isPrice});
+    if(!done.length){box.hidden=true;return}
+    box.hidden=false;
+    const part=region.w<.999||region.h<.999?"（只處理你框選的範圍，其他地方保持原樣）":"";
+    $("chTitle").textContent=`照片上修改了 ${done.length} 處${part}`;
+    done.forEach(({it,i,b})=>{
+      const c=it.price?convert(it.price):null,isPrice=!!(c&&!c.same);
+      const li=document.createElement("li");li.tabIndex=0;
+      const w=document.createElement("span");w.className="where";w.textContent=where(b);
+      const o=document.createElement("span");o.className="from";o.textContent=it.original;
+      const a=document.createElement("span");a.className="arrow";a.textContent="改成";
+      const t=document.createElement("span");t.className="to";t.textContent=isPrice?fmt(c.out,c.to):it.merged?"（品牌名的一部分，已合併到另一行）":it.translation;
+      li.append(w,o,a,t);
+      if(!isPrice&&it.literal&&it.literal!==it.translation){const k=document.createElement("span");k.className="lit";k.textContent=`直譯：${it.literal}　→ 已改成較通順的說法`;li.appendChild(k)}
+      if(isPrice){const k=document.createElement("span");k.className="kind";k.textContent=`價格換算：${CUR[c.from][0]}→${CUR[c.to][0]}`;li.appendChild(k)}
+      const act=()=>{ol.querySelectorAll("li.on").forEach(x=>x.classList.remove("on"));li.classList.add("on");highlight([i]);const r=figure.getBoundingClientRect();if(r.top<0||r.top>window.innerHeight*.5)figure.scrollIntoView({behavior:"smooth",block:"start"})};
+      li.addEventListener("click",act);li.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();act()}});
+      ol.appendChild(li);
+    });
+  }
+  function renderCard(){
+    renderChanges();
+    $("summary").textContent=summary;$("summary").hidden=!summary;
+    const host=$("sections");host.innerHTML="";
+    sections.forEach((sec,si)=>{
+      const wrap=document.createElement("div");wrap.className="sec";
+      if(sec.heading){const h=document.createElement("h3");h.textContent=sec.heading;wrap.appendChild(h)}
+      const ul=document.createElement("ul");ul.className="rows";
+      (sec.rows||[]).forEach((row,ri)=>{
+        const key=si+"-"+ri;
+        const li=document.createElement("li");li.tabIndex=0;if(activeRow===key)li.classList.add("on");
+        const n=document.createElement("span");n.className="name";n.textContent=row.name||"";
+        const o=document.createElement("span");o.className="orig";o.textContent=row.original||"";
+        li.append(n,o);
+        if(row.note){const t=document.createElement("span");t.className="note";t.textContent=row.note;li.appendChild(t)}
+        const p=rowPrice(row);
+        if(p){const c=convert(p);const box=document.createElement("span");box.className="px";
+          const big=document.createElement("b"),small=document.createElement("span");
+          if(c&&!c.same){big.textContent=fmt(c.out,c.to);small.textContent=fmt(c.amt,c.from)}
+          else if(c){big.textContent=fmt(c.amt,c.from)}
+          else{big.textContent=p.original||String(p.amount);small.textContent="幣別未知"}
+          box.append(big,small);li.appendChild(box)}
+        const act=()=>{activeRow=activeRow===key?null:key;
+          host.querySelectorAll("li.on").forEach(x=>x.classList.remove("on"));
+          if(activeRow){li.classList.add("on");highlight(row.ids);const r=figure.getBoundingClientRect();if(r.top<0||r.top>window.innerHeight*.5)figure.scrollIntoView({behavior:"smooth",block:"start"})}
+          else highlight([])};
+        li.addEventListener("click",act);
+        li.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();act()}});
+        ul.appendChild(li);
+      });
+      wrap.appendChild(ul);host.appendChild(wrap);
+    });
+    curLine();
+  }
+  function curLine(){
+    const el=$("curline");const ps=items.filter(i=>i.price).map(i=>i.price);
+    if(!ps.length){el.hidden=true;return}
+    const r0=resolveCur(ps[0]);el.innerHTML="";el.hidden=false;
+    const head=document.createElement("span");head.textContent="價格幣別 ";
+    const b=document.createElement("b");b.textContent=r0.code?`${CUR[r0.code][0]} ${r0.code}`:"無法判斷";head.appendChild(b);
+    const why={manual:"你手動指定",text:"價格上寫了幣別",region:`你設定在${REGION[srcSel.value]?REGION[srcSel.value].name:""}`,ai:`AI 判斷${scene&&scene.reason?"："+scene.reason:""}`,unknown:"線索不足，請在下方設定所在地"}[r0.how];
+    const w=document.createElement("span");w.textContent="・"+why;
+    const pick=document.createElement("select");pick.id="allCur";pick.setAttribute("aria-label","更改價格幣別");
+    pick.add(new Option("改成…",""));for(const k in CUR)pick.add(new Option(`${CUR[k][0]} ${k}`,k));
+    pick.value=curOverride||"";
+    pick.addEventListener("change",()=>{curOverride=pick.value||null;refresh()});
+    el.append(head,w,pick);
+    if(r0.how==="ai"&&r0.list&&r0.list.length>1){const x=document.createElement("span");x.className="warn";x.textContent=`「${r0.sym}」也可能是 ${r0.list.map(c=>CUR[c][0]).join("、")}。設定「你現在在哪」會更準。`;el.appendChild(x)}
+  }
+  function refresh(){paint();renderCard();if(activeRow){const [si,ri]=activeRow.split("-").map(Number);const r=sections[si]&&sections[si].rows[ri];highlight(r?r.ids:[])}}
+
+  // ================= Fullscreen viewer =================
+  let fz=2,fOrig=false;
+  function openFull(keep){
+    const img=$("fImg");img.src=(fOrig?orig:out).toDataURL("image/jpeg",.9);
+    img.style.width=(fz*100)+"vw";
+    $("full").hidden=false;$("fOrig").setAttribute("aria-pressed",String(fOrig));$("fOrig").textContent=fOrig?"看譯文":"看原文";
+    if(!keep){const s=$("fScroll");requestAnimationFrame(()=>{s.scrollLeft=(s.scrollWidth-s.clientWidth)/2;s.scrollTop=0})}
+  }
+  function setFz(z){const s=$("fScroll");const cx=(s.scrollLeft+s.clientWidth/2)/s.scrollWidth,cy=(s.scrollTop+s.clientHeight/2)/s.scrollHeight;
+    fz=Math.min(5,Math.max(1,z));$("fImg").style.width=(fz*100)+"vw";
+    requestAnimationFrame(()=>{s.scrollLeft=cx*s.scrollWidth-s.clientWidth/2;s.scrollTop=cy*s.scrollHeight-s.clientHeight/2})}
+  $("fullBtn").addEventListener("click",()=>openFull());
+  $("fClose").addEventListener("click",()=>{$("full").hidden=true});
+  $("fzIn").addEventListener("click",()=>setFz(fz*1.5));
+  $("fzOut").addEventListener("click",()=>setFz(fz/1.5));
+  $("fOrig").addEventListener("click",()=>{fOrig=!fOrig;openFull(true)});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")$("full").hidden=true});
+
+  // ================= Save =================
+  $("saveBtn").addEventListener("click",()=>{
+    out.toBlob(async blob=>{
+      if(!blob||!downloads)return;
+      const d=new Date(),p=n=>String(n).padStart(2,"0");
+      try{const r=await downloads.save({filename:`翻譯_${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.jpg`,data:blob});
+        if(r&&r.status==="saved"){msg.className="msg";msg.textContent="翻譯圖已儲存。"}}
+      catch(e){if(e&&e.code!=="cancelled"&&e.code!=="declined"){msg.className="msg err";msg.textContent="無法儲存，請改用螢幕截圖。"}}
+    },"image/jpeg",.92);
+  });
+
+  // ================= Load a photo =================
+  let photoImg=null;
+  // ---------- 照片轉正 ----------
+  // basePhoto：原始照片；rot90：轉了幾個 90 度；fineDeg：微調角度（正數＝順時針）
+  let basePhoto=null,rot90=0,fineDeg=0;
+  function buildPhoto(){
+    if(!basePhoto)return;
+    if(!rot90&&!fineDeg){photoImg=basePhoto;return}
+    const bw=basePhoto.naturalWidth,bh=basePhoto.naturalHeight,sw=rot90%2?bh:bw,sh=rot90%2?bw:bh;
+    // 太大的照片先縮到 3000 像素以內，手機才不會記憶體不足
+    const a=fineDeg*Math.PI/180,ca=Math.cos(Math.abs(a)),sa=Math.sin(Math.abs(a));
+    // 微調角度後，畫布放大到能放下整張轉過的照片（邊緣的字不會被切掉）
+    const bbW=sw*ca+sh*sa,bbH=sw*sa+sh*ca,k=Math.min(1,3000/Math.max(bbW,bbH)),W2=Math.round(bbW*k),H2=Math.round(bbH*k);
+    const cv=document.createElement("canvas");cv.width=W2;cv.height=H2;const c=cv.getContext("2d");
+    // 四個角露出來的地方：塗上照片邊緣的平均顏色，看起來比較自然
+    if(fineDeg){const t=document.createElement("canvas");t.width=8;t.height=8;const tc=t.getContext("2d");tc.drawImage(basePhoto,0,0,8,8);
+      const e=tc.getImageData(0,0,8,8).data;let r=0,g=0,b=0,n=0;for(let i=0;i<64;i++){const x=i%8,y=(i/8)|0;if(x&&y&&x<7&&y<7)continue;r+=e[i*4];g+=e[i*4+1];b+=e[i*4+2];n++}
+      c.fillStyle=`rgb(${r/n|0},${g/n|0},${b/n|0})`;c.fillRect(0,0,W2,H2)}
+    c.translate(W2/2,H2/2);c.rotate(rot90*Math.PI/2+a);c.scale(k,k);
+    c.drawImage(basePhoto,-bw/2,-bh/2);
+    cv.naturalWidth=W2;cv.naturalHeight=H2;   // 讓後面的程式把它當成一般照片使用
+    photoImg=cv;
+  }
+  // 自動拉正：找出照片裡文字行的傾斜角度（把邊緣點投影到各個角度，文字行對齊時投影最集中）
+  function detectTilt(){
+    const im=basePhoto&&photoImgForTilt();if(!im)return null;
+    const w=im.width,h=im.height,d=im.getContext("2d").getImageData(0,0,w,h).data,g=new Float32Array(w*h);
+    for(let i=0;i<w*h;i++)g[i]=.299*d[i*4]+.587*d[i*4+1]+.114*d[i*4+2];
+    const pts=[];
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x,gy=Math.abs(g[i+w]-g[i-w]),gx=Math.abs(g[i+1]-g[i-1]);if(gy>40&&gy>gx)pts.push(x-w/2,y-h/2)}   // 橫向的邊（文字的上下緣）
+    if(pts.length<400)return null;
+    const step=Math.max(1,Math.floor(pts.length/2/25000))*2,R=Math.ceil(Math.hypot(w,h));
+    const score=deg=>{const a=deg*Math.PI/180,sn=Math.sin(a),cs=Math.cos(a),bin=new Float32Array(R*2+2);
+      for(let i=0;i<pts.length;i+=step){const yy=Math.round(-pts[i]*sn+pts[i+1]*cs)+R;bin[yy]++}
+      let s2=0;for(const v of bin)s2+=v*v;return s2};
+    let best=0,bs=-1;for(let a=-15;a<=15;a+=.5){const v=score(a);if(v>bs){bs=v;best=a}}
+    for(let a=best-.5;a<=best+.5;a+=.1){const v=score(a);if(v>bs){bs=v;best=a}}
+    const flat=score(0);
+    return {deg:Math.round(best*10)/10,conf:bs/Math.max(1,flat)};
+  }
+  // 拿「轉了 90 度、還沒微調」的小張照片來偵測角度
+  function photoImgForTilt(){
+    const bw=basePhoto.naturalWidth,bh=basePhoto.naturalHeight,sw=rot90%2?bh:bw,sh=rot90%2?bw:bh,k=Math.min(1,600/Math.max(sw,sh));
+    const cv=document.createElement("canvas");cv.width=Math.round(sw*k);cv.height=Math.round(sh*k);const c=cv.getContext("2d",{willReadFrequently:true});
+    c.translate(cv.width/2,cv.height/2);c.rotate(rot90*Math.PI/2);c.scale(k,k);c.drawImage(basePhoto,-bw/2,-bh/2);return cv;
+  }
+  function setRot(note){
+    $("rotFine").value=fineDeg;$("rotDeg").textContent=(fineDeg>0?"+":"")+fineDeg+"°";$("rotNote").textContent=note||"";
+    buildPhoto();if(!cropEl.hidden)openCrop();
+  }
+  // 自動拉正：角度明顯（1～15 度）而且偵測有把握才轉；否則保持原樣
+  function autoStraighten(manual){
+    const t=detectTilt();
+    if(t&&t.conf>1.25&&Math.abs(t.deg)>=1){fineDeg=-t.deg;setRot(`已自動拉正 ${Math.abs(t.deg)}°，不對的話拖下面的拉桿調整（拉回 0° 就是原本的樣子）`)}
+    else if(manual)setRot(t&&Math.abs(t.deg)<1?"照片已經是正的":"找不到明顯的文字行，請用拉桿手動調整");
+  }
+  function loadPhoto(file){
+    return new Promise((res,rej)=>{
+      const url=URL.createObjectURL(file);const img=new Image();
+      img.onload=()=>{basePhoto=img;rot90=0;fineDeg=0;$("rotNote").textContent="";$("rotFine").value=0;$("rotDeg").textContent="0°";photoImg=img;
+        try{autoStraighten(false)}catch(e){}   // 拍歪一點時自動拉正
+        res()};
+      img.onerror=()=>{URL.revokeObjectURL(url);rej()};img.src=url;
+    });
+  }
+
+  // ================= Crop: drag a frame around the part to translate =================
+  const cropEl=$("crop"),cropStage=$("cropStage"),cropCv=$("cropCv"),cropRect=$("cropRect");
+  let cr={x:0,y:0,w:1,h:1},cdrag=null;   // 預設框住整張照片：你拍到的範圍全部都會翻譯，不會被裁掉
+  function openCrop(){
+    if(!photoImg)return;
+    cropEl.hidden=false;document.body.style.overflow="hidden";window.scrollTo(0,0);
+    requestAnimationFrame(()=>{
+      // 照片一定整張放進畫面：可用高度取「選範圍區塊」和「手機螢幕扣掉上下按鈕」中較小的那個
+      const vh=(window.visualViewport?visualViewport.height:window.innerHeight)||ah0(),bars=[...cropEl.children].filter(x=>x!==cropStage).reduce((t,x)=>t+x.offsetHeight,0);
+      const cs=getComputedStyle(cropStage),padX=parseFloat(cs.paddingLeft)+parseFloat(cs.paddingRight),padY=parseFloat(cs.paddingTop)+parseFloat(cs.paddingBottom);
+      // 注意：clientWidth 含左右留白，要扣掉，不然照片會比可用空間寬、右邊被切掉
+      const aw=cropStage.clientWidth-padX,ah=Math.max(120,Math.min(cropStage.clientHeight,vh-bars)-padY),iw=photoImg.naturalWidth,ih=photoImg.naturalHeight;
+      const s=Math.min(aw/iw,ah/ih),dw=Math.round(iw*s),dh=Math.round(ih*s),dpr=Math.min(2,window.devicePixelRatio||1);
+      cropCv.width=dw*dpr;cropCv.height=dh*dpr;cropCv.style.width=dw+"px";cropCv.style.height=dh+"px";
+      cropCv.getContext("2d").drawImage(photoImg,0,0,cropCv.width,cropCv.height);
+      $("cropBox").style.width=dw+"px";$("cropBox").style.height=dh+"px";
+      drawCrop();
+    });
+  }
+  function ah0(){return cropStage.clientHeight}
+  function closeCrop(){cropEl.hidden=true;document.body.style.overflow=""}
+  function drawCrop(){Object.assign(cropRect.style,{left:cr.x*100+"%",top:cr.y*100+"%",width:cr.w*100+"%",height:cr.h*100+"%"})}
+  const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+  function cpt(e){const r=$("cropBox").getBoundingClientRect();return {x:clamp((e.clientX-r.left)/r.width,0,1),y:clamp((e.clientY-r.top)/r.height,0,1)}}
+  $("cropBox").addEventListener("pointerdown",e=>{
+    const h=e.target.dataset&&e.target.dataset.h;const p=cpt(e);
+    cdrag={t:h||(e.target===cropRect?"move":"new"),p0:p,r0:{...cr}};
+    if(cdrag.t==="new"){cr={x:p.x,y:p.y,w:0,h:0}}
+    $("cropBox").setPointerCapture(e.pointerId);e.preventDefault();
+  });
+  $("cropBox").addEventListener("pointermove",e=>{
+    if(!cdrag)return;const p=cpt(e),r0=cdrag.r0,dx=p.x-cdrag.p0.x,dy=p.y-cdrag.p0.y,M=.06;
+    let x1=r0.x,y1=r0.y,x2=r0.x+r0.w,y2=r0.y+r0.h;
+    if(cdrag.t==="move"){const nx=clamp(r0.x+dx,0,1-r0.w),ny=clamp(r0.y+dy,0,1-r0.h);cr={x:nx,y:ny,w:r0.w,h:r0.h};drawCrop();return}
+    if(cdrag.t==="new"){x1=Math.min(cdrag.p0.x,p.x);x2=Math.max(cdrag.p0.x,p.x);y1=Math.min(cdrag.p0.y,p.y);y2=Math.max(cdrag.p0.y,p.y)}
+    else{
+      if(cdrag.t.includes("w"))x1=clamp(r0.x+dx,0,x2-M);
+      if(cdrag.t.includes("e"))x2=clamp(r0.x+r0.w+dx,x1+M,1);
+      if(cdrag.t.includes("n"))y1=clamp(r0.y+dy,0,y2-M);
+      if(cdrag.t.includes("s"))y2=clamp(r0.y+r0.h+dy,y1+M,1);
+    }
+    cr={x:x1,y:y1,w:x2-x1,h:y2-y1};drawCrop();
+  });
+  const endDrag=()=>{if(cdrag&&cdrag.t==="new"&&(cr.w<.06||cr.h<.06))cr={...cdrag.r0};cdrag=null;drawCrop()};
+  $("cropBox").addEventListener("pointerup",endDrag);$("cropBox").addEventListener("pointercancel",endDrag);
+  function applyCrop(r){
+    const iw=photoImg.naturalWidth,ih=photoImg.naturalHeight;
+    const fs=Math.min(1,3200/Math.max(iw,ih));orig.width=Math.round(iw*fs);orig.height=Math.round(ih*fs);
+    orig.getContext("2d").drawImage(photoImg,0,0,orig.width,orig.height);
+    region={...r};wk.width=0;
+    const sx=Math.round(r.x*iw),sy=Math.round(r.y*ih),sw=Math.max(8,Math.round(r.w*iw)),sh=Math.max(8,Math.round(r.h*ih));
+    const s=Math.min(fs,3200/Math.max(sw,sh));   // 和顯示的照片同解析度（不放大，避免模糊）
+    src.width=Math.round(sw*s);src.height=Math.round(sh*s);
+    const c=src.getContext("2d",{willReadFrequently:true});c.drawImage(photoImg,sx,sy,sw,sh,0,0,src.width,src.height);
+    pixels=c.getImageData(0,0,src.width,src.height).data;comps=null;
+  }
+  $("cropGo").addEventListener("click",()=>{closeCrop();applyCrop(cr);translate()});
+  $("cropAll").addEventListener("click",()=>{cr={x:0,y:0,w:1,h:1};closeCrop();applyCrop(cr);translate()});
+  $("cropCancel").addEventListener("click",closeCrop);
+  $("rotL").addEventListener("click",()=>{rot90=(rot90+3)%4;fineDeg=0;setRot()});
+  $("rotR").addEventListener("click",()=>{rot90=(rot90+1)%4;fineDeg=0;setRot()});
+  $("rotAuto").addEventListener("click",()=>{fineDeg=0;buildPhoto();autoStraighten(true)});
+  // 拉桿：拖曳時只換角度數字，放開後才重新產生照片（手機比較順）
+  $("rotFine").addEventListener("input",e=>{const v=+e.target.value;$("rotDeg").textContent=(v>0?"+":"")+v+"°";if(cropCv)cropCv.style.transform=`rotate(${v-fineDeg}deg)`});
+  $("rotFine").addEventListener("change",e=>{fineDeg=+e.target.value;cropCv.style.transform="";setRot()});
+  $("recropBtn").addEventListener("click",openCrop);
+
+  // ================= Translate =================
+  const ERR={not_granted:"需要允許這個頁面使用 Claude 才能翻譯。",sampling_disabled:"這個帳號目前無法使用 Claude。",images_unavailable:"這個檢視環境無法傳送圖片。",rate_limited:"使用太頻繁，請稍等一下再試。",session_expired:"登入已過期，請重新登入 claude.ai。",image_rejected:"這張圖片無法讀取，請換一張。",invalid_json:"結果格式有誤，請按「重新翻譯」。",refused:"這張圖片無法處理，請換一張。"};
+  function onFile(e){const f=e.target.files&&e.target.files[0];e.target.value="";if(f)run(f)}
+  $("cam").addEventListener("change",onFile);$("pick").addEventListener("change",onFile);
+  $("retryBtn").addEventListener("click",()=>photoImg&&translate());
+  document.querySelectorAll('label[role="button"]').forEach(l=>l.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$(l.htmlFor).click()}}));
+
+  async function run(file){
+    lastFile=file;
+    try{await loadPhoto(file)}catch(e){msg.className="msg err";msg.textContent="這張圖片無法開啟，請換一張。";return}
+    cr={x:0,y:0,w:1,h:1};
+    openCrop();
+  }
+  // 第二步（純文字，不傳圖片）：潤飾全部譯文、整理成「名稱＋價格」的清單、寫一句摘要、判斷幣別
+  async function polish(lang,styleRule,signal,regionHint){
+    try{
+      const W=src.width,H=src.height,cjkT=/中文|日本語|한국어/.test(lang);
+      // 每一行給 Claude 的資料：budget＝原位置大約放得下幾個字；size＝字的大小（同一段文章的各行大小相近）
+      const lines=items.map((it,i)=>{const b=boxOf(it);let budget=null,size=null;
+        if(b){const n=Math.max(1,Math.round(it.lines||1)),V=!!it.vertical,h=(V?b[2]*W:b[3]*H)/n,w=V?b[3]*H:b[2]*W;size=Math.round(h/Math.max(W,H)*1000);
+          if(!it.price)budget=Math.max(2,Math.floor(w/(h*(cjkT?.95:.5)))*n)}
+        return {i,original:it.original,draft:it.price?null:it.translation,price:!!it.price,budget,size,vertical:!!it.vertical||undefined,pos:b?[Math.round(b[0]*100),Math.round(b[1]*100)]:null}});
+      if(!lines.length)return false;
+      const srcJa=items.some(it=>/[ぁ-ゟ゠-ヿ]/.test(it.original||""));                 // 原文有假名＝日文
+      const chars=items.reduce((t,it)=>t+(it.original||"").length,0);
+      const zhT=/中文/.test(lang);
+      // 文章（連續好幾行的內文）：要整段一起翻，再分回各行
+      const proseRule=`
+   RUNNING TEXT (articles, descriptions, notices, instructions): a sentence or paragraph is often split over several consecutive lines, and strips may cut it mid-sentence. Find such groups (consecutive lines, similar "size" and x position, text that obviously continues). Translate each group TOGETHER as one natural, well-written passage first, then split it back over the same lines in order, breaking at natural points (after punctuation or a phrase), each line getting about its "budget". Never translate a fragment on its own, never leave a line ending mid-word, never move content to a different paragraph, never drop or add information.`;
+      // 日文 → 中文特別要注意的地方
+      const jaRule=srcJa&&zhT?`
+   JAPANESE → TAIWAN CHINESE: write the way a skilled Taiwanese editor would, not word for word.
+   - Re-order long Japanese modifier chains and SOV sentences into natural Chinese order; split overly long sentences; avoid stacking 的 (～の～の～).
+   - Watch kanji false friends: 勉強→學習, 大丈夫→沒問題/放心, 手紙→信, 新聞→報紙, 迷惑→困擾/麻煩, 検討→評估/考慮, 対応→處理/支援, 実施→舉行/進行, 案内→介紹/指引, 是非→務必/歡迎, 一部→部分, 必見→不容錯過, 人気→熱門/人氣, 限定→限定, 予約→預約.
+   - Polite set phrases: ～させていただきます / ～となります / ～でございます → natural polite Chinese (敬請、歡迎、為您…), not literal.
+   - Katakana loanwords → the term Taiwanese actually use (リニューアル→全新改版, キャンペーン→優惠活動, イベント→活動, テイクアウト→外帶, スタッフ→工作人員, メニュー→菜單).
+   - Never leave kana or Japanese grammar in the output; use full-width Chinese punctuation (，。、「」) and Taiwan date style (10月24日（六）).`:"";
+      const res=await sample.json(
+`You are a senior copy editor who localizes product packaging, menus, signs and printed articles into ${lang} (Taiwan usage when the target is Chinese).
+Below is EVERY text line read from one photo, in reading order, with a first-draft translation (pos = [x%, y%] of where it sits).
+
+1) "items": rewrite each draft (skip prices) so it reads as if written in ${lang} in the first place: ${styleRule} Keep the full meaning; one consistent term for the same thing; never change numbers, units or model numbers.${proseRule}${jaRule}
+   BRAND AND PRODUCT NAMES: first work out what the product is from ALL lines together (a bottle, box or sign usually shows its brand in the biggest letters, sometimes split over two lines, e.g. "SCOTTISH" + "LEADER"). Never translate a brand word by word. Use the name the brand is actually sold under in Taiwan (e.g. Scottish Leader → 仕高利達, Johnnie Walker → 約翰走路, Glenfiddich → 格蘭菲迪, Kit Kat → 奇巧, Calbee → 卡樂比, 新ビオフェルミンS錠 → 欣表飛鳴S錠); if you are not sure an established Taiwan name exists, keep the brand exactly as printed in its original letters. When one brand name is split over several lines, put the whole name on its most prominent line and give each other line "translation":"" with "merged":true (the app then erases that line and leaves the space clean). Product-range words that are part of the name (Supreme, Gold Label, 12 Years) use the official Taiwan wording when known (e.g. 12 Years → 12年). "budget" = characters that fit in place; stay within it when a natural shorter wording exists, never by dropping information. "literal": the word-for-word meaning in Traditional Chinese (Taiwan) only when your wording differs noticeably, else "".
+2) "summary": one short sentence in Traditional Chinese (Taiwan): what this is and what to notice first.
+3) "sections": group the lines for reading on a phone; a product or dish name with its price in ONE row. Each: {"heading": short Traditional Chinese heading or "", "rows":[{"name": final ${lang} wording, "original": source text of the name, "note": short Traditional Chinese explanation only when the translation alone is unclear, else "", "price_ids":[index of its price line or empty], "ids":[indexes of every line in the row]}]}. Every line index appears in exactly one row.
+4) "scene_currency": {"code":"<ISO 4217>","reason":"<under 20 Traditional Chinese characters>"} — decide from the language, script and price magnitudes. ${regionHint}
+
+LINES: ${JSON.stringify(lines)}
+
+Reply with ONLY: {"items":[{"i":0,"translation":"...","literal":"","merged":false}],"summary":"...","sections":[...],"scene_currency":{"code":"JPY","reason":"..."}}`,
+        {modelTier:"default",effort:chars>250?"medium":"low",signal,cache:false});   // 文章比較長時多花一點心思潤飾
+      if(signal.aborted)return false;
+      (Array.isArray(res&&res.items)?res.items:[]).forEach(x=>{const it=items[Number(x&&x.i)];if(!it||it.price)return;
+        // merged：這行是跨行品牌名的一部分，全名已經放在另一行 → 這行只擦掉、不寫字
+        if(x.merged&&!x.translation){it.translation="";it.merged=true;it.literal="";return}
+        if(x.translation){it.translation=String(x.translation);it.literal=String(x.literal||"")}});
+      if(res&&res.summary)summary=String(res.summary);
+      const sc=res&&res.scene_currency;if(sc&&sc.code&&CUR[String(sc.code).toUpperCase()])scene={code:String(sc.code).toUpperCase(),reason:String(sc.reason||"").slice(0,40)};
+      const ix=a=>(Array.isArray(a)?a:[]).map(Number).filter(n=>items[n]);
+      if(Array.isArray(res&&res.sections)&&res.sections.length){
+        const secs=res.sections.map(s=>({heading:String(s&&s.heading||""),rows:(Array.isArray(s&&s.rows)?s.rows:[]).map(r=>({name:String(r&&r.name||""),original:String(r&&r.original||""),note:String(r&&r.note||""),price_ids:ix(r&&r.price_ids),ids:ix(r&&r.ids)}))}));
+        // 沒被整理到的行補在最後，確保清單裡一行都不少
+        const seen=new Set();secs.forEach(s=>s.rows.forEach(r=>r.ids.forEach(i=>seen.add(i))));
+        const rest=items.map((it,i)=>i).filter(i=>!seen.has(i));
+        if(rest.length)secs.push({heading:"其他文字",rows:rest.map(i=>({name:items[i].translation,original:items[i].original,note:"",price_ids:items[i].price?[i]:[],ids:[i]}))});
+        sections=secs;
+      }else sections=[{heading:"",rows:items.map((it,i)=>({name:it.translation,original:it.original,note:"",price_ids:it.price?[i]:[],ids:[i]}))}];
+      refresh();return true;
+    }catch(e){return false}
+  }
+  async function translate(){
+    items=[];sections=[];summary="";scene=null;curOverride=null;activeRow=null;highlight([]);setSplit(0);
+    refresh();badge.textContent="已拍攝";$("recropBtn").hidden=false;
+    if(!sample){msg.className="msg err";msg.textContent="翻譯功能需在 claude.ai 開啟此頁才能使用。";return}
+    if(!photoImg){msg.className="msg err";msg.textContent="這張圖片無法處理，請換一張。";return}
+    const lang=$("lang").value,reg=REGION[srcSel.value];
+    const regionHint=reg?`The user says they are in ${reg.name} (${srcSel.value}); unless the text clearly shows another currency, use ${reg.cur}.`:"The user has not said where they are.";
+    ctl&&ctl.abort();ctl=new AbortController();const signal=ctl.signal;
+    busy.hidden=false;$("shootBtn").setAttribute("aria-disabled","true");$("retryBtn").hidden=true;msg.className="msg";msg.textContent="";
+    const t0=performance.now();let done=0,total=1;
+    const tick=setInterval(()=>{$("busyText").textContent=`辨識並翻譯中（${done}/${total} 區）… ${((performance.now()-t0)/1000)|0} 秒`},500);
+    try{
+      const style=$("style").value;
+      const styleRule=style==="literal"
+        ?"a faithful, accurate translation that stays close to the original wording, still grammatical and natural."
+        :`localize it the way a professional who writes packaging and menus for native ${lang} readers would (Taiwan usage when the target is Chinese). Use the names and terms people actually see on shelves and menus there (e.g. ポテトチップス → 洋芋片, ハンドクリーム → 護手霜, 濃厚 → 濃郁, お得 → 超值). Brands: the official local name if one exists, otherwise keep the brand as printed. Slogans: same appeal in short idiomatic copy. Keep sizes, units, model numbers and percentages exactly. Ingredients, warnings, dosage and usage: precise and complete.`;
+
+      // ---------- 把框選範圍切成「上下幾條橫帶」，每條各自用較高解析度辨識，字多、字小也不會漏掉 ----------
+      // 只橫著切（和文字行的方向一樣），所以一行字不會被切成兩半；帶與帶之間重疊 6%
+      const iw=photoImg.naturalWidth,ih=photoImg.naturalHeight;
+      const RX=region.x*iw,RY=region.y*ih,RW=region.w*iw,RH=region.h*ih;
+      const rows=Math.max(1,Math.min(6,Math.round(RH/(RW*.35))));
+      total=rows>1?rows+1:rows;   // 照片切成好幾條時，另外加一次「整張照片」：專門讀直書文字和特大字（它們會跨過好幾條）
+      // 每條橫條上下多看 18%：交界處的字在兩條裡都是完整的；AI 在橫條邊緣容易把位置標錯一行，
+      // 所以兩條都讀到的字，之後會選「離橫條邊緣比較遠」（看得比較完整）的那一份
+      const ov=.18,th=RH/rows,tiles=[];
+      for(let r=0;r<rows;r++){
+        const y0=Math.max(0,r*th-th*ov),y1=Math.min(RH,(r+1)*th+th*ov);
+        tiles.push({x0:0,y0,x1:RW,y1,core:{x0:-1e9,y0:r?r*th-th*ov*.6:-1e9,x1:1e9,y1:r<rows-1?(r+1)*th+th*ov*.6:1e9},first:r===0,last:r===rows-1});
+      }
+      // Claude 看圖時大約會縮到 120 萬像素，所以每條帶事先縮到這個大小
+      const tileBlob=async t=>{const w=t.x1-t.x0,h=t.y1-t.y0,sc=Math.min(1,Math.sqrt(1.15e6/(w*h))),cv=document.createElement("canvas");
+        cv.width=Math.max(8,Math.round(w*sc));cv.height=Math.max(8,Math.round(h*sc));
+        cv.getContext("2d").drawImage(photoImg,RX+t.x0,RY+t.y0,w,h,0,0,cv.width,cv.height);
+        const img=await new Promise(res=>cv.toBlob(res,"image/jpeg",.92));
+        let grid=null;
+        if(maxImages>=2){const g=document.createElement("canvas");g.width=cv.width;g.height=cv.height;const gc=g.getContext("2d");gc.drawImage(cv,0,0);
+          const fs=Math.max(12,Math.min(g.width,g.height)/40);gc.font=`700 ${fs}px sans-serif`;gc.textBaseline="top";
+          for(let k=1;k<10;k++){const x=g.width*k/10,y=g.height*k/10;gc.strokeStyle="rgba(255,0,180,.6)";gc.lineWidth=Math.max(1,fs*.08);
+            gc.beginPath();gc.moveTo(x,0);gc.lineTo(x,g.height);gc.moveTo(0,y);gc.lineTo(g.width,y);gc.stroke();
+            gc.fillStyle="#ff00b4";gc.fillText(String(k*100),x+2,2);gc.fillText(String(k*100),2,y+2)}
+          grid=await new Promise(res=>g.toBlob(res,"image/jpeg",.85))}
+        return grid?[img,grid]:img};
+      const normBox=b=>{
+        if(!Array.isArray(b)||b.length!==4)return null;let v=b.map(Number);if(!v.every(isFinite))return null;
+        if(Math.max(...v)>1.5)v=v.map(n=>n/1000);
+        const [a,c,d,e]=v;
+        return (d>a&&e>c&&d<=1.02&&e<=1.02&&!(d-a<.002))?[a,c,d-a,e-c]:[a,c,d,e];
+      };
+      const parseColor=c=>{const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(c||"").trim());return m?[parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)]:null};
+      // k = -1：整張照片（只找直書文字和特大字）；其他：第 k 條橫條
+      const tilePrompt=(k)=>`You are the text-reading engine of a camera translation app. ${k<0?`This is the WHOLE photo, scaled down. Return ONLY (a) text written top-to-bottom in vertical columns and (b) very large text such as a big brand or product name whose letters are taller than about 1/12 of the image height. Skip all other text: it is read separately from sharper close-ups. `:total>1?`This image is horizontal strip ${k+1} of ${rows} of a taller photo (cut so small text stays sharp). Skip text written top-to-bottom in vertical columns and very large text that runs past the top or bottom edge of this strip: those are read separately from the whole photo. `:""}Target language: ${lang}.${maxImages>=2?" You get two copies: the first is clean (read the text from it); the second has a pink measuring grid every 100 units of a 0-1000 scale, labelled along the top and left edges. Use it only to measure boxes; never read the grid as text.":""}
+
+Find EVERY piece of readable text in this image and translate it: titles, body text, ingredients, fine print, labels, prices, notices. Do NOT skip small text, do NOT summarize, do NOT merge separate lines into a summary. If something is readable, it must be an item.
+Text cut off at the image edge: include it only if more than half of it is visible.
+
+For each item:
+ - "original": exactly as written (including currency symbols).
+ - "translation": ${styleRule} Short enough to fit where the original was (it is typeset over it).
+ - "box": [left, top, right, bottom] TIGHT around the glyphs, integers on a 0-1000 scale of THIS image's width and height.
+ - "lines": how many printed lines the item covers. One item per paragraph block of the same size and style; a heading, a list entry, a name and its price are separate items.
+ - "color": the letters' fill colour "#RRGGBB".
+ - "vertical": true only for top-to-bottom text.
+ - a price: its own item with "price":{"amount":<number, no thousands separators>,"currency":"<ISO 4217>"}; its translation is the price text itself. Every money amount is a price item: unit prices, line amounts, subtotals, totals, discounts. ${regionHint}
+TABLES (invoices, price lists, spec sheets): one item per cell. Each box must stay inside its own cell and on its own row; never let a box span two rows or two columns. Read every row, even when its text repeats the row above (repeated product names, model numbers and quantities are separate items, one per row). Numbers, codes and model numbers that need no translation are still items (translation = the same text) so the app knows where they are.
+
+Reply with ONLY: {"items":[{"original":"...","translation":"...","box":[0,0,0,0],"lines":1,"color":"#000000"}]}
+No text at all: {"items":[]}`;
+      const readTile=async(t,k)=>{
+        const res=await sample.json(tilePrompt(k),{images:await tileBlob(t),modelTier:"default",effort:"low",signal,cache:false});
+        done++;
+        const out=[],w=t.x1-t.x0,h=t.y1-t.y0;
+        for(const i of (Array.isArray(res&&res.items)?res.items:[])){
+          const b=normBox(i&&i.box);if(!b||!i.original)continue;
+          // 從這一塊的座標換算回整個框選範圍（0～1）
+          const gx=t.x0+b[0]*w,gy=t.y0+b[1]*h,gw=b[2]*w,gh=b[3]*h,cx=gx+gw/2,cy=gy+gh/2;
+          if(cx<t.core.x0||cx>=t.core.x1||cy<t.core.y0||cy>=t.core.y1)continue;   // 太靠近橫條邊緣 → 交給隔壁那塊
+          // 離橫條上下邊緣多遠（0～0.5，越大越可靠）；照片本身的最上、最下緣不算邊緣；整張照片那一次最可靠
+          const cent=t.whole?1:Math.min(t.first?.5:(cy-t.y0)/h,t.last?.5:(t.y1-cy)/h,.5);
+          out.push({original:String(i.original),translation:String(i.translation||i.original),box:[gx/RW,gy/RH,gw/RW,gh/RH],
+            literal:"",cent,color:parseColor(i.color),lines:Number(i.lines)||0,vertical:!!i.vertical,
+            price:(i.price&&isFinite(Number(i.price.amount)))?{amount:Number(i.price.amount),currency:String(i.price.currency||"").toUpperCase(),original:String(i.original)}:null});
+        }
+        return out;
+      };
+      // 同時最多送 3 塊，其他排隊
+      const jobsT=tiles.map((t,k)=>[t,k]);
+      if(rows>1)jobsT.unshift([{x0:0,y0:0,x1:RW,y1:RH,core:{x0:-1e9,y0:-1e9,x1:1e9,y1:1e9},whole:true},-1]);
+      const results=new Array(jobsT.length);let next=0;let firstErr=null;
+      await Promise.all(Array.from({length:Math.min(3,jobsT.length)},async()=>{while(next<jobsT.length){const q=next++;try{results[q]=await readTile(jobsT[q][0],jobsT[q][1])}catch(e){if(e&&e.code==="cancelled")throw e;firstErr=firstErr||e;results[q]=[]}}}));
+      if(signal.aborted)return;
+      if(results.every(r=>!r||!r.length)&&firstErr)throw firstErr;
+      // 合併：依閱讀順序排好；重疊區被兩塊都讀到的同一段字只留一個
+      // 整張照片讀到的直書／特大字優先：橫條裡和它們重疊的片段（被切斷的字）全部丟掉
+      const big=rows>1?(results[0]||[]):[],strips=rows>1?results.slice(1).flat():results.flat();
+      const ovr=(a,b)=>{const x0=Math.max(a[0],b[0]),y0=Math.max(a[1],b[1]),x1=Math.min(a[0]+a[2],b[0]+b[2]),y1=Math.min(a[1]+a[3],b[1]+b[3]);return Math.max(0,x1-x0)*Math.max(0,y1-y0)/Math.max(1e-9,a[2]*a[3])};
+      const keepS=big.length?strips.filter(it=>!big.some(b=>ovr(it.box,b.box)>.3)):strips;
+      // 整張照片沒成功時，橫條自己讀到的直書文字照樣保留
+      let merged=[...big,...keepS].sort((a,b)=>(a.box[1]-b.box[1])||(a.box[0]-b.box[0]));
+      const iou=(a,b)=>{const x0=Math.max(a[0],b[0]),y0=Math.max(a[1],b[1]),x1=Math.min(a[0]+a[2],b[0]+b[2]),y1=Math.min(a[1]+a[3],b[1]+b[3]);const I=Math.max(0,x1-x0)*Math.max(0,y1-y0);return I/Math.max(1e-9,a[2]*a[3]+b[2]*b[3]-I)};
+      const norm=t=>String(t||"").replace(/\s+/g,"").toLowerCase();
+      const ovSmall=(a,b)=>{const x0=Math.max(a[0],b[0]),y0=Math.max(a[1],b[1]),x1=Math.min(a[0]+a[2],b[0]+b[2]),y1=Math.min(a[1]+a[3],b[1]+b[3]);return Math.max(0,x1-x0)*Math.max(0,y1-y0)/Math.max(1e-9,Math.min(a[2]*a[3],b[2]*b[3]))};
+      const near=(a,b)=>Math.abs((a[0]+a[2]/2)-(b[0]+b[2]/2))<Math.max(a[2],b[2])*.5&&Math.abs((a[1]+a[3]/2)-(b[1]+b[3]/2))<Math.max(a[3],b[3])*.8;
+      // 重複的只留一個：①框幾乎一樣 ②原文相同而且在同一個位置附近 ③兩個框大部分重疊（橫條交界處被讀了兩次、位置稍微不同）
+      // 搶同一個位置：同一列（上下中心差不到半行）、左右又重疊 3 成以上 → 只能留一個（表格裡被標錯列的字）
+      const sameSlot=(a,b)=>{const xo=Math.min(a[0]+a[2],b[0]+b[2])-Math.max(a[0],b[0]);return xo>Math.min(a[2],b[2])*.3&&Math.abs((a[1]+a[3]/2)-(b[1]+b[3]/2))<Math.max(a[3],b[3])*.6};
+      // 從最可靠（離橫條邊緣最遠）的開始收；和已收的重複或搶同一個位置的就丟掉
+      {const acc=[];[...merged].sort((a,b)=>(b.cent??.5)-(a.cent??.5)).forEach(it=>{
+          if(!acc.some(o=>iou(o.box,it.box)>.5||(norm(o.original)===norm(it.original)&&near(o.box,it.box))||ovSmall(o.box,it.box)>.4||sameSlot(o.box,it.box)))acc.push(it)});
+        merged=acc.sort((a,b)=>(a.box[1]-b.box[1])||(a.box[0]-b.box[0]))}
+      items=merged;
+      sections=[{heading:"",rows:items.map((it,i)=>({name:it.translation,original:it.original,note:"",price_ids:it.price?[i]:[],ids:[i]}))}];
+      const ps=items.filter(i=>i.price&&CUR[i.price.currency]);scene=ps.length?{code:ps[0].price.currency,reason:"AI 從畫面判斷"}:null;
+      refresh();
+      const secs=((performance.now()-t0)/1000).toFixed(1);
+      if(!items.length)msg.textContent="畫面中沒有找到文字，換個角度再拍一張。";
+      else{badge.textContent="已翻譯・潤飾中";msg.textContent=`找到 ${items.length} 段文字，耗時 ${secs} 秒。正在潤飾譯文，完成後會自動更新…`;
+        const myCtl=ctl;
+        polish(lang,styleRule,myCtl.signal,regionHint).then(ok=>{if(myCtl!==ctl)return;badge.textContent="已翻譯";
+          msg.textContent=ok?`已完成並潤飾 ${items.length} 段文字。按住照片看原文，點下方項目標出位置。`:`找到 ${items.length} 段文字。按住照片看原文，點下方項目標出位置。`});}
+    }catch(e){
+      if(e&&e.code==="cancelled")return;
+      msg.className="msg err";msg.textContent=ERR[e&&e.code]||(e&&e.message&&/[\u4e00-\u9fff]/.test(e.message)?e.message:"翻譯失敗，請按「重新翻譯」。");   // 有中文說明的錯誤（例如金鑰、額度）直接顯示$("retryBtn").hidden=false;
+    }finally{clearInterval(tick);busy.hidden=true;$("shootBtn").removeAttribute("aria-disabled");$("busyText").textContent="辨識並翻譯中…"}
+  }
+
+  // ================= Example scene =================
+  function drawSample(){
+    src.width=900;src.height=1200;const c=src.getContext("2d",{willReadFrequently:true});
+    const g=c.createLinearGradient(0,0,0,1200);g.addColorStop(0,"#3a2a1e");g.addColorStop(1,"#1c140e");
+    c.fillStyle=g;c.fillRect(0,0,900,1200);
+    c.fillStyle="#f3e6cf";c.fillRect(110,140,680,880);
+    c.fillStyle="#8c1d18";c.fillRect(110,140,680,160);
+    c.fillStyle="#fff";c.font="700 92px 'Noto Sans TC',sans-serif";c.textAlign="center";c.textBaseline="alphabetic";c.fillText("らーめん 一番",450,255);
+    c.fillStyle="#2a1b12";c.font="700 56px 'Noto Sans TC',sans-serif";c.fillText("本日のおすすめ",450,400);
+    c.font="500 48px 'Noto Sans TC',sans-serif";c.textAlign="left";
+    c.fillText("醤油ラーメン",170,520);c.fillText("¥850",620,520);
+    c.fillText("味噌チャーシュー",170,620);c.fillText("¥1,100",590,620);
+    c.fillText("替え玉",170,720);c.fillText("¥150",620,720);
+    c.textAlign="center";c.font="500 40px 'Noto Sans TC',sans-serif";c.fillText("営業時間 11:00〜22:00",450,860);
+    c.fillStyle="#8c1d18";c.font="700 40px 'Noto Sans TC',sans-serif";c.fillText("食券を先にお買い求めください",450,950);
+    pixels=c.getImageData(0,0,900,1200).data;comps=null;
+    orig.width=900;orig.height=1200;orig.getContext("2d").drawImage(src,0,0);region={x:0,y:0,w:1,h:1};
+  }
+  function loadSample(){
+    drawSample();
+    const P=(a,o)=>({amount:a,currency:"JPY",original:o});
+    items=[
+      {original:"らーめん 一番",translation:"拉麵一番",box:[.155,.148,.69,.085]},
+      {original:"本日のおすすめ",translation:"今日推薦",literal:"本日的推薦",box:[.275,.29,.45,.054]},
+      {original:"醤油ラーメン",translation:"醬油拉麵",box:[.185,.398,.33,.046]},
+      {original:"¥850",translation:"¥850",box:[.685,.398,.125,.046],price:P(850,"¥850")},
+      {original:"味噌チャーシュー",translation:"味噌叉燒",box:[.185,.481,.43,.046]},
+      {original:"¥1,100",translation:"¥1,100",box:[.65,.481,.165,.046],price:P(1100,"¥1,100")},
+      {original:"替え玉",translation:"加麵",box:[.185,.565,.165,.046]},
+      {original:"¥150",translation:"¥150",box:[.685,.565,.125,.046],price:P(150,"¥150")},
+      {original:"営業時間 11:00〜22:00",translation:"營業時間 11:00–22:00",box:[.25,.688,.5,.04]},
+      {original:"食券を先にお買い求めください",translation:"請先購買餐券",literal:"請先購買食券",box:[.17,.762,.66,.04]}
+    ];
+    summary="日本拉麵店的招牌菜單，進門要先在售票機買餐券。";
+    scene={code:"JPY",reason:"日文假名、¥ 符號"};
+    sections=[
+      {heading:"今日推薦",rows:[
+        {name:"醬油拉麵",original:"醤油ラーメン",note:"醬油湯頭，最經典的口味",price_ids:[3],ids:[2,3]},
+        {name:"味噌叉燒拉麵",original:"味噌チャーシュー",note:"味噌湯頭，加滿叉燒肉片",price_ids:[5],ids:[4,5]},
+        {name:"加麵",original:"替え玉",note:"吃完麵後再點一份麵，湯要留著",price_ids:[7],ids:[6,7]}]},
+      {heading:"店家資訊",rows:[
+        {name:"店名：拉麵一番",original:"らーめん 一番",note:"",price_ids:[],ids:[0]},
+        {name:"營業時間 11:00–22:00",original:"営業時間 11:00〜22:00",note:"",price_ids:[],ids:[8]},
+        {name:"請先購買餐券",original:"食券を先にお買い求めください",note:"入口的售票機先買票，再把票交給店員",price_ids:[],ids:[9]}]}
+    ];
+    refresh();
+  }
+  const fontsReady=document.fonts&&document.fonts.load?Promise.all(["500","700","900"].map(w=>document.fonts.load(`${w} 40px 'Noto Sans TC'`,"拉麵らーめん"))).catch(()=>{}):Promise.resolve();
+  fontsReady.then(loadSample);
+
+  // ================= Capabilities =================
+  if(window.claude&&claude.use){
+    claude.use("sample").then(async s=>{if(!s)return;const lim=await s.limits().catch(()=>null);if(lim&&lim.images){sample=s;maxImages=lim.images.maxCount||1}}).catch(()=>{});
+    claude.use("downloads").then(d=>{if(d){downloads=d;$("saveBtn").hidden=false}}).catch(()=>{});
+  }
+})();
+</script>
+<script src="stt.js" charset="utf-8"></script>
+<script src="talk.js" charset="utf-8"></script>
+</html>

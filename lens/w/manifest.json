@@ -1,0 +1,1 @@
+{"enc": {"parts": ["enc.part0.wasm", "enc.part1.wasm"], "size": 23200850}, "dec": {"parts": ["dec.part0.wasm", "dec.part1.wasm", "dec.part2.wasm", "dec.part3.wasm"], "size": 53707539}, "ort": {"parts": ["ort.part0.wasm", "ort.part1.wasm"], "size": 21596019}}
