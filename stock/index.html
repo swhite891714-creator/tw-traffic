@@ -58,6 +58,12 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .tab small{font-weight:400;font-size:13px;margin-left:4px}
 .ctl{display:grid;gap:10px}
 .cqty{display:block;font-size:12px;color:var(--warn);font-weight:700;font-family:var(--sans)}
+/* 庫存列上的「寄庫 N ›」：點了跳到客戶寄庫，只看這個商品 */
+button.cqty{margin:3px 0 0 auto;border:1px solid var(--warn);background:var(--warn-bg);border-radius:6px;padding:1px 6px;cursor:pointer;white-space:nowrap}
+.row.hascons{cursor:pointer}
+.onlyitem{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1.5px solid var(--warn);background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:8px 12px;font-size:15px;font-weight:700}
+.onlyitem span{min-width:0;overflow-wrap:anywhere}
+.onlyitem button{flex:0 0 auto;border:0;background:none;color:inherit;font:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
 .cgrp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700;font-size:17px}
 .cgrp small{font-size:13px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
 .sub{font-size:13px;color:var(--muted);display:block;font-weight:400}
@@ -101,6 +107,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     <div class="ctl" id="consCtl" hidden>
       <input id="cq" type="search" placeholder="搜尋客戶或商品" autocomplete="off">
       <select id="selCust" aria-label="客戶"><option value="">全部客戶</option></select>
+      <div class="onlyitem" id="onlyItem" hidden><span id="onlyItemText"></span><button type="button" id="onlyItemClear">✕ 顯示全部寄庫</button></div>
     </div>
   </header>
   <div class="list" id="list"><div class="empty">讀取中…</div></div>
@@ -118,7 +125,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-07.3';
+const PAGE_VER='2026-11-07.4';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -183,15 +190,19 @@ function render(){
       last=groupOf(i);const g=s.filter(x=>groupOf(x)===last);
       html+=`<div class="grp"><span>${esc(last)}</span><small>${g.length} 項</small></div>`;
     }
-    const tag=(i.st==='zero'?'<span class="badge">缺貨</span>':i.st==='low'?'<span class="badge">偏低</span>':`<small>${esc(i.unit||'')}</small>`)+(+i.cq>0?`<span class="cqty">寄庫 ${fmt(+i.cq)}</span>`:'');
-    html+=`<div class="row ${esc(i.st)}"><span class="model">${esc(nameOf(i))}</span><span class="qty"><b>${fmt(+i.qty||0)}</b>${tag}</span></div>`;
+    const tag=(i.st==='zero'?'<span class="badge">缺貨</span>':i.st==='low'?'<span class="badge">偏低</span>':`<small>${esc(i.unit||'')}</small>`)+(+i.cq>0?`<button type="button" class="cqty" aria-label="查看 ${esc(nameOf(i))} 的客戶寄庫">寄庫 ${fmt(+i.cq)} ›</button>`:'');
+    const k=items.indexOf(i);
+    html+=`<div class="row ${esc(i.st)}${+i.cq>0?' hascons':''}"${+i.cq>0?` data-k="${k}"`:''}><span class="model">${esc(nameOf(i))}</span><span class="qty"><b>${fmt(+i.qty||0)}</b>${tag}</span></div>`;
   }
   list.innerHTML=html;
 }
 /* ---------- 客戶寄庫 ----------
    資料的 cons 是每位客戶寄放的商品（k＝商品在 items 裡的位置，q＝件數）。
    上方客戶選單可以只看某位客戶；搜尋可以找客戶名稱或商品。 */
-let view='stock',fCust='';
+let view='stock',fCust='',fItemK=-1;
+// 從庫存清單點有寄庫的商品：切到客戶寄庫，只列出寄放這個商品的客戶
+$('list').addEventListener('click',e=>{const r=e.target.closest('.row[data-k]');if(!r)return;fItemK=+r.dataset.k;fCust='';$('cq').value='';setView('cons');renderCons();window.scrollTo(0,0)});
+$('onlyItemClear').onclick=()=>{fItemK=-1;renderCons()};
 const consOf=()=>((data&&data.cons)||[]).filter(c=>c&&c.name&&Array.isArray(c.items));
 function renderCons(){
   const items=(data&&data.items)||[],cs=consOf();
@@ -204,10 +215,14 @@ function renderCons(){
   if(!cs.some(c=>c.name===fCust))fCust='';
   sel.value=fCust;sel.classList.toggle('on',!!fCust);
   const q=$('cq').value.trim().toLowerCase(),box=$('consList');
+  const fi=fItemK>=0?items[fItemK]:null;
+  if(fItemK>=0&&!(fi&&cs.some(c=>c.items.some(x=>x.k===fItemK&&+x.q>0))))fItemK=-1;
+  $('onlyItem').hidden=fItemK<0;
+  if(fItemK>=0)$('onlyItemText').textContent=`只看：${nameOf(fi)}（共 ${fmt(cs.reduce((n,c)=>n+c.items.filter(x=>x.k===fItemK).reduce((a,x)=>a+(+x.q||0),0),0))} 件）`;
   let html='',n=0;
   for(const c of cs){
     if(fCust&&c.name!==fCust)continue;
-    const rows=c.items.map(x=>({it:items[x.k],q:+x.q||0})).filter(x=>x.it&&x.q>0)
+    const rows=c.items.filter(x=>fItemK<0||x.k===fItemK).map(x=>({it:items[x.k],q:+x.q||0})).filter(x=>x.it&&x.q>0)
       .filter(x=>!q||c.name.toLowerCase().includes(q)||[x.it.brand,x.it.type,x.it.model,x.it.color].join(' ').toLowerCase().includes(q));
     if(!rows.length)continue;n++;
     html+=`<div class="cgrp"><span>${esc(c.name)}</span><small>${rows.length} 項 · 共 ${fmt(rows.reduce((a,x)=>a+x.q,0))} 件</small></div>`;
@@ -222,7 +237,7 @@ function setView(v){
   $('stockCtl').hidden=$('list').hidden=v!=='stock';
   $('consCtl').hidden=$('consList').hidden=v!=='cons';
 }
-$('tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)setView(b.dataset.v)};
+$('tabs').onclick=e=>{const b=e.target.closest('.tab');if(!b)return;if(b.dataset.v==='cons'&&fItemK>=0){fItemK=-1;renderCons()}setView(b.dataset.v)};
 $('selCust').onchange=()=>{fCust=$('selCust').value;renderCons()};
 $('cq').oninput=renderCons;
 
