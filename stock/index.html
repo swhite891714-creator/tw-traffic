@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>庫存查詢</title>
+<meta name="theme-color" content="#0f6e5c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="庫存查詢">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* 唯讀公開頁：上方固定區（標題、更新時間、狀態統計、搜尋），下方依品類分組的商品清單；沒有任何編輯功能 */
+:root{
+  --bg:#f2f5f4; --surface:#ffffff; --fg:#14211d; --muted:#596a64; --line:#d9e1de;
+  --accent:#0f6e5c; --danger:#c0362c; --danger-bg:#fde8e6; --warn:#9a4b00; --warn-bg:#fff0de;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e1513; --surface:#16201d; --fg:#e4ece9; --muted:#93a59f; --line:#283632;
+  --accent:#4fc4a6; --danger:#ff7b6f; --danger-bg:#3a1714; --warn:#ffb065; --warn-bg:#3a2612; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:17px;line-height:1.5;padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+header{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-left,0px)) 12px;display:grid;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+h1{font-size:20px;margin:0}
+.role{border-radius:999px;padding:2px 10px;font-size:13px;font-weight:700;color:var(--accent);border:1px solid var(--accent)}
+.status{font-size:14px;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stat{display:grid;min-width:0;text-align:left;border:1px solid transparent;background:none;border-radius:10px;padding:4px 8px;font:inherit;color:inherit;cursor:pointer}
+.stat b{font-family:var(--mono);font-size:21px;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted);letter-spacing:.04em}
+.stat.on{border-color:var(--fg);background:var(--bg)}
+.stat.zero b{color:var(--danger)}.stat.low b{color:var(--warn)}
+.stat.total{cursor:default}
+input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.filters{display:grid;grid-template-columns:1fr auto;gap:8px}
+.filters select{width:auto;max-width:44vw}
+.list{display:grid;margin-top:4px}
+.grp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700}
+.grp small{font-size:13px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
+.row{display:grid;grid-template-columns:1fr auto;gap:0 12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line)}
+.model{font-weight:700;min-width:0;overflow-wrap:anywhere}
+.qty{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.qty b{font-size:23px;display:block;line-height:1.2}
+.qty small{font-size:12px;color:var(--muted);display:block;font-family:var(--sans)}
+.badge{display:inline-block;border-radius:6px;padding:0 6px;font-size:12px;font-weight:700;font-family:var(--sans)}
+.row.zero .qty b{color:var(--danger)}.row.zero .badge{background:var(--danger-bg);color:var(--danger)}
+.row.low .qty b{color:var(--warn)}.row.low .badge{background:var(--warn-bg);color:var(--warn)}
+.empty{padding:40px 8px;text-align:center;color:var(--muted)}
+.foot{margin-top:24px;font-size:13px;color:var(--muted);text-align:center}
+@media (max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="top"><h1>庫存查詢</h1><span class="role">唯讀</span></div>
+    <span class="status" id="status">讀取中…</span>
+    <div class="stats" id="stats">
+      <button type="button" class="stat on" data-f=""><b id="sItems">–</b><span>全部商品</span></button>
+      <button type="button" class="stat zero" data-f="zero"><b id="sZero">–</b><span>缺貨</span></button>
+      <button type="button" class="stat low" data-f="low"><b id="sLow">–</b><span>庫存偏低</span></button>
+      <div class="stat total"><b id="sQty">–</b><span>總庫存量</span></div>
+    </div>
+    <div class="filters">
+      <input id="q" type="search" placeholder="搜尋型號、品類、顏色" autocomplete="off">
+      <select id="cat" aria-label="品類"><option value="">全部品類</option></select>
+    </div>
+  </header>
+  <div class="list" id="list"><div class="empty">讀取中…</div></div>
+  <p class="foot">這是唯讀頁面，只能查看庫存數量。數字由管理者更新。</p>
+</div>
+<script>
+/* ========== 唯讀公開頁 ==========
+   資料來自同一個資料夾的 data.json（由進銷存頁的「更新公開頁」按鈕寫入）。
+   先直接向 GitHub 讀最新版（推送後幾秒就是新資料），讀不到再讀網站上的檔案。
+   頁面開著時每 2 分鐘檢查一次，切回畫面時也會馬上檢查。 */
+const $=id=>document.getElementById(id);
+const fmt=n=>Math.round(n).toLocaleString('zh-TW');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
+let data=null,statusF='';
+
+async function load(){
+  try{const r=await fetch(GH+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}});if(r.ok){const j=await r.json();if(j&&Array.isArray(j.items))return j}}catch(e){}
+  try{const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});if(r.ok)return await r.json()}catch(e){}
+  return null;
+}
+// 更新時間顯示成台北時間，例如 11/07 15:42
+function fmtAt(s){
+  if(!s)return '';
+  const d=new Date(new Date(s).getTime()+8*3600e3).toISOString();
+  return `${d.slice(5,7)}/${d.slice(8,10)} ${d.slice(11,16)}`;
+}
+const nameOf=i=>[i.model,i.color].filter(Boolean).join(' · ');
+
+function render(){
+  const items=(data&&data.items)||[];
+  const cats=[...new Set(items.map(i=>i.cat).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
+  const sel=$('cat'),cur=sel.value;
+  sel.innerHTML='<option value="">全部品類</option>'+cats.map(x=>`<option>${esc(x)}</option>`).join('');
+  sel.value=cats.includes(cur)?cur:'';
+  $('sItems').textContent=fmt(items.length);
+  $('sZero').textContent=fmt(items.filter(i=>i.st==='zero').length);
+  $('sLow').textContent=fmt(items.filter(i=>i.st==='low').length);
+  $('sQty').textContent=fmt(items.reduce((t,i)=>t+(+i.qty||0),0));
+  document.querySelectorAll('.stat[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===statusF));
+
+  const list=$('list');
+  if(!data){list.innerHTML='<div class="empty">目前讀不到資料，請確認網路後重新整理。</div>';return}
+  if(!items.length){list.innerHTML='<div class="empty">管理者還沒有發布庫存資料。</div>';return}
+  const q=$('q').value.trim().toLowerCase(),c=sel.value;
+  const s=items.filter(i=>(!statusF||i.st===statusF)&&(!c||i.cat===c)&&(!q||[i.cat,i.model,i.color].join(' ').toLowerCase().includes(q)));
+  if(!s.length){list.innerHTML=`<div class="empty">${statusF==='zero'?'目前沒有缺貨的商品':statusF==='low'?'目前沒有庫存偏低的商品':'找不到符合的商品'}</div>`;return}
+  let html='',last=null;
+  for(const i of s){
+    if(i.cat!==last){
+      last=i.cat;const g=s.filter(x=>x.cat===i.cat);
+      html+=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><small>${g.length} 項 · 共 ${fmt(g.reduce((t,x)=>t+(+x.qty||0),0))}</small></div>`;
+    }
+    const tag=i.st==='zero'?'<span class="badge">缺貨</span>':i.st==='low'?'<span class="badge">偏低</span>':`<small>${esc(i.unit||'')}</small>`;
+    html+=`<div class="row ${esc(i.st)}"><span class="model">${esc(nameOf(i))}</span><span class="qty"><b>${fmt(+i.qty||0)}</b>${tag}</span></div>`;
+  }
+  list.innerHTML=html;
+}
+async function refresh(first){
+  const j=await load();
+  if(j){data=j;$('status').textContent=j.at?`資料更新時間：${fmtAt(j.at)}`:'尚未發布';render()}
+  else if(first){$('status').textContent='讀取失敗';render()}
+}
+$('stats').onclick=e=>{const b=e.target.closest('.stat[data-f]');if(!b)return;statusF=b.dataset.f===statusF?'':b.dataset.f;render()};
+$('q').oninput=render;$('cat').oninput=render;
+refresh(true);
+setInterval(()=>{if(!document.hidden)refresh()},120000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
+</script>
+</body>
+</html>
