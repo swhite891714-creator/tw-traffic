@@ -35,13 +35,12 @@ header{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1
 h1{font-size:20px;margin:0}
 .role{border-radius:999px;padding:2px 10px;font-size:13px;font-weight:700;color:var(--accent);border:1px solid var(--accent)}
 .status{font-size:14px;color:var(--muted)}
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .stat{display:grid;min-width:0;text-align:left;border:1px solid transparent;background:none;border-radius:10px;padding:4px 8px;font:inherit;color:inherit;cursor:pointer}
 .stat b{font-family:var(--mono);font-size:21px;font-variant-numeric:tabular-nums}
 .stat span{font-size:13px;color:var(--muted);letter-spacing:.04em}
 .stat.on{border-color:var(--fg);background:var(--bg)}
 .stat.zero b{color:var(--danger)}.stat.low b{color:var(--warn)}
-.stat.total{cursor:default}
 input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%}
 input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .filters{display:grid;grid-template-columns:1fr auto;gap:8px}
@@ -59,7 +58,6 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .row.low .qty b{color:var(--warn)}.row.low .badge{background:var(--warn-bg);color:var(--warn)}
 .empty{padding:40px 8px;text-align:center;color:var(--muted)}
 .foot{margin-top:24px;font-size:13px;color:var(--muted);text-align:center}
-@media (max-width:420px){.stats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -71,7 +69,6 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       <button type="button" class="stat on" data-f=""><b id="sItems">–</b><span>全部商品</span></button>
       <button type="button" class="stat zero" data-f="zero"><b id="sZero">–</b><span>缺貨</span></button>
       <button type="button" class="stat low" data-f="low"><b id="sLow">–</b><span>庫存偏低</span></button>
-      <div class="stat total"><b id="sQty">–</b><span>總庫存量</span></div>
     </div>
     <div class="filters">
       <input id="q" type="search" placeholder="搜尋型號、品類、顏色" autocomplete="off">
@@ -114,7 +111,6 @@ function render(){
   $('sItems').textContent=fmt(items.length);
   $('sZero').textContent=fmt(items.filter(i=>i.st==='zero').length);
   $('sLow').textContent=fmt(items.filter(i=>i.st==='low').length);
-  $('sQty').textContent=fmt(items.reduce((t,i)=>t+(+i.qty||0),0));
   document.querySelectorAll('.stat[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===statusF));
 
   const list=$('list');
@@ -127,7 +123,7 @@ function render(){
   for(const i of s){
     if(i.cat!==last){
       last=i.cat;const g=s.filter(x=>x.cat===i.cat);
-      html+=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><small>${g.length} 項 · 共 ${fmt(g.reduce((t,x)=>t+(+x.qty||0),0))}</small></div>`;
+      html+=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><small>${g.length} 項</small></div>`;
     }
     const tag=i.st==='zero'?'<span class="badge">缺貨</span>':i.st==='low'?'<span class="badge">偏低</span>':`<small>${esc(i.unit||'')}</small>`;
     html+=`<div class="row ${esc(i.st)}"><span class="model">${esc(nameOf(i))}</span><span class="qty"><b>${fmt(+i.qty||0)}</b>${tag}</span></div>`;
