@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* 唯讀公開頁：上方固定區（標題、更新時間、狀態統計、搜尋），品牌與類型篩選按鈕，下方依「品牌 · 類型」分組的商品清單；沒有任何編輯功能 */
+/* 唯讀公開頁：上方固定區（標題、更新時間、狀態統計、搜尋），品牌與類型下拉選單，下方依「品牌 · 類型」分組的商品清單；沒有任何編輯功能 */
 :root{
   --bg:#f2f5f4; --surface:#ffffff; --fg:#14211d; --muted:#596a64; --line:#d9e1de;
   --accent:#0f6e5c; --danger:#c0362c; --danger-bg:#fde8e6; --warn:#9a4b00; --warn-bg:#fff0de;
@@ -45,13 +45,12 @@ input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid 
 input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .filters{display:grid;grid-template-columns:1fr auto;gap:8px}
 .filters select{width:auto;max-width:44vw}
-/* 品牌／類型快速篩選：可左右滑動的按鈕列 */
-.facet{display:flex;gap:6px;overflow-x:auto;padding:2px 0;scrollbar-width:none;align-items:center}
-.facet::-webkit-scrollbar{display:none}
-.facet>b{font-size:13px;color:var(--muted);flex:0 0 auto;min-width:30px}
-.chip{flex:0 0 auto;white-space:nowrap;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:999px;padding:4px 11px;font:inherit;font-size:15px;cursor:pointer}
-.chip.on{background:var(--accent);color:var(--surface);border-color:var(--accent)}
-.chip small{opacity:.7;font-size:12px;margin-left:4px;font-variant-numeric:tabular-nums}
+/* 篩選區：搜尋框一整列，下面「品牌｜類型」兩個下拉選單並排 */
+.fsel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fsel select{width:100%;min-width:0;text-overflow:ellipsis}
+.fsel select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+.finfo{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.finfo button{border:0;background:none;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;padding:0}
 .list{display:grid;margin-top:4px}
 .grp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700}
 .grp small{font-size:13px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -78,8 +77,11 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       <button type="button" class="stat low" data-f="low"><b id="sLow">–</b><span>庫存偏低</span></button>
     </div>
     <input id="q" type="search" placeholder="搜尋型號、品牌、類型、顏色" autocomplete="off">
-    <div class="facet" id="fbBrand" aria-label="依品牌篩選"></div>
-    <div class="facet" id="fbType" aria-label="依商品類型篩選"></div>
+    <div class="fsel">
+      <select id="selBrand" aria-label="品牌"><option value="">全部品牌</option></select>
+      <select id="selType" aria-label="商品類型"><option value="">全部類型</option></select>
+    </div>
+    <div class="finfo" id="finfo" hidden><span id="finfoText"></span><button type="button" id="fClear">清除篩選</button></div>
   </header>
   <div class="list" id="list"><div class="empty">讀取中…</div></div>
   <p class="foot">這是唯讀頁面，只能查看庫存數量。數字由管理者更新。</p>
@@ -113,16 +115,19 @@ function fmtAt(s){
 }
 const nameOf=i=>[i.model,i.color].filter(Boolean).join(' · ');
 
-/* 兩排可左右滑動的按鈕：先點品牌，類型那排只剩這個品牌有的類型（反過來也一樣）；
-   按鈕上的小數字是符合的商品項數，再點一次同一個按鈕就取消 */
+/* 品牌、類型兩個下拉選單會互相連動：選了品牌，類型只剩這個品牌有的（反過來也一樣）；
+   選項後面的數字是符合的商品項數 */
 function renderFacets(items){
   const base=items.filter(i=>!statusF||i.st===statusF);
   const count=(arr,key)=>{const m={};arr.forEach(i=>{const k=key(i);m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>zh(a[0],b[0]))};
-  const row=(label,list,cur,attr)=>`<b>${label}</b><button type="button" class="chip${cur?'':' on'}" data-${attr}="">全部</button>`+
-    list.map(([k,n])=>`<button type="button" class="chip${k===cur?' on':''}" data-${attr}="${esc(k)}">${esc(k)}<small>${n}</small></button>`).join('');
-  $('fbBrand').innerHTML=row('品牌',count(base.filter(i=>!fType||tKey(i)===fType),bKey),fBrand,'b');
-  $('fbType').innerHTML=row('類型',count(base.filter(i=>!fBrand||bKey(i)===fBrand),tKey),fType,'t');
-  $('fbBrand').hidden=$('fbType').hidden=!items.length;
+  const fill=(sel,all,list,cur)=>{
+    if(cur&&!list.some(([k])=>k===cur))list=[...list,[cur,0]];
+    sel.innerHTML=`<option value="">${all}</option>`+list.map(([k,n])=>`<option value="${esc(k)}">${esc(k)}（${n}）</option>`).join('');
+    sel.value=cur;sel.classList.toggle('on',!!cur);
+  };
+  fill($('selBrand'),'全部品牌',count(base.filter(i=>!fType||tKey(i)===fType),bKey),fBrand);
+  fill($('selType'),'全部類型',count(base.filter(i=>!fBrand||bKey(i)===fBrand),tKey),fType);
+  $('selBrand').parentNode.hidden=!items.length;
 }
 function render(){
   const items=(data&&data.items)||[];
@@ -138,6 +143,8 @@ function render(){
   const q=$('q').value.trim().toLowerCase();
   const s=items.filter(i=>(!statusF||i.st===statusF)&&(!fBrand||bKey(i)===fBrand)&&(!fType||tKey(i)===fType)&&(!q||[i.brand,i.type,i.cat,i.model,i.color].join(' ').toLowerCase().includes(q)))
     .sort((a,b)=>zh(bKey(a),bKey(b))||zh(tKey(a),tKey(b)));
+  const on=!!(fBrand||fType||statusF||q);$('finfo').hidden=!on;
+  if(on)$('finfoText').textContent=`顯示 ${fmt(s.length)} / ${fmt(items.length)} 項`;
   if(!s.length){list.innerHTML=`<div class="empty">${statusF==='zero'?'目前沒有缺貨的商品':statusF==='low'?'目前沒有庫存偏低的商品':'找不到符合的商品'}</div>`;return}
   let html='',last=null;
   for(const i of s){
@@ -157,10 +164,11 @@ async function refresh(first){
 }
 $('stats').onclick=e=>{const b=e.target.closest('.stat[data-f]');if(!b)return;statusF=b.dataset.f===statusF?'':b.dataset.f;render()};
 $('q').oninput=render;
-$('fbBrand').onclick=e=>{const c=e.target.closest('[data-b]');if(!c)return;fBrand=c.dataset.b===fBrand?'':c.dataset.b;
+$('selBrand').onchange=()=>{fBrand=$('selBrand').value;
   const it=(data&&data.items)||[];if(fType&&!it.some(i=>(!fBrand||bKey(i)===fBrand)&&tKey(i)===fType))fType='';render()};
-$('fbType').onclick=e=>{const c=e.target.closest('[data-t]');if(!c)return;fType=c.dataset.t===fType?'':c.dataset.t;
+$('selType').onchange=()=>{fType=$('selType').value;
   const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
+$('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';render()};
 refresh(true);
 setInterval(()=>{if(!document.hidden)refresh()},120000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
