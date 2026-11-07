@@ -205,18 +205,16 @@ function renderCons(){
   }
   box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':'目前沒有客戶寄庫'}</div>`;
 }
-// 切換「庫存／客戶寄庫」；網址後面加 #cons 可以直接打開寄庫分頁
+// 切換「庫存／客戶寄庫」：在同一頁裡切換，網址不變
 function setView(v){
   view=v;
   document.querySelectorAll('#tabs .tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v?'true':'false'));
   $('stockCtl').hidden=$('list').hidden=v!=='stock';
   $('consCtl').hidden=$('consList').hidden=v!=='cons';
-  try{history.replaceState(null,'',v==='cons'?'#cons':location.pathname+location.search)}catch(e){}
 }
 $('tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)setView(b.dataset.v)};
 $('selCust').onchange=()=>{fCust=$('selCust').value;renderCons()};
 $('cq').oninput=renderCons;
-window.addEventListener('hashchange',()=>setView(location.hash==='#cons'?'cons':'stock'));
 
 async function refresh(first){
   const j=await load();
@@ -230,7 +228,6 @@ $('selBrand').onchange=()=>{fBrand=$('selBrand').value;
 $('selType').onchange=()=>{fType=$('selType').value;
   const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
 $('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';render()};
-if(location.hash==='#cons')setView('cons');
 refresh(true);
 setInterval(()=>{if(!document.hidden)refresh()},120000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
