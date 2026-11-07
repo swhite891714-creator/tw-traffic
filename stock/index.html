@@ -116,6 +116,16 @@ const $=id=>document.getElementById(id);
 const fmt=n=>Math.round(n).toLocaleString('zh-TW');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
+// 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
+// 這樣手機不會一直停在瀏覽器暫存的舊版畫面
+const PAGE_VER='2026-11-07.3';
+async function checkVersion(){
+  try{
+    const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
+    const m=t.match(/const PAGE_VER='([^']+)'/);
+    if(m&&m[1]!==PAGE_VER){await fetch('./',{cache:'reload'}).catch(()=>{});location.reload()}
+  }catch(e){}
+}
 let data=null,statusF='',fBrand='',fType='';
 // 品牌與商品類型（舊格式只有 cat 時當成類型）；「未填品牌」「未分類」排在最後
 const bKey=i=>String(i.brand||'').trim()||'未填品牌';
@@ -217,6 +227,7 @@ $('selCust').onchange=()=>{fCust=$('selCust').value;renderCons()};
 $('cq').oninput=renderCons;
 
 async function refresh(first){
+  if(!first)checkVersion();
   const j=await load();
   if(j){data=j;$('status').textContent=j.at?`資料更新時間：${fmtAt(j.at)}`:'尚未發布';render();renderCons()}
   else if(first){$('status').textContent='讀取失敗';render()}
@@ -229,6 +240,7 @@ $('selType').onchange=()=>{fType=$('selType').value;
   const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
 $('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';render()};
 refresh(true);
+setTimeout(checkVersion,3000);
 setInterval(()=>{if(!document.hidden)refresh()},120000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
 </script>
