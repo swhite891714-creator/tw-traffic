@@ -64,6 +64,8 @@ button.cqty{margin:3px 0 0 auto;border:1px solid var(--warn);background:var(--wa
 .onlyitem{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1.5px solid var(--warn);background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:8px 12px;font-size:15px;font-weight:700}
 .onlyitem span{min-width:0;overflow-wrap:anywhere}
 .onlyitem button{flex:0 0 auto;border:0;background:none;color:inherit;font:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
+#consList .row.hl{background:var(--warn-bg);box-shadow:inset 4px 0 0 var(--warn);padding-left:10px}
+#consList .row.hl .model{color:var(--warn)}
 .cgrp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700;font-size:17px}
 .cgrp small{font-size:13px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
 .sub{font-size:13px;color:var(--muted);display:block;font-weight:400}
@@ -107,7 +109,7 @@ button.cqty{margin:3px 0 0 auto;border:1px solid var(--warn);background:var(--wa
     <div class="ctl" id="consCtl" hidden>
       <input id="cq" type="search" placeholder="搜尋客戶或商品" autocomplete="off">
       <select id="selCust" aria-label="客戶"><option value="">全部客戶</option></select>
-      <div class="onlyitem" id="onlyItem" hidden><span id="onlyItemText"></span><button type="button" id="onlyItemClear">✕ 顯示全部寄庫</button></div>
+      <div class="onlyitem" id="onlyItem" hidden><span id="onlyItemText"></span><button type="button" id="onlyItemClear">✕ 取消標示</button></div>
     </div>
   </header>
   <div class="list" id="list"><div class="empty">讀取中…</div></div>
@@ -125,7 +127,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-07.4';
+const PAGE_VER='2026-11-07.5';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -200,8 +202,10 @@ function render(){
    資料的 cons 是每位客戶寄放的商品（k＝商品在 items 裡的位置，q＝件數）。
    上方客戶選單可以只看某位客戶；搜尋可以找客戶名稱或商品。 */
 let view='stock',fCust='',fItemK=-1;
-// 從庫存清單點有寄庫的商品：切到客戶寄庫，只列出寄放這個商品的客戶
-$('list').addEventListener('click',e=>{const r=e.target.closest('.row[data-k]');if(!r)return;fItemK=+r.dataset.k;fCust='';$('cq').value='';setView('cons');renderCons();window.scrollTo(0,0)});
+// 從庫存清單點有寄庫的商品：切到客戶寄庫，仍顯示全部客戶的寄庫（不隱藏資料），
+// 寄放這個商品的客戶排最前面、這個商品標成橘色，並捲到那一列
+$('list').addEventListener('click',e=>{const r=e.target.closest('.row[data-k]');if(!r)return;fItemK=+r.dataset.k;fCust='';$('cq').value='';setView('cons');renderCons();
+  const el=$('consList').querySelector('.row.hl');try{if(el)el.scrollIntoView({block:'center'});else window.scrollTo(0,0)}catch(x){}});
 $('onlyItemClear').onclick=()=>{fItemK=-1;renderCons()};
 const consOf=()=>((data&&data.cons)||[]).filter(c=>c&&c.name&&Array.isArray(c.items));
 function renderCons(){
@@ -218,15 +222,18 @@ function renderCons(){
   const fi=fItemK>=0?items[fItemK]:null;
   if(fItemK>=0&&!(fi&&cs.some(c=>c.items.some(x=>x.k===fItemK&&+x.q>0))))fItemK=-1;
   $('onlyItem').hidden=fItemK<0;
-  if(fItemK>=0)$('onlyItemText').textContent=`只看：${nameOf(fi)}（共 ${fmt(cs.reduce((n,c)=>n+c.items.filter(x=>x.k===fItemK).reduce((a,x)=>a+(+x.q||0),0),0))} 件）`;
+  const has=c=>c.items.some(x=>x.k===fItemK&&+x.q>0);
+  if(fItemK>=0)$('onlyItemText').textContent=`${nameOf(fi)}：`+cs.filter(has).map(c=>`${c.name} ${fmt(c.items.filter(x=>x.k===fItemK).reduce((a,x)=>a+(+x.q||0),0))} 件`).join('、');
   let html='',n=0;
-  for(const c of cs){
+  // 有寄放被標示商品的客戶排前面
+  const order=fItemK>=0?[...cs].sort((a,b)=>has(b)-has(a)):cs;
+  for(const c of order){
     if(fCust&&c.name!==fCust)continue;
-    const rows=c.items.filter(x=>fItemK<0||x.k===fItemK).map(x=>({it:items[x.k],q:+x.q||0})).filter(x=>x.it&&x.q>0)
+    const rows=c.items.map(x=>({it:items[x.k],q:+x.q||0,k:x.k})).filter(x=>x.it&&x.q>0)
       .filter(x=>!q||c.name.toLowerCase().includes(q)||[x.it.brand,x.it.type,x.it.model,x.it.color].join(' ').toLowerCase().includes(q));
     if(!rows.length)continue;n++;
     html+=`<div class="cgrp"><span>${esc(c.name)}</span><small>${rows.length} 項 · 共 ${fmt(rows.reduce((a,x)=>a+x.q,0))} 件</small></div>`;
-    html+=rows.map(x=>`<div class="row"><span class="model">${esc(nameOf(x.it))}<span class="sub">${esc(groupOf(x.it))}</span></span><span class="qty"><b>${fmt(x.q)}</b><small>${esc(x.it.unit||'')}</small></span></div>`).join('');
+    html+=rows.map(x=>`<div class="row${x.k===fItemK?' hl':''}"><span class="model">${esc(nameOf(x.it))}<span class="sub">${esc(groupOf(x.it))}</span></span><span class="qty"><b>${fmt(x.q)}</b><small>${esc(x.it.unit||'')}</small></span></div>`).join('');
   }
   box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':'目前沒有客戶寄庫'}</div>`;
 }
