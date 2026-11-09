@@ -14,106 +14,106 @@
 <link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
-/* 唯讀公開頁：上方固定區（標題、更新時間、「庫存／客戶寄庫」分頁、篩選），品牌與類型下拉選單，下方依「品牌 · 類型」分組的商品清單；沒有任何編輯功能 */
+/* 唯讀公開頁：標題會捲走，搜尋框與分頁留在上方；狀態和品牌用一排按鈕篩選；有貨排在前面，缺貨淡化 */
 :root{
   --bg:#f2f5f4; --surface:#ffffff; --fg:#14211d; --muted:#596a64; --line:#d9e1de;
-  --accent:#0f6e5c; --danger:#c0362c; --danger-bg:#fde8e6; --warn:#9a4b00; --warn-bg:#fff0de;
+  --accent:#0f6e5c; --accent-fg:#ffffff; --ok-bg:#dff1ec; --danger:#c0362c; --danger-bg:#fde8e6; --warn:#9a4b00; --warn-bg:#fff0de; --mark:#ffe58a; --mark-fg:#14211d;
   --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --gut:max(16px,env(safe-area-inset-left,0px));
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0e1513; --surface:#16201d; --fg:#e4ece9; --muted:#93a59f; --line:#283632;
-  --accent:#4fc4a6; --danger:#ff7b6f; --danger-bg:#3a1714; --warn:#ffb065; --warn-bg:#3a2612; color-scheme:dark}}
+  --accent:#4fc4a6; --accent-fg:#06201a; --ok-bg:#17352d; --danger:#ff7b6f; --danger-bg:#3a1714; --warn:#ffb065; --warn-bg:#3a2612; --mark:#7a6416; --mark-fg:#fff6d6; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:17px;line-height:1.5;padding-bottom:env(safe-area-inset-bottom,0px)}
 [hidden]{display:none!important}
-.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
-header{position:sticky;top:0;z-index:5;background:var(--surface);border-bottom:1px solid var(--line);margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-left,0px)) 12px;display:grid;gap:10px}
-.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-h1{font-size:20px;margin:0}
-.role{border-radius:999px;padding:2px 10px;font-size:13px;font-weight:700;color:var(--accent);border:1px solid var(--accent)}
-.status{font-size:14px;color:var(--muted)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.stat{display:grid;min-width:0;text-align:left;border:1px solid transparent;background:none;border-radius:10px;padding:4px 8px;font:inherit;color:inherit;cursor:pointer}
-.stat b{font-family:var(--mono);font-size:21px;font-variant-numeric:tabular-nums}
-.stat span{font-size:13px;color:var(--muted);letter-spacing:.04em}
-.stat.on{border-color:var(--fg);background:var(--bg)}
-.stat.zero b{color:var(--danger)}.stat.low b{color:var(--warn)}
-input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%}
-input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.filters{display:grid;grid-template-columns:1fr auto;gap:8px}
-.filters select{width:auto;max-width:44vw}
-/* 篩選區：搜尋框一整列，下面「品牌｜類型」兩個下拉選單並排 */
-.fsel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.fsel select{width:100%;min-width:0;text-overflow:ellipsis}
-.fsel select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
-.finfo{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
-.finfo button{border:0;background:none;color:var(--accent);font:inherit;font-weight:700;cursor:pointer;padding:0}
-/* 分頁：庫存／客戶寄庫 */
-.tabs{display:flex;margin:0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding:0 max(16px,env(safe-area-inset-left,0px));border-top:1px solid var(--line)}
-.tab{flex:1;border:0;border-bottom:3px solid transparent;background:none;color:var(--muted);font:inherit;font-size:16px;font-weight:700;padding:8px 4px 7px;cursor:pointer}
+button{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.wrap{max-width:820px;margin:0 auto;padding-left:var(--gut);padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:calc(14px + env(safe-area-inset-top,0px)) 0 10px}
+h1{font-size:22px;margin:0}
+.status{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+/* 搜尋框與分頁固定在上方 */
+.dock{position:sticky;top:0;z-index:5;background:var(--bg);margin:0 calc(-1 * var(--gut));padding:calc(8px + env(safe-area-inset-top,0px)) var(--gut) 0;display:grid;gap:4px;border-bottom:1px solid var(--line)}
+.sbox{position:relative}
+.sbox input{font:inherit;font-size:18px;color:var(--fg);background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:11px 44px 11px 14px;width:100%;appearance:none}
+.sbox input:focus{border-color:var(--accent);outline:0}
+.sbox input::-webkit-search-cancel-button{display:none}
+.sbox button{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:38px;height:38px;border:0;background:none;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;border-radius:8px}
+.tabs{display:flex;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 auto;border:0;border-bottom:3px solid transparent;background:none;color:var(--muted);font-size:16px;font-weight:700;padding:7px 8px 6px;cursor:pointer;white-space:nowrap}
 .tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
-.tab small{font-weight:400;font-size:13px;margin-left:4px}
-.ctl{display:grid;gap:10px}
-.cqty{display:block;font-size:12px;color:var(--warn);font-weight:700;font-family:var(--sans)}
-/* 庫存列上的「寄庫 N ›」：點了跳到客戶寄庫，只看這個商品 */
-button.cqty{margin:3px 0 0 auto;border:1px solid var(--warn);background:var(--warn-bg);border-radius:6px;padding:1px 6px;cursor:pointer;white-space:nowrap}
-.row.hascons{cursor:pointer}
-.onlyitem{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1.5px solid var(--warn);background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:8px 12px;font-size:15px;font-weight:700}
-.onlyitem span{min-width:0;overflow-wrap:anywhere}
-.onlyitem button{flex:0 0 auto;border:0;background:none;color:inherit;font:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
-#consList .row.hl{background:var(--warn-bg);box-shadow:inset 4px 0 0 var(--warn);padding-left:10px}
-#consList .row.hl .model{color:var(--warn)}
-button.cqty.ln{color:var(--in,#1d5fb8);border-color:currentColor;background:transparent}
-.cgrp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700;font-size:17px}
-.cgrp small{font-size:13px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
-.sub{font-size:13px;color:var(--muted);display:block;font-weight:400}
-.list{display:grid;margin-top:4px}
+.tab small{font-weight:400;font-size:13px;margin-left:4px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+/* 篩選按鈕列：放不下時左右滑動，不換行 */
+.ctl{display:grid;gap:8px;padding-top:12px;min-width:0}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 calc(-1 * var(--gut));padding:0 var(--gut)}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 13px;font-size:15px;cursor:pointer;white-space:nowrap}
+.chip small{margin-left:5px;font-size:13px;color:var(--muted);font-family:var(--mono);font-variant-numeric:tabular-nums}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:700}
+.chip.on small{color:inherit;opacity:.85}
+.chip:disabled{opacity:.45;cursor:default}
+.finfo{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.finfo button,.link{border:0;background:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0}
+select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
+select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+/* 清單 */
+.list{display:grid;margin-top:2px}
 .grp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700}
 .grp small{font-size:13px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
-.row{display:grid;grid-template-columns:1fr auto;gap:0 12px;align-items:center;padding:12px 4px;border-bottom:1px solid var(--line)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 14px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line)}
+.row[data-k]{cursor:pointer}
 .model{font-weight:700;min-width:0;overflow-wrap:anywhere}
-.qty{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
-.qty b{font-size:23px;display:block;line-height:1.2}
-.qty small{font-size:12px;color:var(--muted);display:block;font-family:var(--sans)}
-.badge{display:inline-block;border-radius:6px;padding:0 6px;font-size:12px;font-weight:700;font-family:var(--sans)}
-.row.zero .qty b{color:var(--danger)}.row.zero .badge{background:var(--danger-bg);color:var(--danger)}
-.row.low .qty b{color:var(--warn)}.row.low .badge{background:var(--warn-bg);color:var(--warn)}
-.empty{padding:40px 8px;text-align:center;color:var(--muted)}
-.foot{margin-top:24px;font-size:13px;color:var(--muted);text-align:center}
+.sub{font-size:13px;color:var(--muted);display:block;font-weight:400}
+.row.zero .model{font-weight:500;color:var(--muted)}
+mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px}
+.qty{display:grid;grid-template-columns:auto 3.2em;gap:10px;align-items:center;justify-items:end;font-variant-numeric:tabular-nums}
+.qty b{font-family:var(--mono);font-size:23px;line-height:1.2}
+.row.zero .qty b{color:var(--muted);font-weight:500}
+.pill{border-radius:999px;padding:1px 9px;font-size:13px;font-weight:700;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--accent)}
+.pill.low{background:var(--warn-bg);color:var(--warn)}
+.pill.zero{background:var(--danger-bg);color:var(--danger)}
+.more{grid-column:1 / -1;display:flex;gap:24px;justify-content:flex-end;margin-top:8px}
+.more button{border:1px solid var(--warn);background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:5px 10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.more button.ln{border-color:var(--accent);background:transparent;color:var(--accent)}
+.onlyitem{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1.5px solid var(--warn);background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:8px 12px;font-size:15px;font-weight:700}
+.onlyitem span{min-width:0;overflow-wrap:anywhere}
+.onlyitem button{flex:0 0 auto;border:0;background:none;color:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
+#consList .row.hl{background:var(--warn-bg);box-shadow:inset 4px 0 0 var(--warn);padding-left:10px}
+.empty{padding:40px 8px;text-align:center;color:var(--muted);display:grid;gap:10px;justify-items:center}
+.empty b{color:var(--fg);font-size:18px;overflow-wrap:anywhere}
+.foot{margin:24px 0 0;font-size:13px;color:var(--muted);text-align:center}
+@media (min-width:900px){.wrap{max-width:1040px}#list{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:36px}#list .grp,#list .empty{grid-column:1 / -1}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <div class="top"><h1>庫存查詢</h1><span class="role">唯讀</span></div>
-    <span class="status" id="status">讀取中…</span>
+  <div class="top"><h1>庫存查詢</h1><span class="status" id="status">讀取中…</span></div>
+  <div class="dock">
+    <div class="sbox">
+      <input id="q" type="search" placeholder="輸入型號、品牌或客戶" autocomplete="off" enterkeyhint="search" aria-label="搜尋">
+      <button type="button" id="qClear" aria-label="清除搜尋" hidden>×</button>
+    </div>
     <div class="tabs" role="tablist" id="tabs" hidden>
-      <button type="button" class="tab" role="tab" data-v="stock" aria-selected="true">庫存</button>
+      <button type="button" class="tab" role="tab" data-v="stock" aria-selected="true">庫存<small id="tabStockN"></small></button>
       <button type="button" class="tab" role="tab" data-v="cons" aria-selected="false">客戶寄庫<small id="tabConsN"></small></button>
       <button type="button" class="tab" role="tab" data-v="loan" aria-selected="false">客戶借出<small id="tabLoanN"></small></button>
     </div>
-    <div class="ctl" id="stockCtl">
-    <div class="stats" id="stats">
-      <button type="button" class="stat on" data-f=""><b id="sItems">–</b><span>全部商品</span></button>
-      <button type="button" class="stat zero" data-f="zero"><b id="sZero">–</b><span>缺貨</span></button>
-      <button type="button" class="stat low" data-f="low"><b id="sLow">–</b><span>庫存偏低</span></button>
-    </div>
-    <input id="q" type="search" placeholder="搜尋型號、品牌、類型、顏色" autocomplete="off">
-    <div class="fsel">
-      <select id="selBrand" aria-label="品牌"><option value="">全部品牌</option></select>
-      <select id="selType" aria-label="商品類型"><option value="">全部類型</option></select>
-    </div>
-    <div class="finfo" id="finfo" hidden><span id="finfoText"></span><button type="button" id="fClear">清除篩選</button></div>
-    </div>
-    <div class="ctl" id="consCtl" hidden>
-      <input id="cq" type="search" placeholder="搜尋客戶或商品" autocomplete="off">
-      <select id="selCust" aria-label="客戶"><option value="">全部客戶</option></select>
-      <div class="onlyitem" id="onlyItem" hidden><span id="onlyItemText"></span><button type="button" id="onlyItemClear">✕ 取消標示</button></div>
-    </div>
-  </header>
+  </div>
+  <div class="ctl" id="stockCtl">
+    <div class="chips" id="chipStatus" role="group" aria-label="庫存狀態"></div>
+    <div class="chips" id="chipBrand" role="group" aria-label="品牌"></div>
+    <div class="chips" id="chipType" role="group" aria-label="類型" hidden></div>
+    <div class="finfo" id="finfo" hidden><span id="finfoText"></span><button type="button" id="fClear">清除全部條件</button></div>
+  </div>
+  <div class="ctl" id="consCtl" hidden>
+    <select id="selCust" aria-label="客戶"><option value="">全部客戶</option></select>
+    <div class="onlyitem" id="onlyItem" hidden><span id="onlyItemText"></span><button type="button" id="onlyItemClear">✕ 取消標示</button></div>
+  </div>
   <div class="list" id="list"><div class="empty">讀取中…</div></div>
   <div class="list" id="consList" hidden></div>
   <p class="foot">這是唯讀頁面，只能查看庫存、客戶寄庫與客戶借出數量。數字由管理者更新。</p>
@@ -129,7 +129,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-09.1';
+const PAGE_VER='2026-11-09.2';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -137,138 +137,183 @@ async function checkVersion(){
     if(m&&m[1]!==PAGE_VER){await fetch('./',{cache:'reload'}).catch(()=>{});location.reload()}
   }catch(e){}
 }
-let data=null,statusF='',fBrand='',fType='';
-// 品牌與商品類型（舊格式只有 cat 時當成類型）；「未填品牌」「未分類」排在最後
+let data=null,statusF='',fBrand='',fType='',view='stock',fCust='',fItemK=-1;
 const bKey=i=>String(i.brand||'').trim()||'未填品牌';
 const tKey=i=>String(i.type||i.cat||'').trim()||'未分類';
-const groupOf=i=>bKey(i)+' · '+tKey(i);
+const hasType=i=>!!String(i.type||i.cat||'').trim();
+const groupOf=i=>bKey(i)+(hasType(i)?' · '+tKey(i):'');
+const nameOf=i=>[i.model,i.color].filter(Boolean).join(' · ');
 const zh=(a,b)=>{const u=x=>x==='未填品牌'||x==='未分類'?1:0;return (u(a)-u(b))||String(a).localeCompare(String(b),'zh-Hant')};
+const inStock=i=>(+i.qty||0)>0;
+
+/* ---------- 搜尋 ----------
+   全形半形、大小寫視為相同；多個關鍵字用空白隔開，要全部符合；連字號和空白可省略（cap1000 找得到 CAP-1000） */
+const norm=s=>String(s??'').normalize('NFKC').toLowerCase();
+const squash=s=>norm(s).replace(/[\s\-_.\/·・,，]+/g,'');
+const toks=()=>norm($('q').value).split(/\s+/).filter(Boolean);
+function kwHit(parts,T){if(!T.length)return true;const n=norm(parts.join(' ')),s=squash(n);return T.every(t=>n.includes(t)||s.includes(squash(t)))}
+const itemHit=(i,T)=>kwHit([i.brand,i.type,i.cat,i.model,i.color],T);
+// 把符合的關鍵字標上底色
+function hl(text,T){
+  const s=String(text??'');if(!T.length)return esc(s);
+  const re=new RegExp('('+[...T].sort((a,b)=>b.length-a.length).map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|')+')','ig');
+  return s.split(re).map((p,k)=>k%2?`<mark>${esc(p)}</mark>`:esc(p)).join('');
+}
 
 async function load(){
   try{const r=await fetch(GH+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}});if(r.ok){const j=await r.json();if(j&&Array.isArray(j.items))return j}}catch(e){}
   try{const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});if(r.ok)return await r.json()}catch(e){}
   return null;
 }
-// 更新時間顯示成台北時間，例如 11/07 15:42
+// 更新時間：台北時間，並標示多久以前
 function fmtAt(s){
   if(!s)return '';
-  const d=new Date(new Date(s).getTime()+8*3600e3).toISOString();
-  return `${d.slice(5,7)}/${d.slice(8,10)} ${d.slice(11,16)}`;
+  const t=new Date(s).getTime(),d=new Date(t+8*3600e3).toISOString(),min=Math.max(0,Math.round((Date.now()-t)/60000));
+  const ago=min<1?'剛剛':min<60?`${min} 分鐘前`:min<1440?`${Math.floor(min/60)} 小時前`:`${Math.floor(min/1440)} 天前`;
+  return `${d.slice(5,7)}/${d.slice(8,10)} ${d.slice(11,16)}（${ago}）`;
 }
-const nameOf=i=>[i.model,i.color].filter(Boolean).join(' · ');
 
-/* 品牌、類型兩個下拉選單會互相連動：選了品牌，類型只剩這個品牌有的（反過來也一樣）；
-   選項後面的數字是符合的商品項數 */
-function renderFacets(items){
-  const base=items.filter(i=>!statusF||i.st===statusF);
-  const count=(arr,key)=>{const m={};arr.forEach(i=>{const k=key(i);m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>zh(a[0],b[0]))};
-  const fill=(sel,all,list,cur)=>{
-    if(cur&&!list.some(([k])=>k===cur))list=[...list,[cur,0]];
-    sel.innerHTML=`<option value="">${all}</option>`+list.map(([k,n])=>`<option value="${esc(k)}">${esc(k)}（${n}）</option>`).join('');
-    sel.value=cur;sel.classList.toggle('on',!!cur);
-  };
-  fill($('selBrand'),'全部品牌',count(base.filter(i=>!fType||tKey(i)===fType),bKey),fBrand);
-  fill($('selType'),'全部類型',count(base.filter(i=>!fBrand||bKey(i)===fBrand),tKey),fType);
-  $('selBrand').parentNode.hidden=!items.length;
+const STATUS=[['','全部'],['has','有貨'],['low','偏低'],['zero','缺貨']];
+const matchS=(i,f)=>!f||(f==='has'?inStock(i):i.st===f);
+// 一排按鈕：同一排互斥，選項後面的數字是符合目前其他條件的項數
+function chipRow(box,all,attr,list,cur){
+  $(box).innerHTML=`<button type="button" class="chip${cur?'':' on'}" data-${attr}="" aria-pressed="${!cur}">${all}</button>`+
+    list.map(([k,n])=>`<button type="button" class="chip${k===cur?' on':''}" data-${attr}="${esc(k)}" aria-pressed="${k===cur}">${esc(k)}<small>${fmt(n)}</small></button>`).join('');
 }
+function countBy(arr,key){const m={};arr.forEach(i=>{const k=key(i);m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>zh(a[0],b[0]))}
+
 function render(){
-  const items=(data&&data.items)||[];
-  renderFacets(items);
-  $('sItems').textContent=fmt(items.length);
-  $('sZero').textContent=fmt(items.filter(i=>i.st==='zero').length);
-  $('sLow').textContent=fmt(items.filter(i=>i.st==='low').length);
-  document.querySelectorAll('.stat[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===statusF));
+  const items=(data&&data.items)||[],T=toks(),bt=(i,b,t)=>(!b||bKey(i)===b)&&(!t||tKey(i)===t);
+  const text=items.filter(i=>itemHit(i,T));
+  // 狀態按鈕
+  const forS=text.filter(i=>bt(i,fBrand,fType));
+  $('chipStatus').innerHTML=STATUS.filter(([f])=>!f||f===statusF||forS.some(i=>matchS(i,f))).map(([f,lb])=>{const n=forS.filter(i=>matchS(i,f)).length;return `<button type="button" class="chip${f===statusF?' on':''}" data-s="${f}" aria-pressed="${f===statusF}">${lb}<small>${fmt(n)}</small></button>`}).join('');
+  // 品牌按鈕（只有一個品牌時也顯示，看得出目前有哪些品牌）
+  const addCur=(l,c)=>c&&!l.some(([k])=>k===c)?[...l,[c,0]]:l;
+  chipRow('chipBrand','全部品牌','b',addCur(countBy(text.filter(i=>matchS(i,statusF)&&bt(i,'',fType)),bKey),fBrand),fBrand);
+  // 類型按鈕：還沒有商品填類型時整排不顯示
+  const anyT=items.some(hasType);$('chipType').hidden=!anyT;
+  if(anyT)chipRow('chipType','全部類型','t',addCur(countBy(text.filter(i=>matchS(i,statusF)&&bt(i,fBrand,'')),tKey),fType),fType);
+  $('chipBrand').hidden=!items.length;
 
   const list=$('list');
+  const s=forS.filter(i=>matchS(i,statusF));
+  const on=!!(fBrand||fType||statusF||T.length);
+  $('finfo').hidden=!on||!items.length;
+  if(on)$('finfoText').textContent=`找到 ${fmt(s.length)} 項，共 ${fmt(items.length)} 項`;
+  $('qClear').hidden=!$('q').value;
+  renderTabs(T,s.length);
   if(!data){list.innerHTML='<div class="empty">目前讀不到資料，請確認網路後重新整理。</div>';return}
   if(!items.length){list.innerHTML='<div class="empty">管理者還沒有發布庫存資料。</div>';return}
-  const q=$('q').value.trim().toLowerCase();
-  const s=items.filter(i=>(!statusF||i.st===statusF)&&(!fBrand||bKey(i)===fBrand)&&(!fType||tKey(i)===fType)&&(!q||[i.brand,i.type,i.cat,i.model,i.color].join(' ').toLowerCase().includes(q)))
-    .sort((a,b)=>zh(bKey(a),bKey(b))||zh(tKey(a),tKey(b)));
-  const on=!!(fBrand||fType||statusF||q);$('finfo').hidden=!on;
-  if(on)$('finfoText').textContent=`顯示 ${fmt(s.length)} / ${fmt(items.length)} 項`;
-  if(!s.length){list.innerHTML=`<div class="empty">${statusF==='zero'?'目前沒有缺貨的商品':statusF==='low'?'目前沒有庫存偏低的商品':'找不到符合的商品'}</div>`;return}
+  if(!s.length){list.innerHTML=emptyHtml(T,text.length);return}
+  const sorted=[...s].sort((a,b)=>zh(bKey(a),bKey(b))||zh(tKey(a),tKey(b))||(inStock(b)-inStock(a))||(items.indexOf(a)-items.indexOf(b)));
+  const WORD={ok:'有貨',low:'偏低',zero:'缺貨'};
   let html='',last=null;
-  for(const i of s){
+  for(const i of sorted){
     if(groupOf(i)!==last){
-      last=groupOf(i);const g=s.filter(x=>groupOf(x)===last);
-      html+=`<div class="grp"><span>${esc(last)}</span><small>${g.length} 項</small></div>`;
+      last=groupOf(i);
+      const g=sorted.filter(x=>groupOf(x)===last),have=g.filter(inStock).length;
+      html+=`<div class="grp"><span>${esc(last)}</span><small>${g.length} 項${have?` · 有貨 ${have} 項`:' · 目前都缺貨'}</small></div>`;
     }
-    const tag=(i.st==='zero'?'<span class="badge">缺貨</span>':i.st==='low'?'<span class="badge">偏低</span>':`<small>${esc(i.unit||'')}</small>`)+(+i.cq>0?`<button type="button" class="cqty" data-go="cons" aria-label="查看 ${esc(nameOf(i))} 的客戶寄庫">寄庫 ${fmt(+i.cq)} ›</button>`:'')+(+i.lq>0?`<button type="button" class="cqty ln" data-go="loan" aria-label="查看 ${esc(nameOf(i))} 的客戶借出">借出 ${fmt(+i.lq)} ›</button>`:'');
-    const k=items.indexOf(i),go=+i.cq>0?'cons':+i.lq>0?'loan':'';
-    html+=`<div class="row ${esc(i.st)}${go?' hascons':''}"${go?` data-k="${k}" data-go="${go}"`:''}><span class="model">${esc(nameOf(i))}</span><span class="qty"><b>${fmt(+i.qty||0)}</b>${tag}</span></div>`;
+    const k=items.indexOf(i),cq=+i.cq||0,lq=+i.lq||0,st=WORD[i.st]?i.st:'ok';
+    const go=cq?'cons':lq?'loan':'';
+    const more=cq||lq?`<span class="more">${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
+    html+=`<div class="row ${st}"${go?` data-k="${k}" data-rgo="${go}"`:''}><span class="model">${hl(nameOf(i),T)}</span><span class="qty"><b>${fmt(+i.qty||0)}</b><span class="pill ${st}">${WORD[st]}</span></span>${more}</div>`;
   }
   list.innerHTML=html;
 }
+// 找不到時，告訴使用者下一步怎麼做
+function emptyHtml(T,textN){
+  const q=esc($('q').value.trim());
+  const filtered=fBrand||fType||statusF;
+  if(filtered&&textN)return `<div class="empty"><b>這些條件下沒有商品</b><span>${T.length?`「${q}」在其他條件下有 ${fmt(textN)} 項`:`共有 ${fmt(textN)} 項商品`}</span><button type="button" class="link" data-clear="f">取消品牌與狀態條件</button></div>`;
+  const c=bookHits('cons',T),l=bookHits('loan',T);
+  if(T.length&&(c||l))return `<div class="empty"><b>庫存裡沒有「${q}」</b><span>但在客戶資料裡找到了</span>${c?`<button type="button" class="link" data-view="cons">看客戶寄庫（${c} 位）</button>`:''}${l?`<button type="button" class="link" data-view="loan">看客戶借出（${l} 位）</button>`:''}</div>`;
+  return `<div class="empty"><b>找不到「${q}」</b><span>試試少打幾個字，或只打型號的一部分</span><button type="button" class="link" data-clear="q">清除搜尋</button></div>`;
+}
+
 /* ---------- 客戶寄庫／客戶借出 ----------
    資料的 cons（寄庫）和 loans（借出）格式相同：每位客戶的商品（k＝商品在 items 裡的位置，q＝件數）。
-   兩個分頁共用同一組搜尋、客戶選單與清單，切換時換資料來源。樣品不在公開資料裡。 */
-let view='stock',fCust='',fItemK=-1;
+   搜尋框三個分頁共用，切換時換資料來源。樣品不在公開資料裡。 */
 const BOOK={cons:{key:'cons',name:'寄庫',empty:'目前沒有客戶寄庫'},loan:{key:'loans',name:'借出',empty:'目前沒有客戶借出'}};
-// 從庫存清單點「寄庫 N ›」或「借出 N ›」：切到那個分頁，仍顯示全部客戶（不隱藏資料），
-// 有這個商品的客戶排最前面、這個商品標成橘色，並捲到那一列
-$('list').addEventListener('click',e=>{const r=e.target.closest('.row[data-k]');if(!r)return;
-  const b=e.target.closest('[data-go]');const go=b&&b!==r?b.dataset.go:r.dataset.go;
-  fItemK=+r.dataset.k;fCust='';$('cq').value='';setView(go);renderCons();
-  const el=$('consList').querySelector('.row.hl');try{if(el)el.scrollIntoView({block:'center'});else window.scrollTo(0,0)}catch(x){}});
-$('onlyItemClear').onclick=()=>{fItemK=-1;renderCons()};
 const bookOf=v=>((data&&data[BOOK[v].key])||[]).filter(c=>c&&c.name&&Array.isArray(c.items));
-function renderCons(){
-  const items=(data&&data.items)||[],cc=bookOf('cons'),ll=bookOf('loan');
+function bookRows(c,T){
+  const items=(data&&data.items)||[];
+  return c.items.map(x=>({it:items[x.k],q:+x.q||0,k:x.k})).filter(x=>x.it&&x.q>0&&kwHit([c.name,x.it.brand,x.it.type,x.it.model,x.it.color],T));
+}
+const bookHits=(v,T)=>bookOf(v).filter(c=>bookRows(c,T).length).length;
+function renderTabs(T,stockN){
+  const cc=bookOf('cons'),ll=bookOf('loan');
   $('tabs').hidden=!cc.length&&!ll.length;
-  $('tabConsN').textContent=cc.length?`${cc.length} 位`:'';$('tabLoanN').textContent=ll.length?`${ll.length} 位`:'';
-  document.querySelector('#tabs [data-v="cons"]').hidden=!cc.length;document.querySelector('#tabs [data-v="loan"]').hidden=!ll.length;
+  document.querySelector('#tabs [data-v="cons"]').hidden=!cc.length;
+  document.querySelector('#tabs [data-v="loan"]').hidden=!ll.length;
+  $('tabStockN').textContent=T.length?fmt(stockN):'';
+  const n=(v,arr)=>arr.length?`${fmt(T.length?bookHits(v,T):arr.length)} 位`:'';
+  $('tabConsN').textContent=n('cons',cc);$('tabLoanN').textContent=n('loan',ll);
+}
+function renderCons(){
   if(view!=='stock'&&!bookOf(view).length)setView('stock');
   if(view==='stock')return;
-  const B=BOOK[view],cs=bookOf(view);
+  const items=(data&&data.items)||[],B=BOOK[view],cs=bookOf(view),T=toks();
   const tot=c=>c.items.reduce((n,x)=>n+(+x.q||0),0);
   const sel=$('selCust');
   sel.innerHTML=`<option value="">全部客戶（${cs.length} 位）</option>`+cs.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}（${fmt(tot(c))} 件）</option>`).join('');
   if(!cs.some(c=>c.name===fCust))fCust='';
   sel.value=fCust;sel.classList.toggle('on',!!fCust);
-  const q=$('cq').value.trim().toLowerCase(),box=$('consList');
-  const fi=fItemK>=0?items[fItemK]:null;
-  if(fItemK>=0&&!(fi&&cs.some(c=>c.items.some(x=>x.k===fItemK&&+x.q>0))))fItemK=-1;
-  $('onlyItem').hidden=fItemK<0;
+  const box=$('consList'),fi=fItemK>=0?items[fItemK]:null;
   const has=c=>c.items.some(x=>x.k===fItemK&&+x.q>0);
+  if(fItemK>=0&&!(fi&&cs.some(has)))fItemK=-1;
+  $('onlyItem').hidden=fItemK<0;
   if(fItemK>=0)$('onlyItemText').textContent=`${nameOf(fi)}：`+cs.filter(has).map(c=>`${c.name} ${B.name} ${fmt(c.items.filter(x=>x.k===fItemK).reduce((a,x)=>a+(+x.q||0),0))} 件`).join('、');
   let html='',n=0;
   const order=fItemK>=0?[...cs].sort((a,b)=>has(b)-has(a)):cs;
   for(const c of order){
     if(fCust&&c.name!==fCust)continue;
-    const rows=c.items.map(x=>({it:items[x.k],q:+x.q||0,k:x.k})).filter(x=>x.it&&x.q>0)
-      .filter(x=>!q||c.name.toLowerCase().includes(q)||[x.it.brand,x.it.type,x.it.model,x.it.color].join(' ').toLowerCase().includes(q));
-    if(!rows.length)continue;n++;
-    html+=`<div class="cgrp"><span>${esc(c.name)}</span><small>${rows.length} 項 · ${B.name} ${fmt(rows.reduce((a,x)=>a+x.q,0))} 件</small></div>`;
-    html+=rows.map(x=>`<div class="row${x.k===fItemK?' hl':''}"><span class="model">${esc(nameOf(x.it))}<span class="sub">${esc(groupOf(x.it))}</span></span><span class="qty"><b>${fmt(x.q)}</b><small>${esc(x.it.unit||'')}</small></span></div>`).join('');
+    const rows=bookRows(c,T);if(!rows.length)continue;n++;
+    html+=`<div class="grp"><span>${hl(c.name,T)}</span><small>${rows.length} 項 · ${B.name} ${fmt(rows.reduce((a,x)=>a+x.q,0))} 件</small></div>`;
+    html+=rows.map(x=>`<div class="row${x.k===fItemK?' hl':''}"><span class="model">${hl(nameOf(x.it),T)}<span class="sub">${esc(groupOf(x.it))}</span></span><span class="qty"><b>${fmt(x.q)}</b><span class="status">${esc(x.it.unit||'件')}</span></span></div>`).join('');
   }
   box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':B.empty}</div>`;
 }
-// 切換「庫存／客戶寄庫／客戶借出」：在同一頁裡切換，網址不變
 function setView(v){
-  if(view!==v){fCust='';if(v!=='stock')$('cq').value=''}
+  if(view!==v)fCust='';
   view=v;
   document.querySelectorAll('#tabs .tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v?'true':'false'));
   $('stockCtl').hidden=$('list').hidden=v!=='stock';
   $('consCtl').hidden=$('consList').hidden=v==='stock';
 }
-$('tabs').onclick=e=>{const b=e.target.closest('.tab');if(!b)return;fItemK=-1;setView(b.dataset.v);renderCons()};
+function goView(v){fItemK=-1;setView(v);renderCons();window.scrollTo(0,0)}
+
+/* ---------- 事件 ---------- */
+$('tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)goView(b.dataset.v)};
 $('selCust').onchange=()=>{fCust=$('selCust').value;renderCons()};
-$('cq').oninput=renderCons;
+$('onlyItemClear').onclick=()=>{fItemK=-1;renderCons()};
+$('q').oninput=()=>{render();renderCons()};
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)e.target.blur()});
+$('qClear').onclick=()=>{$('q').value='';render();renderCons();$('q').focus()};
+$('chipStatus').onclick=e=>{const b=e.target.closest('[data-s]');if(b){statusF=b.dataset.s;render()}};
+$('chipBrand').onclick=e=>{const b=e.target.closest('[data-b]');if(!b)return;fBrand=b.dataset.b;
+  const it=(data&&data.items)||[];if(fType&&!it.some(i=>(!fBrand||bKey(i)===fBrand)&&tKey(i)===fType))fType='';render()};
+$('chipType').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;fType=b.dataset.t;
+  const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
+$('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';render();renderCons()};
+$('list').addEventListener('click',e=>{
+  const v=e.target.closest('[data-view]');if(v){goView(v.dataset.view);return}
+  const c=e.target.closest('[data-clear]');
+  if(c){if(c.dataset.clear==='q')$('q').value='';else{fBrand='';fType='';statusF=''}render();renderCons();return}
+  // 點商品列或「寄庫／借出 N ›」：切到那個分頁，把有這個商品的客戶排前面並標示
+  const r=e.target.closest('.row[data-k]');if(!r)return;
+  const b=e.target.closest('[data-go]');
+  fItemK=+r.dataset.k;fCust='';$('q').value='';setView(b?b.dataset.go:r.dataset.rgo);renderCons();render();
+  const el=$('consList').querySelector('.row.hl');try{if(el)el.scrollIntoView({block:'center'});else window.scrollTo(0,0)}catch(x){}
+});
 
 async function refresh(first){
   if(!first)checkVersion();
   const j=await load();
-  if(j){data=j;$('status').textContent=j.at?`資料更新時間：${fmtAt(j.at)}`:'尚未發布';render();renderCons()}
+  if(j){data=j;$('status').textContent=j.at?`更新於 ${fmtAt(j.at)}`:'尚未發布';render();renderCons()}
   else if(first){$('status').textContent='讀取失敗';render()}
 }
-$('stats').onclick=e=>{const b=e.target.closest('.stat[data-f]');if(!b)return;statusF=b.dataset.f===statusF?'':b.dataset.f;render()};
-$('q').oninput=render;
-$('selBrand').onchange=()=>{fBrand=$('selBrand').value;
-  const it=(data&&data.items)||[];if(fType&&!it.some(i=>(!fBrand||bKey(i)===fBrand)&&tKey(i)===fType))fType='';render()};
-$('selType').onchange=()=>{fType=$('selType').value;
-  const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
-$('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';render()};
 refresh(true);
 setTimeout(checkVersion,3000);
 setInterval(()=>{if(!document.hidden)refresh()},120000);
