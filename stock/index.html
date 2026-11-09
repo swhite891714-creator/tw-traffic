@@ -60,6 +60,10 @@ h1{font-size:22px;margin:0}
 .finfo button,.link{border:0;background:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0}
 select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
 select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+/* 品牌、類別下拉選單：左右並排，還沒有類別資料時品牌佔滿整列 */
+.fsel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.fsel.one{grid-template-columns:minmax(0,1fr)}
+#chipStatus{flex-wrap:wrap;overflow:visible;margin:0;padding:0}
 /* 清單 */
 .list{display:grid;margin-top:2px}
 .grp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700}
@@ -106,8 +110,10 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
   </div>
   <div class="ctl" id="stockCtl">
     <div class="chips" id="chipStatus" role="group" aria-label="庫存狀態"></div>
-    <div class="chips" id="chipBrand" role="group" aria-label="品牌"></div>
-    <div class="chips" id="chipType" role="group" aria-label="類別" hidden></div>
+    <div class="fsel" id="fsel">
+      <select id="selBrand" aria-label="品牌"><option value="">全部品牌</option></select>
+      <select id="selType" aria-label="類別"><option value="">全部類別</option></select>
+    </div>
     <div class="finfo" id="finfo" hidden><span id="finfoText"></span><button type="button" id="fClear">清除全部條件</button></div>
   </div>
   <div class="ctl" id="consCtl" hidden>
@@ -129,7 +135,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-09.3';
+const PAGE_VER='2026-11-09.4';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -175,10 +181,11 @@ function fmtAt(s){
 
 const STATUS=[['','全部'],['has','有貨'],['low','偏低'],['zero','缺貨']];
 const matchS=(i,f)=>!f||(f==='has'?inStock(i):i.st===f);
-// 一排按鈕：同一排互斥，選項後面的數字是符合目前其他條件的項數
-function chipRow(box,all,attr,list,cur){
-  $(box).innerHTML=`<button type="button" class="chip${cur?'':' on'}" data-${attr}="" aria-pressed="${!cur}">${all}</button>`+
-    list.map(([k,n])=>`<button type="button" class="chip${k===cur?' on':''}" data-${attr}="${esc(k)}" aria-pressed="${k===cur}">${esc(k)}<small>${fmt(n)}</small></button>`).join('');
+// 下拉選單：選項後面的數字是符合目前其他條件的項數
+function fillSel(id,all,list,cur){
+  const sel=$(id);
+  sel.innerHTML=`<option value="">${all}</option>`+list.map(([k,n])=>`<option value="${esc(k)}">${esc(k)}（${fmt(n)}）</option>`).join('');
+  sel.value=cur;sel.classList.toggle('on',!!cur);
 }
 function countBy(arr,key){const m={};arr.forEach(i=>{const k=key(i);m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>zh(a[0],b[0]))}
 
@@ -188,13 +195,13 @@ function render(){
   // 狀態按鈕
   const forS=text.filter(i=>bt(i,fBrand,fType));
   $('chipStatus').innerHTML=STATUS.filter(([f])=>!f||f===statusF||forS.some(i=>matchS(i,f))).map(([f,lb])=>{const n=forS.filter(i=>matchS(i,f)).length;return `<button type="button" class="chip${f===statusF?' on':''}" data-s="${f}" aria-pressed="${f===statusF}">${lb}<small>${fmt(n)}</small></button>`}).join('');
-  // 品牌按鈕（只有一個品牌時也顯示，看得出目前有哪些品牌）
+  // 品牌與類別下拉選單：選了其中一個，另一個只剩符合的選項
   const addCur=(l,c)=>c&&!l.some(([k])=>k===c)?[...l,[c,0]]:l;
-  chipRow('chipBrand','全部品牌','b',addCur(countBy(text.filter(i=>matchS(i,statusF)&&bt(i,'',fType)),bKey),fBrand),fBrand);
-  // 類型按鈕：還沒有商品填類型時整排不顯示
-  const anyT=items.some(hasType);$('chipType').hidden=!anyT;
-  if(anyT)chipRow('chipType','全部類別','t',addCur(countBy(text.filter(i=>matchS(i,statusF)&&bt(i,fBrand,'')),tKey),fType),fType);
-  $('chipBrand').hidden=!items.length;
+  fillSel('selBrand','全部品牌',addCur(countBy(text.filter(i=>matchS(i,statusF)&&bt(i,'',fType)),bKey),fBrand),fBrand);
+  const anyT=items.some(hasType);
+  $('selType').hidden=!anyT;$('fsel').classList.toggle('one',!anyT);
+  if(anyT)fillSel('selType','全部類別',addCur(countBy(text.filter(i=>matchS(i,statusF)&&bt(i,fBrand,'')),tKey),fType),fType);
+  $('fsel').hidden=!items.length;
 
   const list=$('list');
   const s=forS.filter(i=>matchS(i,statusF));
@@ -292,9 +299,9 @@ $('q').oninput=()=>{render();renderCons()};
 $('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)e.target.blur()});
 $('qClear').onclick=()=>{$('q').value='';render();renderCons();$('q').focus()};
 $('chipStatus').onclick=e=>{const b=e.target.closest('[data-s]');if(b){statusF=b.dataset.s;render()}};
-$('chipBrand').onclick=e=>{const b=e.target.closest('[data-b]');if(!b)return;fBrand=b.dataset.b;
+$('selBrand').onchange=()=>{fBrand=$('selBrand').value;
   const it=(data&&data.items)||[];if(fType&&!it.some(i=>(!fBrand||bKey(i)===fBrand)&&tKey(i)===fType))fType='';render()};
-$('chipType').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;fType=b.dataset.t;
+$('selType').onchange=()=>{fType=$('selType').value;
   const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
 $('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';render();renderCons()};
 $('list').addEventListener('click',e=>{
