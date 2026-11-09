@@ -66,6 +66,7 @@ button.cqty{margin:3px 0 0 auto;border:1px solid var(--warn);background:var(--wa
 .onlyitem button{flex:0 0 auto;border:0;background:none;color:inherit;font:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
 #consList .row.hl{background:var(--warn-bg);box-shadow:inset 4px 0 0 var(--warn);padding-left:10px}
 #consList .row.hl .model{color:var(--warn)}
+button.cqty.ln{color:var(--in,#1d5fb8);border-color:currentColor;background:transparent}
 .cgrp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700;font-size:17px}
 .cgrp small{font-size:13px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
 .sub{font-size:13px;color:var(--muted);display:block;font-weight:400}
@@ -92,6 +93,7 @@ button.cqty{margin:3px 0 0 auto;border:1px solid var(--warn);background:var(--wa
     <div class="tabs" role="tablist" id="tabs" hidden>
       <button type="button" class="tab" role="tab" data-v="stock" aria-selected="true">庫存</button>
       <button type="button" class="tab" role="tab" data-v="cons" aria-selected="false">客戶寄庫<small id="tabConsN"></small></button>
+      <button type="button" class="tab" role="tab" data-v="loan" aria-selected="false">客戶借出<small id="tabLoanN"></small></button>
     </div>
     <div class="ctl" id="stockCtl">
     <div class="stats" id="stats">
@@ -114,7 +116,7 @@ button.cqty{margin:3px 0 0 auto;border:1px solid var(--warn);background:var(--wa
   </header>
   <div class="list" id="list"><div class="empty">讀取中…</div></div>
   <div class="list" id="consList" hidden></div>
-  <p class="foot">這是唯讀頁面，只能查看庫存與客戶寄庫數量。數字由管理者更新。</p>
+  <p class="foot">這是唯讀頁面，只能查看庫存、客戶寄庫與客戶借出數量。數字由管理者更新。</p>
 </div>
 <script>
 /* ========== 唯讀公開頁 ==========
@@ -127,7 +129,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-07.5';
+const PAGE_VER='2026-11-09.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -192,28 +194,34 @@ function render(){
       last=groupOf(i);const g=s.filter(x=>groupOf(x)===last);
       html+=`<div class="grp"><span>${esc(last)}</span><small>${g.length} 項</small></div>`;
     }
-    const tag=(i.st==='zero'?'<span class="badge">缺貨</span>':i.st==='low'?'<span class="badge">偏低</span>':`<small>${esc(i.unit||'')}</small>`)+(+i.cq>0?`<button type="button" class="cqty" aria-label="查看 ${esc(nameOf(i))} 的客戶寄庫">寄庫 ${fmt(+i.cq)} ›</button>`:'');
-    const k=items.indexOf(i);
-    html+=`<div class="row ${esc(i.st)}${+i.cq>0?' hascons':''}"${+i.cq>0?` data-k="${k}"`:''}><span class="model">${esc(nameOf(i))}</span><span class="qty"><b>${fmt(+i.qty||0)}</b>${tag}</span></div>`;
+    const tag=(i.st==='zero'?'<span class="badge">缺貨</span>':i.st==='low'?'<span class="badge">偏低</span>':`<small>${esc(i.unit||'')}</small>`)+(+i.cq>0?`<button type="button" class="cqty" data-go="cons" aria-label="查看 ${esc(nameOf(i))} 的客戶寄庫">寄庫 ${fmt(+i.cq)} ›</button>`:'')+(+i.lq>0?`<button type="button" class="cqty ln" data-go="loan" aria-label="查看 ${esc(nameOf(i))} 的客戶借出">借出 ${fmt(+i.lq)} ›</button>`:'');
+    const k=items.indexOf(i),go=+i.cq>0?'cons':+i.lq>0?'loan':'';
+    html+=`<div class="row ${esc(i.st)}${go?' hascons':''}"${go?` data-k="${k}" data-go="${go}"`:''}><span class="model">${esc(nameOf(i))}</span><span class="qty"><b>${fmt(+i.qty||0)}</b>${tag}</span></div>`;
   }
   list.innerHTML=html;
 }
-/* ---------- 客戶寄庫 ----------
-   資料的 cons 是每位客戶寄放的商品（k＝商品在 items 裡的位置，q＝件數）。
-   上方客戶選單可以只看某位客戶；搜尋可以找客戶名稱或商品。 */
+/* ---------- 客戶寄庫／客戶借出 ----------
+   資料的 cons（寄庫）和 loans（借出）格式相同：每位客戶的商品（k＝商品在 items 裡的位置，q＝件數）。
+   兩個分頁共用同一組搜尋、客戶選單與清單，切換時換資料來源。樣品不在公開資料裡。 */
 let view='stock',fCust='',fItemK=-1;
-// 從庫存清單點有寄庫的商品：切到客戶寄庫，仍顯示全部客戶的寄庫（不隱藏資料），
-// 寄放這個商品的客戶排最前面、這個商品標成橘色，並捲到那一列
-$('list').addEventListener('click',e=>{const r=e.target.closest('.row[data-k]');if(!r)return;fItemK=+r.dataset.k;fCust='';$('cq').value='';setView('cons');renderCons();
+const BOOK={cons:{key:'cons',name:'寄庫',empty:'目前沒有客戶寄庫'},loan:{key:'loans',name:'借出',empty:'目前沒有客戶借出'}};
+// 從庫存清單點「寄庫 N ›」或「借出 N ›」：切到那個分頁，仍顯示全部客戶（不隱藏資料），
+// 有這個商品的客戶排最前面、這個商品標成橘色，並捲到那一列
+$('list').addEventListener('click',e=>{const r=e.target.closest('.row[data-k]');if(!r)return;
+  const b=e.target.closest('[data-go]');const go=b&&b!==r?b.dataset.go:r.dataset.go;
+  fItemK=+r.dataset.k;fCust='';$('cq').value='';setView(go);renderCons();
   const el=$('consList').querySelector('.row.hl');try{if(el)el.scrollIntoView({block:'center'});else window.scrollTo(0,0)}catch(x){}});
 $('onlyItemClear').onclick=()=>{fItemK=-1;renderCons()};
-const consOf=()=>((data&&data.cons)||[]).filter(c=>c&&c.name&&Array.isArray(c.items));
+const bookOf=v=>((data&&data[BOOK[v].key])||[]).filter(c=>c&&c.name&&Array.isArray(c.items));
 function renderCons(){
-  const items=(data&&data.items)||[],cs=consOf();
+  const items=(data&&data.items)||[],cc=bookOf('cons'),ll=bookOf('loan');
+  $('tabs').hidden=!cc.length&&!ll.length;
+  $('tabConsN').textContent=cc.length?`${cc.length} 位`:'';$('tabLoanN').textContent=ll.length?`${ll.length} 位`:'';
+  document.querySelector('#tabs [data-v="cons"]').hidden=!cc.length;document.querySelector('#tabs [data-v="loan"]').hidden=!ll.length;
+  if(view!=='stock'&&!bookOf(view).length)setView('stock');
+  if(view==='stock')return;
+  const B=BOOK[view],cs=bookOf(view);
   const tot=c=>c.items.reduce((n,x)=>n+(+x.q||0),0);
-  $('tabs').hidden=!cs.length;
-  $('tabConsN').textContent=cs.length?`${cs.length} 位`:'';
-  if(!cs.length&&view==='cons')setView('stock');
   const sel=$('selCust');
   sel.innerHTML=`<option value="">全部客戶（${cs.length} 位）</option>`+cs.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}（${fmt(tot(c))} 件）</option>`).join('');
   if(!cs.some(c=>c.name===fCust))fCust='';
@@ -223,28 +231,28 @@ function renderCons(){
   if(fItemK>=0&&!(fi&&cs.some(c=>c.items.some(x=>x.k===fItemK&&+x.q>0))))fItemK=-1;
   $('onlyItem').hidden=fItemK<0;
   const has=c=>c.items.some(x=>x.k===fItemK&&+x.q>0);
-  if(fItemK>=0)$('onlyItemText').textContent=`${nameOf(fi)}：`+cs.filter(has).map(c=>`${c.name} ${fmt(c.items.filter(x=>x.k===fItemK).reduce((a,x)=>a+(+x.q||0),0))} 件`).join('、');
+  if(fItemK>=0)$('onlyItemText').textContent=`${nameOf(fi)}：`+cs.filter(has).map(c=>`${c.name} ${B.name} ${fmt(c.items.filter(x=>x.k===fItemK).reduce((a,x)=>a+(+x.q||0),0))} 件`).join('、');
   let html='',n=0;
-  // 有寄放被標示商品的客戶排前面
   const order=fItemK>=0?[...cs].sort((a,b)=>has(b)-has(a)):cs;
   for(const c of order){
     if(fCust&&c.name!==fCust)continue;
     const rows=c.items.map(x=>({it:items[x.k],q:+x.q||0,k:x.k})).filter(x=>x.it&&x.q>0)
       .filter(x=>!q||c.name.toLowerCase().includes(q)||[x.it.brand,x.it.type,x.it.model,x.it.color].join(' ').toLowerCase().includes(q));
     if(!rows.length)continue;n++;
-    html+=`<div class="cgrp"><span>${esc(c.name)}</span><small>${rows.length} 項 · 共 ${fmt(rows.reduce((a,x)=>a+x.q,0))} 件</small></div>`;
+    html+=`<div class="cgrp"><span>${esc(c.name)}</span><small>${rows.length} 項 · ${B.name} ${fmt(rows.reduce((a,x)=>a+x.q,0))} 件</small></div>`;
     html+=rows.map(x=>`<div class="row${x.k===fItemK?' hl':''}"><span class="model">${esc(nameOf(x.it))}<span class="sub">${esc(groupOf(x.it))}</span></span><span class="qty"><b>${fmt(x.q)}</b><small>${esc(x.it.unit||'')}</small></span></div>`).join('');
   }
-  box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':'目前沒有客戶寄庫'}</div>`;
+  box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':B.empty}</div>`;
 }
-// 切換「庫存／客戶寄庫」：在同一頁裡切換，網址不變
+// 切換「庫存／客戶寄庫／客戶借出」：在同一頁裡切換，網址不變
 function setView(v){
+  if(view!==v){fCust='';if(v!=='stock')$('cq').value=''}
   view=v;
   document.querySelectorAll('#tabs .tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v?'true':'false'));
   $('stockCtl').hidden=$('list').hidden=v!=='stock';
-  $('consCtl').hidden=$('consList').hidden=v!=='cons';
+  $('consCtl').hidden=$('consList').hidden=v==='stock';
 }
-$('tabs').onclick=e=>{const b=e.target.closest('.tab');if(!b)return;if(b.dataset.v==='cons'&&fItemK>=0){fItemK=-1;renderCons()}setView(b.dataset.v)};
+$('tabs').onclick=e=>{const b=e.target.closest('.tab');if(!b)return;fItemK=-1;setView(b.dataset.v);renderCons()};
 $('selCust').onchange=()=>{fCust=$('selCust').value;renderCons()};
 $('cq').oninput=renderCons;
 
