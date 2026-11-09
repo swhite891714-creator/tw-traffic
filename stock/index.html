@@ -95,7 +95,7 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
   <div class="top"><h1>庫存查詢</h1><span class="status" id="status">讀取中…</span></div>
   <div class="dock">
     <div class="sbox">
-      <input id="q" type="search" placeholder="輸入型號、品牌或客戶" autocomplete="off" enterkeyhint="search" aria-label="搜尋">
+      <input id="q" type="search" placeholder="輸入型號、品牌、類別或客戶" autocomplete="off" enterkeyhint="search" aria-label="搜尋">
       <button type="button" id="qClear" aria-label="清除搜尋" hidden>×</button>
     </div>
     <div class="tabs" role="tablist" id="tabs" hidden>
@@ -107,7 +107,7 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
   <div class="ctl" id="stockCtl">
     <div class="chips" id="chipStatus" role="group" aria-label="庫存狀態"></div>
     <div class="chips" id="chipBrand" role="group" aria-label="品牌"></div>
-    <div class="chips" id="chipType" role="group" aria-label="類型" hidden></div>
+    <div class="chips" id="chipType" role="group" aria-label="類別" hidden></div>
     <div class="finfo" id="finfo" hidden><span id="finfoText"></span><button type="button" id="fClear">清除全部條件</button></div>
   </div>
   <div class="ctl" id="consCtl" hidden>
@@ -129,7 +129,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-09.2';
+const PAGE_VER='2026-11-09.3';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -193,7 +193,7 @@ function render(){
   chipRow('chipBrand','全部品牌','b',addCur(countBy(text.filter(i=>matchS(i,statusF)&&bt(i,'',fType)),bKey),fBrand),fBrand);
   // 類型按鈕：還沒有商品填類型時整排不顯示
   const anyT=items.some(hasType);$('chipType').hidden=!anyT;
-  if(anyT)chipRow('chipType','全部類型','t',addCur(countBy(text.filter(i=>matchS(i,statusF)&&bt(i,fBrand,'')),tKey),fType),fType);
+  if(anyT)chipRow('chipType','全部類別','t',addCur(countBy(text.filter(i=>matchS(i,statusF)&&bt(i,fBrand,'')),tKey),fType),fType);
   $('chipBrand').hidden=!items.length;
 
   const list=$('list');
