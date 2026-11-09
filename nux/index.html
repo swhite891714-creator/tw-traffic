@@ -528,7 +528,7 @@ function outSum(){
   const n=Math.floor(num($('oQty').value)),w=outWhere(),fr=outFrom(),frN=frName(fr),have=haveOf(it,fr),left=have-n;
   const ship=w==='ship';$('oWhereRow').hidden=ship;$('oSrcRow').hidden=!ship;$('oNameRow').hidden=ship;$('oChips').style.display=ship?'none':'';$('oTagRow').hidden=ship;$('oName').required=!ship;$('oQtyLbl').textContent=ship?'出貨數量':'出庫數量';$('oSave').textContent=ship?'確認出貨':'確認出庫';
   $('oHint').textContent={note:'扣庫存，並在「備註」加上「對象*數量」。',memo2:'扣庫存，並記在「客戶寄庫」。',shipped:'貨直接交給客戶：扣庫存，並記在「已出貨」。',ship:'從客戶寄庫出貨：庫存不變（寄庫時已經扣過），從「客戶寄庫」或「備註」移到「已出貨」。'}[w];
-  if(fr==='spot'&&(w==='note'||w==='memo2'))$('oHint').textContent+=' 貨還放在倉庫，會在這一筆後面標「(現貨倉」，清單上會顯示現貨倉實際還有幾台。';
+  if(w==='memo2'||(fr==='spot'&&w==='note'))$('oHint').textContent+=' 貨還放在倉庫，會在這一筆後面標「(現貨倉」，清單上會顯示現貨倉實際還有幾台。';
   if(fr==='loan')$('oHint').textContent+=' 這次實際拿現貨的貨，但算在可預定：現貨減少，並記一筆「可預定借現貨」，等可預定的貨到了再到品項裡按「歸還」。';
   if(ship){const e=curEntry();
     if(!e){$('oSum').innerHTML='<span style="color:var(--muted)">這個品項的備註和客戶寄庫裡沒有可以出貨的寄庫。</span>';return}
@@ -580,7 +580,7 @@ $('outSheet').onsubmit=async e=>{
     const e=curEntry();
     if(!e)return err('這個品項沒有可以出貨的寄庫。');
     if(n>e.n)return err(`${e.name} 這筆寄庫只有 ${fmt(e.n)}，不能出貨 ${fmt(n)}。`);
-    after={...before,[e.f]:subToken(before[e.f],e.li,e.ti,n),shipped:addLine(before.shipped,e.name,n,e.tag)};
+    after={...before,[e.f]:subToken(before[e.f],e.li,e.ti,n),shipped:addLine(before.shipped,e.name,n,String(e.tag||'').replace(/\/?現貨倉/g,'').replace(/^\//,''))}/* 出貨後貨已離開倉庫，已出貨不帶「現貨倉」 */;
     msg=`已出貨 ${after.model} ${fmt(n)} 台給 ${e.name}（從${e.lab}），寄庫剩 ${fmt(e.n-n)}`;
   }else{
     const fr=outFrom(),sp=splitOf(it),frN=frName(fr),have=haveOf(it,fr);
@@ -588,8 +588,8 @@ $('outSheet').onsubmit=async e=>{
     // 借用：實體從現貨拿，可預定數量先不動，記一筆借用
     if(fr==='loan')sp.spot-=n;else sp[fr]-=n;
     after={...before,qtyPre:sp.pre,qtySpot:sp.spot,qty:sp.pre+sp.spot,loan:loanOf(it)+(fr==='loan'?n:0)};
-    // 從現貨出庫、記在備註或客戶寄庫（貨還放在倉庫）時，自動標上「現貨倉」，方便看出現貨倉實際有貨
-    const tagX=(fr==='spot'&&(where==='note'||where==='memo2'))?(tag?tag+'/現貨倉':'現貨倉'):tag;
+    // 記在客戶寄庫（貨還放在倉庫）、或從現貨出庫記在備註時，自動標上「現貨倉」，方便看出現貨倉實際有貨
+    const tagX=(where==='memo2'||(fr==='spot'&&where==='note'))?(tag?tag+'/現貨倉':'現貨倉'):tag;
     after[where]=addLine(before[where],name,n,tagX);
     msg=`已從${frN}出庫 ${after.model} ${fmt(n)} 台給 ${name}，剩 ${splitTxt({pre:after.qtyPre,spot:after.qtySpot})}${after.qtySpot<0?`，⚠ 現貨欠 ${fmt(-after.qtySpot)}`:''}${after.loan?`，借用 ${fmt(after.loan)}`:''}`;
   }
