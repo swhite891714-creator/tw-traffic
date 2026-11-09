@@ -79,6 +79,8 @@ textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .qty small{font-size:13px;color:var(--muted);display:block}
 .qty small.split{color:var(--fg);font-weight:600}
 .qty small.loanq{color:var(--warn);font-weight:700}
+.qty small.owe{color:var(--danger);font-weight:800}
+.chk.owe{display:block}
 .qty small.shipq{color:var(--ok);font-weight:700}
 .empty{padding:40px 8px;text-align:center;color:var(--muted)}
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20}
@@ -183,6 +185,7 @@ label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
     <label>初始<div class="step"><button type="button" data-s="fInitS" data-d="-1">−</button><input id="fInitS" inputmode="numeric"><button type="button" data-s="fInitS" data-d="1">＋</button></div></label>
     <label>目前<div class="step"><button type="button" data-s="fQtyS" data-d="-1">−</button><input id="fQtyS" inputmode="numeric"><button type="button" data-s="fQtyS" data-d="1">＋</button></div></label>
   </div>
+  <div class="chk bad" id="fOwe" hidden></div>
   <label class="check" id="fRestockRowS" hidden><input type="checkbox" id="fRestockS"> <span id="fRestockTxtS"></span></label></div>
   <div class="bucket" id="fLoanBox"><b>可預定借現貨</b>
     <span class="note">出庫選「可預定（出現貨）」時會記在這裡。可預定的貨到了，填要歸還的台數按「歸還」：可預定減少、現貨加回、借用減少（存檔後生效）。</span>
@@ -291,6 +294,11 @@ function splitOf(i){
   const used=L.pre+L.spot-q,pre=Math.max(0,L.pre-used);return {pre,spot:Math.max(0,q-pre)};
 }
 
+// 現貨欠貨：現貨已經用完，又從現貨出庫或寄庫，現貨數量會變成負數。
+// 畫面上不直接寫負數，而是寫「現貨 0」再另外標紅字「現貨欠 N」，代表有 N 台是先動用別的庫存出去的，等現貨補進來要先補這 N 台
+const oweOf=sp=>sp.spot<0?-sp.spot:0;
+const splitTxt=sp=>`可預定 ${fmt(sp.pre)}／現貨 ${fmt(Math.max(0,sp.spot))}`;
+
 /* ---------- 備註數量核對 ---------- */
 // 從備註中找出「名稱*數量」的數量並加總（支援 * ＊ × 與全形數字），例如「小新*5」
 function noteTotal(note){
@@ -342,7 +350,7 @@ function render(){
     if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><span class="grp-lbl">庫存</span></div>`}
     return head+`<button class="row${(num(i.qty)===0||i.red)?' zero':''}${(i.hl||num(i.qty)===0)?' hl':''}" data-id="${i.id}">
       <span class="model">${esc(i.model)}</span>
-      <span class="qty"><b>${fmt(num(i.qty))}</b>${(sp=>`<small class="split">可預定 ${fmt(sp.pre)}／現貨 ${fmt(sp.spot)}</small>`)(splitOf(i))}${loanOf(i)?`<small class="loanq">可預定借現貨 ${fmt(loanOf(i))}</small>`:''}${pubMode&&i.shippedQty?`<small class="shipq">已出貨 ${fmt(i.shippedQty)}</small>`:''}${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
+      <span class="qty"><b>${fmt(num(i.qty))}</b>${(sp=>`<small class="split">${splitTxt(sp)}</small>${oweOf(sp)?`<small class="owe">⚠ 現貨欠 ${fmt(oweOf(sp))}</small>`:''}`)(splitOf(i))}${loanOf(i)?`<small class="loanq">可預定借現貨 ${fmt(loanOf(i))}</small>`:''}${pubMode&&i.shippedQty?`<small class="shipq">已出貨 ${fmt(i.shippedQty)}</small>`:''}${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
       <span class="meta">${esc([parts.join(' · '),i.note||''].filter(Boolean).join('\n'))}</span>
       ${i.memo2?`<span class="memo2"><b>客戶寄庫</b>\n${esc(i.memo2)}</span>`:''}
       ${i.shipped?`<span class="memo2 ship"><b>已出貨</b>\n${esc(i.shipped)}</span>`:''}
@@ -395,7 +403,7 @@ document.addEventListener('click',e=>{
   const r=e.target.closest('.row');if(r){openEdit(items.find(i=>i.id===r.dataset.id));return}
   const s=e.target.closest('[data-s]');if(s&&s.dataset.s==='oQty'){outStep(+s.dataset.d);return}
   if(s&&(s.dataset.s==='fInitP'||s.dataset.s==='fInitS')){const f=$(s.dataset.s);if(f.readOnly)return;f.value=Math.max(0,num(f.value)+ +s.dataset.d);initChanged();return}
-  if(s){const f=$(s.dataset.s);let v=Math.max(0,num(f.value)+ +s.dataset.d);
+  if(s){const f=$(s.dataset.s);let v=num(f.value)+ +s.dataset.d;if(s.dataset.s!=='fQtyS')v=Math.max(0,v);/* 現貨可以按到負數＝現貨欠貨 */
     // 目前數量不能超過該邊的初始庫存
     const cap=s.dataset.s==='fQtyP'?num($('fInitP').value):s.dataset.s==='fQtyS'?num($('fInitS').value):null;
     if(cap!=null&&v>cap){v=cap;toast(`已達${s.dataset.s==='fQtyP'?'可預定':'現貨'}初始 ${fmt(cap)}`)}f.value=v;liveChk();return}
@@ -405,6 +413,7 @@ document.addEventListener('click',e=>{
 // 編輯時即時核對備註與數量
 function liveChk(){
   const box=$('fChk');if(!editing){box.hidden=true;return}
+  {const o=-Math.min(0,spotv());$('fOwe').hidden=!o;$('fOwe').textContent=o?`⚠ 現貨欠 ${fmt(o)}：現貨已經用完，還多出了 ${fmt(o)} 台。等現貨進貨時，先把這 ${fmt(o)} 台補回來（＋到 0 以上就不欠了）。`:''}
   showTot();const c=check($('fNote').value,qtyVal(),editing.id,$('fMemo2').value,$('fShip').value,initVal());
   if(!c){box.hidden=true;return}
   box.hidden=false;box.className='chk '+(c.bad?'bad':'good');
@@ -415,7 +424,9 @@ let restockApplied={P:0,S:0},isOwnerV=false;
 const intv=id=>Math.max(0,Math.floor(num($(id).value)));
 function initPair(){return {pre:intv('fInitP'),spot:intv('fInitS')}}
 function initVal(){if(!editing)return null;const p=initPair();return p.pre+p.spot}
-function qtyVal(){return intv('fQtyP')+intv('fQtyS')}
+// 現貨目前數量允許負數（負數＝現貨欠貨）
+const spotv=()=>Math.floor(num($('fQtyS').value));
+function qtyVal(){return intv('fQtyP')+spotv()}
 function showTot(){if(!editing)return;$('fTot').textContent=`合計：目前 ${fmt(qtyVal())}／初始 ${fmt(initVal())}`}
 // 某一邊的初始庫存改了多少，就可以勾選讓那一邊的目前數量一起加減（進貨）
 function initChanged(){
@@ -427,7 +438,7 @@ function initChanged(){
     row.hidden=false;
     $('fRestockTxt'+k).textContent=d>0?`這是進貨：${name}目前數量也一起 +${fmt(d)}`:`${name}目前數量也一起 −${fmt(-d)}`;
     const want=$('fRestock'+k).checked?d:0;
-    q.value=Math.max(0,num(q.value)-restockApplied[k]+want);restockApplied[k]=want;
+    {const v=num(q.value)-restockApplied[k]+want;q.value=k==='S'?v:Math.max(0,v)}restockApplied[k]=want;
   });
   liveChk();
 }
@@ -439,8 +450,8 @@ $('fRetGo').onclick=()=>{
   if(!m)return toast('請先填要歸還的台數');
   if(m>loan)return toast(`目前只借了 ${fmt(loan)} 台`);
   if(m>pre)return toast(`可預定只剩 ${fmt(pre)} 台`);
-  const capS=intv('fInitS');if(intv('fQtyS')+m>capS)return toast(`現貨會超過它的初始 ${fmt(capS)}，請先調高現貨初始`);
-  $('fQtyP').value=pre-m;$('fQtyS').value=intv('fQtyS')+m;$('fLoan').value=loan-m;$('fRet').value='';
+  const capS=intv('fInitS');if(spotv()+m>capS)return toast(`現貨會超過它的初始 ${fmt(capS)}，請先調高現貨初始`);
+  $('fQtyP').value=pre-m;$('fQtyS').value=spotv()+m;$('fLoan').value=loan-m;$('fRet').value='';
   toast(`已歸還 ${fmt(m)} 台，記得按儲存`);liveChk();
 };
 $('fNote').oninput=liveChk;$('fMemo2').oninput=liveChk;$('fShip').oninput=liveChk;
@@ -469,7 +480,7 @@ $('oChips').onclick=e=>{const b=e.target.closest('[data-chip]');if(!b)return;$('
 function openOut(id){
   if(!canWrite)return;
   const list=shown().length?shown():items;
-  $('oItem').innerHTML=list.map(i=>{const sp=splitOf(i);return `<option value="${i.id}">${esc(i.model)}${i.color?' '+esc(i.color):''}（可預定 ${fmt(sp.pre)}／現貨 ${fmt(sp.spot)}）</option>`}).join('');
+  $('oItem').innerHTML=list.map(i=>{const sp=splitOf(i);return `<option value="${i.id}">${esc(i.model)}${i.color?' '+esc(i.color):''}（${splitTxt(sp)}${oweOf(sp)?`，現貨欠 ${fmt(oweOf(sp))}`:''}）</option>`}).join('');
   outId=id||list[0]?.id;$('oItem').value=outId;
   fillNames();
   $('oName').value='';$('oTag').value='';renderChips();$('oQty').value=1;$('oErr').hidden=true;
@@ -499,10 +510,11 @@ function curEntry(){const it=outItem();if(!it)return null;const es=entries(it);r
 function outFrom(){return document.querySelector('input[name="oFrom"]:checked').value}
 // 預設從可預定扣；可預定沒貨就改成現貨
 function pickFrom(){const it=outItem();const sp=it?splitOf(it):{pre:0,spot:0};document.querySelector(`input[name="oFrom"][value="${sp.pre>0||sp.spot===0?'pre':'spot'}"]`).checked=true}
-function haveOf(it,fr){const sp=splitOf(it);return fr==='loan'?Math.max(0,Math.min(sp.spot,sp.pre-loanOf(it))):sp[fr]}
+function haveOf(it,fr){const sp=splitOf(it);return fr==='loan'?Math.max(0,Math.min(sp.spot,sp.pre-loanOf(it))):fr==='spot'?Math.max(0,sp.spot):sp[fr]}
 const frName=fr=>fr==='pre'?'可預定':fr==='spot'?'現貨':'現貨（算可預定）';
 function outMax(){const it=outItem();if(!it)return 0;if(outWhere()==='ship'){const e=curEntry();return e?e.n:0}return haveOf(it,outFrom())}
-function outStep(d){let v=Math.max(1,num($('oQty').value)+d);const mx=outMax();if(v>mx){v=Math.max(1,mx);toast(outWhere()==='ship'?`這筆寄庫只有 ${fmt(mx)}`:`${frName(outFrom())}只剩 ${fmt(mx)}`)}$('oQty').value=v;outSum()}
+// 從現貨出庫時不設上限：超過的部分會記成「現貨欠」
+function outStep(d){let v=Math.max(1,num($('oQty').value)+d);const mx=outMax();if(v>mx&&!(outWhere()!=='ship'&&outFrom()==='spot')){v=Math.max(1,mx);toast(outWhere()==='ship'?`這筆寄庫只有 ${fmt(mx)}`:`${frName(outFrom())}只剩 ${fmt(mx)}`)}$('oQty').value=v;outSum()}
 function outSum(){
   $('oErr').hidden=true;
   const it=outItem();if(!it){$('oSum').textContent='';return}
@@ -513,6 +525,11 @@ function outSum(){
   if(ship){const e=curEntry();
     if(!e){$('oSum').innerHTML='<span style="color:var(--muted)">這個品項的備註和客戶寄庫裡沒有可以出貨的寄庫。</span>';return}
     $('oSum').innerHTML=`<span>${esc(e.name)} 寄庫 <b>${fmt(e.n)}</b></span><span class="arrow">出貨 ${fmt(n)} →</span><span>寄庫剩 <b style="color:${e.n-n<0?'var(--danger)':'var(--fg)'}">${fmt(e.n-n)}</b></span><span style="width:100%;font-size:13px;color:var(--muted)">庫存維持 ${fmt(num(it.qty))}</span>`;return}
+  if(fr==='spot'&&left<0){
+    // 現貨不夠：照樣可以出庫，不夠的台數記成「現貨欠」
+    const owe0=oweOf(splitOf(it)),owe=owe0-left;
+    $('oSum').innerHTML=`<span>現貨 <b>${fmt(have)}</b></span><span class="arrow">出庫 ${fmt(n)} →</span><span>剩下 <b style="color:var(--danger)">0</b></span><span style="width:100%;color:var(--danger);font-weight:700">⚠ 現貨不夠 ${fmt(-left)} 台，存檔後會標示「現貨欠 ${fmt(owe)}」${owe0?`（原本已欠 ${fmt(owe0)}）`:''}。等現貨進貨時，先補這 ${fmt(owe)} 台。</span>`;
+    $('oSave').textContent=$('oSave').textContent+`（現貨欠 ${fmt(owe)}）`;return}
   $('oSum').innerHTML=`<span>${frN} <b>${fmt(have)}</b></span><span class="arrow">出庫 ${fmt(n)} →</span><span>剩下 <b style="color:${left<=0?'var(--danger)':'var(--fg)'}">${fmt(left)}</b></span>`;
 }
 function outWhere(){return outFrom()==='consign'?'ship':document.querySelector('input[name="oWhere"]:checked').value}
@@ -559,12 +576,12 @@ $('outSheet').onsubmit=async e=>{
     msg=`已出貨 ${after.model} ${fmt(n)} 台給 ${e.name}（從${e.lab}），寄庫剩 ${fmt(e.n-n)}`;
   }else{
     const fr=outFrom(),sp=splitOf(it),frN=frName(fr),have=haveOf(it,fr);
-    if(n>have)return err(fr==='loan'?`現貨只有 ${fmt(sp.spot)}、可預定可借 ${fmt(Math.max(0,sp.pre-loanOf(it)))}，最多只能出 ${fmt(have)}。`:`${frN}只剩 ${fmt(have)}，不能出庫 ${fmt(n)}。`);
+    if(n>have&&fr!=='spot')return err(fr==='loan'?`現貨只有 ${fmt(sp.spot)}、可預定可借 ${fmt(Math.max(0,sp.pre-loanOf(it)))}，最多只能出 ${fmt(have)}。`:`${frN}只剩 ${fmt(have)}，不能出庫 ${fmt(n)}。`);
     // 借用：實體從現貨拿，可預定數量先不動，記一筆借用
     if(fr==='loan')sp.spot-=n;else sp[fr]-=n;
     after={...before,qtyPre:sp.pre,qtySpot:sp.spot,qty:sp.pre+sp.spot,loan:loanOf(it)+(fr==='loan'?n:0)};
     after[where]=addLine(before[where],name,n,tag);
-    msg=`已從${frN}出庫 ${after.model} ${fmt(n)} 台給 ${name}，剩 可預定 ${fmt(after.qtyPre)}／現貨 ${fmt(after.qtySpot)}${after.loan?`，借用 ${fmt(after.loan)}`:''}`;
+    msg=`已從${frN}出庫 ${after.model} ${fmt(n)} 台給 ${name}，剩 ${splitTxt({pre:after.qtyPre,spot:after.qtySpot})}${after.qtySpot<0?`，⚠ 現貨欠 ${fmt(-after.qtySpot)}`:''}${after.loan?`，借用 ${fmt(after.loan)}`:''}`;
   }
   $('oSave').disabled=true;
   try{
@@ -615,7 +632,7 @@ $('sheet').onsubmit=async e=>{
   e.preventDefault();
   const before=pick(editing),id=editing.id;
   const after={cat:$('fCat').value.trim(),model:$('fModel').value.trim(),color:editing.color||'',
-    qtyPre:intv('fQtyP'),qtySpot:intv('fQtyS'),qty:qtyVal(),loan:intv('fLoan'),
+    qtyPre:intv('fQtyP'),qtySpot:spotv(),qty:qtyVal(),loan:intv('fLoan'),
     note:$('fNote').value.trim(),memo2:$('fMemo2').value.trim(),shipped:$('fShip').value.trim(),hl:$('fHl').checked,red:$('fRed').checked,order:editing.order};
   const initB=initOf(id),initA=isOwnerV?initPair():initB;
   if(after.loan>after.qtyPre){$('err').textContent=`借用 ${fmt(after.loan)} 台不能超過可預定目前的 ${fmt(after.qtyPre)} 台。`;$('err').hidden=false;return}
@@ -695,7 +712,7 @@ const COLS=['品類','型號','顏色','初始庫存','已扣除','目前數量'
 // 匯出用的核對註記：備註＋客戶寄庫合計與已扣除不符時寫出差多少，相符則留空
 const misNote=i=>{const m=misOf(i);return m?`⚠ 合計${m.total>m.used?'多':'少'} ${Math.abs(m.total-m.used)}（合計 ${m.total}／已扣 ${m.used}）`:''};
 // 客戶寄庫欄：先放你自己填的內容，若備註數量與已扣除不符，再加上自動提醒
-function rows(){return shown().map(i=>{const q=num(i.qty),ini=limits[i.id]??q,sp=splitOf(i);return [i.cat,i.model,i.color,ini,ini-q,q,sp.pre,sp.spot,loanOf(i)||'',i.note||'',[i.memo2||'',misNote(i)].filter(Boolean).join('\n')]})}
+function rows(){return shown().map(i=>{const q=num(i.qty),ini=limits[i.id]??q,sp=splitOf(i);return [i.cat,i.model,i.color,ini,ini-q,q,sp.pre,sp.spot<0?`0（欠${-sp.spot}）`:sp.spot,loanOf(i)||'',i.note||'',[i.memo2||'',misNote(i)].filter(Boolean).join('\n')]})}
 const stamp=()=>{const d=new Date();return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`};
 function drawCanvas(){
   const r=rows(),hl=shown().map(i=>(i.hl||num(i.qty)===0)),all=[COLS,...r];
