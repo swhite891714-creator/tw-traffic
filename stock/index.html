@@ -81,6 +81,10 @@ select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .bcard em{font-style:normal;font-family:var(--mono);font-size:26px;font-weight:600;color:var(--accent);line-height:1.2}
 .bcard em.z{color:var(--muted)}
 .bcard span{font-size:13px;color:var(--muted)}
+.rhdr{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;margin-top:20px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent)}
+.rhdr b{font-size:18px}
+.rhdr small{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rhdr.none{border-left-color:var(--muted)}
 .tlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .trow{display:grid;gap:1px;text-align:left;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 12px;cursor:pointer}
 .trow b{font-size:15px;overflow-wrap:anywhere}
@@ -142,7 +146,7 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
     <div class="finfo" id="finfo" hidden><span id="finfoText"></span><button type="button" id="fClear">清除全部條件</button></div>
   </div>
   <div class="ctl" id="consCtl" hidden>
-    <select id="selCust" aria-label="客戶"><option value="">全部客戶</option></select>
+    <div class="fsel" id="cfsel"><select id="selRep" aria-label="業務"><option value="">全部業務</option></select><select id="selCust" aria-label="客戶"><option value="">全部客戶</option></select></div>
     <div class="onlyitem" id="onlyItem" hidden><span id="onlyItemText"></span><button type="button" id="onlyItemClear">✕ 取消標示</button></div>
   </div>
   <div class="list" id="list"><div class="empty">讀取中…</div></div>
@@ -160,7 +164,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-13.4';
+const PAGE_VER='2026-11-13.5';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -168,7 +172,9 @@ async function checkVersion(){
     if(m&&m[1]!==PAGE_VER){await fetch('./',{cache:'reload'}).catch(()=>{});location.reload()}
   }catch(e){}
 }
-let data=null,statusF='',fBrand='',fType='',view='stock',fCust='',fItemK=-1,showAll=false,showAllTypes=false;
+let data=null,statusF='',fBrand='',fType='',view='stock',fCust='',fItemK=-1,showAll=false,showAllTypes=false,fRep='';
+// 寄庫客戶的所屬業務；沒設定的歸在「未指定業務」
+const repOfC=c=>String((c&&c.rep)||'').trim()||'未指定業務';
 const TYPE_SHOW=8;
 const bKey=i=>String(i.brand||'').trim()||'未填品牌';
 const tKey=i=>String(i.type||i.cat||'').trim()||'未分類';
@@ -292,7 +298,7 @@ const BOOK={cons:{key:'cons',name:'寄庫',empty:'目前沒有客戶寄庫'},loa
 const bookOf=v=>((data&&data[BOOK[v].key])||[]).filter(c=>c&&c.name&&Array.isArray(c.items));
 function bookRows(c,T){
   const items=(data&&data.items)||[];
-  return c.items.map(x=>({it:items[x.k],q:+x.q||0,k:x.k})).filter(x=>x.it&&x.q>0&&kwHit([c.name,x.it.brand,x.it.type,x.it.model,x.it.color],T));
+  return c.items.map(x=>({it:items[x.k],q:+x.q||0,k:x.k})).filter(x=>x.it&&x.q>0&&kwHit([c.name,c.rep||'',x.it.brand,x.it.type,x.it.model,x.it.color],T));
 }
 const bookHits=(v,T)=>bookOf(v).filter(c=>bookRows(c,T).length).length;
 function renderTabs(T,stockN){
@@ -309,9 +315,18 @@ function renderCons(){
   if(view==='stock')return;
   const items=(data&&data.items)||[],B=BOOK[view],cs=bookOf(view),T=toks();
   const tot=c=>c.items.reduce((n,x)=>n+(+x.q||0),0);
+  // 寄庫分頁有業務資料時：上方多一個業務選單，清單依業務分區
+  const useRep=view==='cons'&&cs.some(c=>String(c.rep||'').trim());
+  const rcnt={};cs.forEach(c=>{const r=repOfC(c);rcnt[r]=(rcnt[r]||0)+1});
+  const reps=Object.keys(rcnt).sort((a,b)=>(a==='未指定業務')-(b==='未指定業務')||zh(a,b));
+  if(!useRep||!reps.includes(fRep))fRep='';
+  $('selRep').hidden=!useRep;$('cfsel').classList.toggle('one',!useRep);
+  $('selRep').innerHTML='<option value="">全部業務</option>'+reps.map(r=>`<option value="${esc(r)}">${esc(r)}（${rcnt[r]} 位）</option>`).join('');
+  $('selRep').value=fRep;$('selRep').classList.toggle('on',!!fRep);
+  const csR=fRep?cs.filter(c=>repOfC(c)===fRep):cs;
   const sel=$('selCust');
-  sel.innerHTML=`<option value="">全部客戶（${cs.length} 位）</option>`+cs.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}（${fmt(tot(c))} 件）</option>`).join('');
-  if(!cs.some(c=>c.name===fCust))fCust='';
+  sel.innerHTML=`<option value="">全部客戶（${csR.length} 位）</option>`+csR.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}（${fmt(tot(c))} 件）</option>`).join('');
+  if(!csR.some(c=>c.name===fCust))fCust='';
   sel.value=fCust;sel.classList.toggle('on',!!fCust);
   const box=$('consList'),fi=fItemK>=0?items[fItemK]:null;
   const has=c=>c.items.some(x=>x.k===fItemK&&+x.q>0);
@@ -319,17 +334,23 @@ function renderCons(){
   $('onlyItem').hidden=fItemK<0;
   if(fItemK>=0)$('onlyItemText').textContent=`${nameOf(fi)}：`+cs.filter(has).map(c=>`${c.name} ${B.name} ${fmt(c.items.filter(x=>x.k===fItemK).reduce((a,x)=>a+(+x.q||0),0))} 件`).join('、');
   let html='',n=0;
-  const order=fItemK>=0?[...cs].sort((a,b)=>has(b)-has(a)):cs;
+  const order=fItemK>=0?[...csR].sort((a,b)=>has(b)-has(a)):csR;
+  const blocks={};
   for(const c of order){
     if(fCust&&c.name!==fCust)continue;
     const rows=bookRows(c,T);if(!rows.length)continue;n++;
-    html+=`<div class="grp"><span>${hl(c.name,T)}</span><small>${rows.length} 項 · ${B.name} ${fmt(rows.reduce((a,x)=>a+x.q,0))} 件</small></div>`;
-    html+=rows.map(x=>`<div class="row${x.k===fItemK?' hl':''}"><span class="model">${hl(nameOf(x.it),T)}<span class="sub">${esc(groupOf(x.it))}</span></span><span class="qty"><b>${fmt(x.q)}</b><span class="status">${esc(x.it.unit||'件')}</span></span></div>`).join('');
+    const q=rows.reduce((a,x)=>a+x.q,0);
+    let h=`<div class="grp"><span>${hl(c.name,T)}</span><small>${rows.length} 項 · ${B.name} ${fmt(q)} 件</small></div>`;
+    h+=rows.map(x=>`<div class="row${x.k===fItemK?' hl':''}"><span class="model">${hl(nameOf(x.it),T)}<span class="sub">${esc(groupOf(x.it))}</span></span><span class="qty"><b>${fmt(x.q)}</b><span class="status">${esc(x.it.unit||'件')}</span></span></div>`).join('');
+    const r=useRep?repOfC(c):'',b=blocks[r]||(blocks[r]={h:'',c:0,q:0});b.h+=h;b.c++;b.q+=q;
   }
+  for(const r of (useRep?reps:[''])){const b=blocks[r];if(!b)continue;
+    if(useRep)html+=`<div class="rhdr${r==='未指定業務'?' none':''}"><b>${hl(r,T)}</b><small>${b.c} 位客戶 · ${B.name} ${fmt(b.q)} 件</small></div>`;
+    html+=b.h;}
   box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':B.empty}</div>`;
 }
 function setView(v){
-  if(view!==v)fCust='';
+  if(view!==v){fCust='';fRep=''}
   view=v;
   document.querySelectorAll('#tabs .tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v?'true':'false'));
   $('stockCtl').hidden=$('list').hidden=v!=='stock';
@@ -340,6 +361,7 @@ function goView(v){fItemK=-1;setView(v);renderCons();window.scrollTo(0,0)}
 /* ---------- 事件 ---------- */
 $('tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)goView(b.dataset.v)};
 $('selCust').onchange=()=>{fCust=$('selCust').value;renderCons()};
+$('selRep').onchange=()=>{fRep=$('selRep').value;fCust='';renderCons()};
 $('onlyItemClear').onclick=()=>{fItemK=-1;renderCons()};
 $('q').oninput=()=>{render();renderCons()};
 $('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing)e.target.blur()});
