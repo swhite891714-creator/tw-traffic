@@ -81,6 +81,13 @@ select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .bcard em{font-style:normal;font-family:var(--mono);font-size:26px;font-weight:600;color:var(--accent);line-height:1.2}
 .bcard em.z{color:var(--muted)}
 .bcard span{font-size:13px;color:var(--muted)}
+.tlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.trow{display:grid;gap:1px;text-align:left;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 12px;cursor:pointer}
+.trow b{font-size:15px;overflow-wrap:anywhere}
+.trow .tn{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.trow .tn em{font-style:normal;font-family:var(--mono);font-weight:600;color:var(--accent)}
+.trow .tn em.z{color:var(--muted)}
+.tmore{display:block;width:100%;margin-top:10px;border:0;background:none;color:var(--accent);font-weight:700;padding:8px;cursor:pointer}
 .tchips{display:flex;flex-wrap:wrap;gap:10px}
 .tchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 13px;font-size:15px;cursor:pointer}
 .tchip small{margin-left:6px;font-size:13px;color:var(--muted);font-family:var(--mono)}
@@ -153,7 +160,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-13.3';
+const PAGE_VER='2026-11-13.4';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -161,7 +168,8 @@ async function checkVersion(){
     if(m&&m[1]!==PAGE_VER){await fetch('./',{cache:'reload'}).catch(()=>{});location.reload()}
   }catch(e){}
 }
-let data=null,statusF='',fBrand='',fType='',view='stock',fCust='',fItemK=-1,showAll=false;
+let data=null,statusF='',fBrand='',fType='',view='stock',fCust='',fItemK=-1,showAll=false,showAllTypes=false;
+const TYPE_SHOW=8;
 const bKey=i=>String(i.brand||'').trim()||'未填品牌';
 const tKey=i=>String(i.type||i.cat||'').trim()||'未分類';
 const hasType=i=>!!String(i.type||i.cat||'').trim();
@@ -256,8 +264,12 @@ function homeHtml(items){
   const bs=Object.entries(m).sort((a,b)=>(b[1].h>0)-(a[1].h>0)||zh(a[0],b[0]));
   let h=`<div class="hsec">品牌</div><div class="bcards">`+bs.map(([k,x])=>`<button type="button" class="bcard" data-brand="${esc(k)}"><b>${esc(k)}</b><em class="${x.h?'':'z'}">${fmt(x.h)}</em><span>有貨 · 共 ${fmt(x.n)} 項</span></button>`).join('')+`</div>`;
   if(items.some(hasType)){
-    const t={};items.forEach(i=>{const k=tKey(i);t[k]=(t[k]||0)+1});
-    h+=`<div class="hsec">依類別找</div><div class="tchips">`+Object.entries(t).sort((a,b)=>b[1]-a[1]||zh(a[0],b[0])).map(([k,n])=>`<button type="button" class="tchip" data-type="${esc(k)}">${esc(k)}<small>${fmt(n)}</small></button>`).join('')+`</div>`;
+    // 類別：兩欄整齊清單；有貨的排前面，其餘依商品數；先顯示 8 個，其餘點「顯示全部」展開
+    const t={};items.forEach(i=>{const k=tKey(i),x=t[k]||(t[k]={n:0,h:0});x.n++;if(inStock(i))x.h++});
+    const ts=Object.entries(t).sort((a,b)=>(b[1].h>0)-(a[1].h>0)||b[1].h-a[1].h||b[1].n-a[1].n||zh(a[0],b[0]));
+    const show=showAllTypes?ts:ts.slice(0,TYPE_SHOW);
+    h+=`<div class="hsec">依類別找</div><div class="tlist">`+show.map(([k,x])=>`<button type="button" class="trow" data-type="${esc(k)}"><b>${esc(k)}</b><span class="tn"><em class="${x.h?'':'z'}">${fmt(x.h)}</em> 有貨 · 共 ${fmt(x.n)}</span></button>`).join('')+`</div>`;
+    if(ts.length>TYPE_SHOW)h+=`<button type="button" class="tmore" data-tmore>${showAllTypes?'收合類別 ▴':`顯示全部 ${fmt(ts.length)} 個類別 ▾`}</button>`;
   }
   return h+`<button type="button" class="allbtn" data-all>看全部 ${fmt(items.length)} 項商品</button>`;
 }
@@ -339,6 +351,7 @@ $('selType').onchange=()=>{fType=$('selType').value;
   const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
 $('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';showAll=false;render();renderCons()};
 $('list').addEventListener('click',e=>{
+  const tm=e.target.closest('[data-tmore]');if(tm){showAllTypes=!showAllTypes;render();return}
   const hb=e.target.closest('[data-brand],[data-type],[data-all],[data-home]');
   if(hb){
     if(hb.dataset.brand!==undefined){fBrand=hb.dataset.brand;fType=''}
