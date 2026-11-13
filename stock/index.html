@@ -32,7 +32,7 @@ body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:17px
 [hidden]{display:none!important}
 button{font:inherit;color:inherit}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.wrap{max-width:820px;margin:0 auto;padding-left:var(--gut);padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.wrap{max-width:760px;margin:0 auto;padding-left:var(--gut);padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
 .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:calc(14px + env(safe-area-inset-top,0px)) 0 10px}
 h1{font-size:22px;margin:0}
 .status{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -86,7 +86,7 @@ select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .tchip small{margin-left:6px;font-size:13px;color:var(--muted);font-family:var(--mono)}
 .allbtn{display:block;width:100%;margin-top:22px;border:1.5px solid var(--accent);background:none;color:var(--accent);border-radius:12px;padding:12px;font-weight:700;cursor:pointer}
 .backbtn{justify-self:start;margin:12px 0 2px;border:0;background:none;color:var(--accent);font-weight:700;padding:4px 0;cursor:pointer}
-@media (min-width:900px){.bcards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
 .row[data-k]{cursor:pointer}
 .model{font-weight:700;min-width:0;overflow-wrap:anywhere}
 .sub{font-size:13px;color:var(--muted);display:block;font-weight:400}
@@ -109,7 +109,7 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
 .empty{padding:40px 8px;text-align:center;color:var(--muted);display:grid;gap:10px;justify-items:center}
 .empty b{color:var(--fg);font-size:18px;overflow-wrap:anywhere}
 .foot{margin:24px 0 0;font-size:13px;color:var(--muted);text-align:center}
-@media (min-width:900px){.wrap{max-width:1040px}#list{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:36px}#list .grp,#list .empty{grid-column:1 / -1}}
+
 </style>
 </head>
 <body>
@@ -153,7 +153,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-13.2';
+const PAGE_VER='2026-11-13.3';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
