@@ -68,7 +68,25 @@ select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .list{display:grid;margin-top:2px}
 .grp{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;padding:18px 4px 6px;border-bottom:2px solid var(--fg);font-weight:700}
 .grp small{font-size:13px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
-.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 14px;align-items:center;padding:11px 4px;border-bottom:1px solid var(--line)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 14px;align-items:center;padding:11px 4px 11px 14px;border-bottom:1px solid var(--line);box-shadow:inset 4px 0 0 var(--accent)}
+.row.low{box-shadow:inset 4px 0 0 var(--warn)}
+.row.zero{box-shadow:inset 4px 0 0 var(--line)}
+#consList .row{box-shadow:none;padding-left:4px}
+.newtag{display:inline-block;margin-left:8px;border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:0 6px;font-size:12px;font-weight:700;vertical-align:2px;white-space:nowrap}
+/* 首頁：品牌卡片與類別 */
+.hsec{padding:18px 2px 8px;font-size:14px;font-weight:700;color:var(--muted);letter-spacing:.06em}
+.bcards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.bcard{display:grid;gap:2px;text-align:left;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer}
+.bcard b{font-size:17px;overflow-wrap:anywhere}
+.bcard em{font-style:normal;font-family:var(--mono);font-size:26px;font-weight:600;color:var(--accent);line-height:1.2}
+.bcard em.z{color:var(--muted)}
+.bcard span{font-size:13px;color:var(--muted)}
+.tchips{display:flex;flex-wrap:wrap;gap:10px}
+.tchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 13px;font-size:15px;cursor:pointer}
+.tchip small{margin-left:6px;font-size:13px;color:var(--muted);font-family:var(--mono)}
+.allbtn{display:block;width:100%;margin-top:22px;border:1.5px solid var(--accent);background:none;color:var(--accent);border-radius:12px;padding:12px;font-weight:700;cursor:pointer}
+.backbtn{justify-self:start;margin:12px 0 2px;border:0;background:none;color:var(--accent);font-weight:700;padding:4px 0;cursor:pointer}
+@media (min-width:900px){.bcards{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .row[data-k]{cursor:pointer}
 .model{font-weight:700;min-width:0;overflow-wrap:anywhere}
 .sub{font-size:13px;color:var(--muted);display:block;font-weight:400}
@@ -135,7 +153,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-09.4';
+const PAGE_VER='2026-11-13.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -143,7 +161,7 @@ async function checkVersion(){
     if(m&&m[1]!==PAGE_VER){await fetch('./',{cache:'reload'}).catch(()=>{});location.reload()}
   }catch(e){}
 }
-let data=null,statusF='',fBrand='',fType='',view='stock',fCust='',fItemK=-1;
+let data=null,statusF='',fBrand='',fType='',view='stock',fCust='',fItemK=-1,showAll=false;
 const bKey=i=>String(i.brand||'').trim()||'未填品牌';
 const tKey=i=>String(i.type||i.cat||'').trim()||'未分類';
 const hasType=i=>!!String(i.type||i.cat||'').trim();
@@ -212,10 +230,12 @@ function render(){
   renderTabs(T,s.length);
   if(!data){list.innerHTML='<div class="empty">目前讀不到資料，請確認網路後重新整理。</div>';return}
   if(!items.length){list.innerHTML='<div class="empty">管理者還沒有發布庫存資料。</div>';return}
-  if(!s.length){list.innerHTML=emptyHtml(T,text.length);return}
+  // 首頁：沒有搜尋、也沒選條件時，先顯示品牌卡片與類別
+  if(!on&&!showAll){list.innerHTML=homeHtml(items);return}
+  if(!s.length){list.innerHTML=backHtml()+emptyHtml(T,text.length);return}
   const sorted=[...s].sort((a,b)=>zh(bKey(a),bKey(b))||zh(tKey(a),tKey(b))||(inStock(b)-inStock(a))||(items.indexOf(a)-items.indexOf(b)));
   const WORD={ok:'有貨',low:'偏低',zero:'缺貨'};
-  let html='',last=null;
+  let html=backHtml(),last=null;
   for(const i of sorted){
     if(groupOf(i)!==last){
       last=groupOf(i);
@@ -225,10 +245,24 @@ function render(){
     const k=items.indexOf(i),cq=+i.cq||0,lq=+i.lq||0,st=WORD[i.st]?i.st:'ok';
     const go=cq?'cons':lq?'loan':'';
     const more=cq||lq?`<span class="more">${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
-    html+=`<div class="row ${st}"${go?` data-k="${k}" data-rgo="${go}"`:''}><span class="model">${hl(nameOf(i),T)}</span><span class="qty"><b>${fmt(+i.qty||0)}</b><span class="pill ${st}">${WORD[st]}</span></span>${more}</div>`;
+    html+=`<div class="row ${st}"${go?` data-k="${k}" data-rgo="${go}"`:''}><span class="model">${hl(nameOf(i),T)}${i.nw?'<span class="newtag">新到貨</span>':''}</span><span class="qty"><b>${fmt(+i.qty||0)}</b><span class="pill ${st}">${WORD[st]}</span></span>${more}</div>`;
   }
   list.innerHTML=html;
 }
+/* ---------- 首頁：品牌卡片＋類別 ----------
+   每個品牌一張卡片，大字是有貨項數；有貨的品牌排前面。類別用會換行的按鈕列出（不用左右滑）。 */
+function homeHtml(items){
+  const m={};items.forEach(i=>{const k=bKey(i),x=m[k]||(m[k]={n:0,h:0});x.n++;if(inStock(i))x.h++});
+  const bs=Object.entries(m).sort((a,b)=>(b[1].h>0)-(a[1].h>0)||zh(a[0],b[0]));
+  let h=`<div class="hsec">品牌</div><div class="bcards">`+bs.map(([k,x])=>`<button type="button" class="bcard" data-brand="${esc(k)}"><b>${esc(k)}</b><em class="${x.h?'':'z'}">${fmt(x.h)}</em><span>有貨 · 共 ${fmt(x.n)} 項</span></button>`).join('')+`</div>`;
+  if(items.some(hasType)){
+    const t={};items.forEach(i=>{const k=tKey(i);t[k]=(t[k]||0)+1});
+    h+=`<div class="hsec">依類別找</div><div class="tchips">`+Object.entries(t).sort((a,b)=>b[1]-a[1]||zh(a[0],b[0])).map(([k,n])=>`<button type="button" class="tchip" data-type="${esc(k)}">${esc(k)}<small>${fmt(n)}</small></button>`).join('')+`</div>`;
+  }
+  return h+`<button type="button" class="allbtn" data-all>看全部 ${fmt(items.length)} 項商品</button>`;
+}
+// 從首頁點進來後，清單最上面放「回品牌首頁」
+function backHtml(){return `<button type="button" class="backbtn" data-home>‹ 回品牌首頁</button>`}
 // 找不到時，告訴使用者下一步怎麼做
 function emptyHtml(T,textN){
   const q=esc($('q').value.trim());
@@ -303,8 +337,16 @@ $('selBrand').onchange=()=>{fBrand=$('selBrand').value;
   const it=(data&&data.items)||[];if(fType&&!it.some(i=>(!fBrand||bKey(i)===fBrand)&&tKey(i)===fType))fType='';render()};
 $('selType').onchange=()=>{fType=$('selType').value;
   const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
-$('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';render();renderCons()};
+$('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';showAll=false;render();renderCons()};
 $('list').addEventListener('click',e=>{
+  const hb=e.target.closest('[data-brand],[data-type],[data-all],[data-home]');
+  if(hb){
+    if(hb.dataset.brand!==undefined){fBrand=hb.dataset.brand;fType=''}
+    else if(hb.dataset.type!==undefined){fType=hb.dataset.type;fBrand=''}
+    else if(hb.dataset.all!==undefined)showAll=true;
+    else{fBrand='';fType='';statusF='';$('q').value='';showAll=false}
+    render();renderCons();window.scrollTo(0,0);return;
+  }
   const v=e.target.closest('[data-view]');if(v){goView(v.dataset.view);return}
   const c=e.target.closest('[data-clear]');
   if(c){if(c.dataset.clear==='q')$('q').value='';else{fBrand='';fType='';statusF=''}render();renderCons();return}
