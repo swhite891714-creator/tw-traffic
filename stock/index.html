@@ -72,6 +72,8 @@ select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .row.low{box-shadow:inset 4px 0 0 var(--warn)}
 .row.zero{box-shadow:inset 4px 0 0 var(--line)}
 #consList .row{box-shadow:none;padding-left:4px}
+.trnote{display:block;margin-top:3px;font-size:13px;font-weight:700;color:var(--accent)}
+.trnote::before{content:'🚚 ';font-weight:400}
 .newtag{display:inline-block;margin-left:8px;border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:0 6px;font-size:12px;font-weight:700;vertical-align:2px;white-space:nowrap}
 /* 首頁：品牌卡片與類別 */
 .hsec{padding:18px 2px 8px;font-size:14px;font-weight:700;color:var(--muted);letter-spacing:.06em}
@@ -166,7 +168,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-14.2';
+const PAGE_VER='2026-11-15.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -261,7 +263,7 @@ function render(){
     const k=items.indexOf(i),cq=+i.cq||0,lq=+i.lq||0,st=WORD[i.st]?i.st:'ok';
     const go=cq?'cons':lq?'loan':'';
     const more=cq||lq?`<span class="more">${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
-    html+=`<div class="row ${st}"${go?` data-k="${k}" data-rgo="${go}"`:''}><span class="model">${hl(nameOf(i),T)}${i.nw?'<span class="newtag">新到貨</span>':''}</span><span class="qty"><b>${fmt(+i.qty||0)}</b><span class="pill ${st}">${WORD[st]}</span></span>${more}</div>`;
+    html+=`<div class="row ${st}"${go?` data-k="${k}" data-rgo="${go}"`:''}><span class="model">${hl(nameOf(i),T)}${i.nw?'<span class="newtag">新到貨</span>':''}${+i.tq>0?`<span class="trnote">在途 ${fmt(+i.tq)} 件${/^\d{4}-\d\d-\d\d$/.test(i.te||'')?` · 預計 ${+i.te.slice(5,7)}/${+i.te.slice(8)} 到貨`:''}</span>`:''}</span><span class="qty"><b>${fmt(+i.qty||0)}</b><span class="pill ${st}">${WORD[st]}</span></span>${more}</div>`;
   }
   list.innerHTML=html;
 }
