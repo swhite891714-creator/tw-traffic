@@ -81,6 +81,8 @@ select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .bcard em{font-style:normal;font-family:var(--mono);font-size:26px;font-weight:600;color:var(--accent);line-height:1.2}
 .bcard em.z{color:var(--muted)}
 .bcard span{font-size:13px;color:var(--muted)}
+.bcard.soon{cursor:default;border-style:dashed;background:transparent}
+.bcard.soon em{font-family:inherit;font-size:16px;font-weight:700;color:var(--muted);padding:6px 0 3px}
 .rhdr{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;margin-top:20px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent)}
 .rhdr b{font-size:18px}
 .rhdr small{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -164,7 +166,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-14.1';
+const PAGE_VER='2026-11-14.2';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -268,7 +270,9 @@ function render(){
 function homeHtml(items){
   const m={};items.forEach(i=>{const k=bKey(i),x=m[k]||(m[k]={n:0,h:0});x.n++;if(inStock(i))x.h++});
   const bs=Object.entries(m).sort((a,b)=>(b[1].h>0)-(a[1].h>0)||zh(a[0],b[0]));
-  let h=`<div class="hsec">品牌</div><div class="bcards">`+bs.map(([k,x])=>`<button type="button" class="bcard" data-brand="${esc(k)}"><b>${esc(k)}</b><em class="${x.h?'':'z'}">${fmt(x.h)}</em><span>有貨 · 共 ${fmt(x.n)} 項</span></button>`).join('')+`</div>`;
+  let h=`<div class="hsec">品牌</div><div class="bcards">`+bs.map(([k,x])=>`<button type="button" class="bcard" data-brand="${esc(k)}"><b>${esc(k)}</b><em class="${x.h?'':'z'}">${fmt(x.h)}</em><span>有貨 · 共 ${fmt(x.n)} 項</span></button>`).join('')
+    // 還沒有商品、但管理員設成顯示的品牌：放在最後，不能點
+    +((data&&Array.isArray(data.eb))?data.eb:[]).filter(b=>b&&!m[b]).map(b=>`<div class="bcard soon"><b>${esc(b)}</b><em>商品整理中</em><span>即將上架</span></div>`).join('')+`</div>`;
   if(items.some(hasType)){
     // 類別：兩欄整齊清單；有貨的排前面，其餘依商品數；先顯示 8 個，其餘點「顯示全部」展開
     const t={};items.forEach(i=>{const k=tKey(i),x=t[k]||(t[k]={n:0,h:0});x.n++;if(inStock(i))x.h++});
