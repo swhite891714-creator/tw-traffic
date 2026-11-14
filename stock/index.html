@@ -72,6 +72,15 @@ select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .row.low{box-shadow:inset 4px 0 0 var(--warn)}
 .row.zero{box-shadow:inset 4px 0 0 var(--line)}
 #consList .row{box-shadow:none;padding-left:4px}
+.trban{display:grid;gap:2px;width:100%;margin-top:14px;text-align:left;border:1.5px solid var(--accent);background:var(--surface);color:var(--fg);border-radius:12px;padding:12px 14px;font:inherit;cursor:pointer}
+.trban b{font-size:17px;color:var(--accent)}
+.trban span{font-size:14px;color:var(--muted)}
+.trsum{margin:14px 2px 0;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.row.tr .qty b{color:var(--accent)}
+.row.tr .sub .te{color:var(--accent);font-weight:700}
+.row.tr .sub .te.wait{color:var(--warn)}
+.tbrand{margin-top:22px}
+.tbrand+.grp{padding-top:10px}
 .trnote{display:block;margin-top:3px;font-size:13px;font-weight:700;color:var(--accent)}
 .trnote::before{content:'🚚 ';font-weight:400}
 .newtag{display:inline-block;margin-left:8px;border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:0 6px;font-size:12px;font-weight:700;vertical-align:2px;white-space:nowrap}
@@ -137,6 +146,7 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
     </div>
     <div class="tabs" role="tablist" id="tabs" hidden>
       <button type="button" class="tab" role="tab" data-v="stock" aria-selected="true">庫存<small id="tabStockN"></small></button>
+      <button type="button" class="tab" role="tab" data-v="tr" aria-selected="false">即將到貨<small id="tabTrN"></small></button>
       <button type="button" class="tab" role="tab" data-v="cons" aria-selected="false">客戶寄庫<small id="tabConsN"></small></button>
       <button type="button" class="tab" role="tab" data-v="loan" aria-selected="false">客戶借出<small id="tabLoanN"></small></button>
     </div>
@@ -155,7 +165,11 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
   </div>
   <div class="list" id="list"><div class="empty">讀取中…</div></div>
   <div class="list" id="consList" hidden></div>
-  <p class="foot">這是唯讀頁面，只能查看庫存、客戶寄庫與客戶借出數量。數字由管理者更新。</p>
+  <div class="ctl" id="trCtl" hidden>
+    <div class="fsel" id="trfsel"><select id="selTrB" aria-label="品牌"><option value="">全部品牌</option></select><select id="selTrT" aria-label="類別"><option value="">全部類別</option></select></div>
+  </div>
+  <div class="list" id="trList" hidden></div>
+  <p class="foot">這是唯讀頁面，只能查看庫存、即將到貨、客戶寄庫與客戶借出數量。數字由管理者更新。</p>
 </div>
 <script>
 /* ========== 唯讀公開頁 ==========
@@ -168,7 +182,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-15.1';
+const PAGE_VER='2026-11-15.2';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -176,7 +190,7 @@ async function checkVersion(){
     if(m&&m[1]!==PAGE_VER){await fetch('./',{cache:'reload'}).catch(()=>{});location.reload()}
   }catch(e){}
 }
-let data=null,statusF='',fBrand='',fType='',view='stock',fCust='',fItemK=-1,showAll=false,showAllTypes=false,fRep='';
+let data=null,statusF='',fBrand='',fType='',trB='',trT='',view='stock',fCust='',fItemK=-1,showAll=false,showAllTypes=false,fRep='';
 // 寄庫客戶的所屬業務；沒設定的歸在「未指定業務」
 const repOfC=c=>String((c&&c.rep)||'').trim()||'未指定業務';
 const TYPE_SHOW=8;
@@ -272,7 +286,9 @@ function render(){
 function homeHtml(items){
   const m={};items.forEach(i=>{const k=bKey(i),x=m[k]||(m[k]={n:0,h:0});x.n++;if(inStock(i))x.h++});
   const bs=Object.entries(m).sort((a,b)=>(b[1].h>0)-(a[1].h>0)||zh(a[0],b[0]));
-  let h=`<div class="hsec">品牌</div><div class="bcards">`+bs.map(([k,x])=>`<button type="button" class="bcard" data-brand="${esc(k)}"><b>${esc(k)}</b><em class="${x.h?'':'z'}">${fmt(x.h)}</em><span>有貨 · 共 ${fmt(x.n)} 項</span></button>`).join('')
+  const ti=items.filter(i=>+i.tq>0);
+  let h=ti.length?`<button type="button" class="trban" data-view="tr"><b>🚚 即將到貨 ${fmt(ti.length)} 項</b><span>共 ${fmt(ti.reduce((a,i)=>a+(+i.tq||0),0))} 件，依品牌、類別整理，點這裡查看 ›</span></button>`:'';
+  h+=`<div class="hsec">品牌</div><div class="bcards">`+bs.map(([k,x])=>`<button type="button" class="bcard" data-brand="${esc(k)}"><b>${esc(k)}</b><em class="${x.h?'':'z'}">${fmt(x.h)}</em><span>有貨 · 共 ${fmt(x.n)} 項</span></button>`).join('')
     // 還沒有商品、但管理員設成顯示的品牌：放在最後，不能點
     +((data&&Array.isArray(data.eb))?data.eb:[]).filter(b=>b&&!m[b]).map(b=>`<div class="bcard soon"><b>${esc(b)}</b><em>商品整理中</em><span>即將上架</span></div>`).join('')+`</div>`;
   if(items.some(hasType)){
@@ -309,7 +325,10 @@ function bookRows(c,T){
 const bookHits=(v,T)=>bookOf(v).filter(c=>bookRows(c,T).length).length;
 function renderTabs(T,stockN){
   const cc=bookOf('cons'),ll=bookOf('loan');
-  $('tabs').hidden=!cc.length&&!ll.length;
+  const tt=trItems().length;
+  $('tabs').hidden=!cc.length&&!ll.length&&!tt;
+  document.querySelector('#tabs [data-v="tr"]').hidden=!tt;
+  $('tabTrN').textContent=tt?`${fmt(T.length?trItems().filter(i=>itemHit(i,T)).length:tt)} 項`:'';
   document.querySelector('#tabs [data-v="cons"]').hidden=!cc.length;
   document.querySelector('#tabs [data-v="loan"]').hidden=!ll.length;
   $('tabStockN').textContent=T.length?fmt(stockN):'';
@@ -317,7 +336,8 @@ function renderTabs(T,stockN){
   $('tabConsN').textContent=n('cons',cc);$('tabLoanN').textContent=n('loan',ll);
 }
 function renderCons(){
-  if(view!=='stock'&&!bookOf(view).length)setView('stock');
+  if(view==='tr'){if(!trItems().length)setView('stock');else{renderTr();return}}
+  if(view!=='stock'&&view!=='tr'&&!bookOf(view).length)setView('stock');
   if(view==='stock')return;
   const items=(data&&data.items)||[],B=BOOK[view],cs=bookOf(view),T=toks();
   const tot=c=>c.items.reduce((n,x)=>n+(+x.q||0),0);
@@ -355,18 +375,51 @@ function renderCons(){
     html+=b.h;}
   box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':B.empty}</div>`;
 }
+/* ---------- 即將到貨（在途） ----------
+   資料裡 tq＝在途件數、te＝最快的預計到貨日。依品牌分大區、類別分小組，同組裡先到的排前面。 */
+const trItems=()=>((data&&data.items)||[]).filter(i=>+i.tq>0);
+function teText(te){
+  if(!/^\d{4}-\d\d-\d\d$/.test(te||''))return '<span class="te wait">到貨日確認中</span>';
+  const t=new Date(Date.now()+8*3600e3).toISOString().slice(0,10);
+  if(te<t)return '<span class="te wait">到貨日確認中</span>';
+  return `<span class="te">預計 ${+te.slice(5,7)}/${+te.slice(8)} 到貨</span>`;
+}
+function renderTr(){
+  const items=(data&&data.items)||[],T=toks(),all=trItems().filter(i=>itemHit(i,T)),bt=(i,b,t)=>(!b||bKey(i)===b)&&(!t||tKey(i)===t);
+  const addCur=(l,c)=>c&&!l.some(([k])=>k===c)?[...l,[c,0]]:l;
+  fillSel('selTrB','全部品牌',addCur(countBy(all.filter(i=>bt(i,'',trT)),bKey),trB),trB);
+  const anyT=all.some(hasType);$('selTrT').hidden=!anyT;$('trfsel').classList.toggle('one',!anyT);
+  if(anyT)fillSel('selTrT','全部類別',addCur(countBy(all.filter(i=>bt(i,trB,'')),tKey),trT),trT);
+  const tk=i=>/^\d{4}-\d\d-\d\d$/.test(i.te||'')?i.te:'9999';
+  const s=all.filter(i=>bt(i,trB,trT)).sort((a,b)=>zh(bKey(a),bKey(b))||zh(tKey(a),tKey(b))||(tk(a)<tk(b)?-1:tk(a)>tk(b)?1:0)||(items.indexOf(a)-items.indexOf(b)));
+  const box=$('trList');
+  if(!s.length){box.innerHTML=`<div class="empty">${trItems().length?'沒有符合條件的即將到貨商品':'目前沒有即將到貨的商品'}</div>`;return}
+  const sumQ=arr=>arr.reduce((a,i)=>a+(+i.tq||0),0);
+  let html=`<p class="trsum">即將到貨 ${fmt(s.length)} 項，共 ${fmt(sumQ(s))} 件</p>`,lb=null,lt=null;
+  for(const i of s){
+    if(bKey(i)!==lb){lb=bKey(i);lt=null;const g=s.filter(x=>bKey(x)===lb);
+      html+=`<div class="rhdr tbrand"><b>${hl(lb,T)}</b><small>${fmt(g.length)} 項 · 在途 ${fmt(sumQ(g))} 件</small></div>`}
+    if(hasType(i)&&tKey(i)!==lt){lt=tKey(i);const g=s.filter(x=>bKey(x)===lb&&tKey(x)===lt);
+      html+=`<div class="grp"><span>${hl(lt,T)}</span><small>${fmt(g.length)} 項 · ${fmt(sumQ(g))} 件</small></div>`}
+    html+=`<div class="row tr"><span class="model">${hl(nameOf(i),T)}<span class="sub">${teText(i.te)} · 目前庫存 ${fmt(+i.qty||0)}</span></span><span class="qty"><b>${fmt(+i.tq)}</b><span class="status">在途</span></span></div>`;
+  }
+  box.innerHTML=html;
+}
 function setView(v){
   if(view!==v){fCust='';fRep=''}
   view=v;
   document.querySelectorAll('#tabs .tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v?'true':'false'));
   $('stockCtl').hidden=$('list').hidden=v!=='stock';
-  $('consCtl').hidden=$('consList').hidden=v==='stock';
+  $('consCtl').hidden=$('consList').hidden=v==='stock'||v==='tr';
+  $('trCtl').hidden=$('trList').hidden=v!=='tr';
 }
 function goView(v){fItemK=-1;setView(v);renderCons();window.scrollTo(0,0)}
 
 /* ---------- 事件 ---------- */
 $('tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)goView(b.dataset.v)};
 $('selCust').onchange=()=>{fCust=$('selCust').value;renderCons()};
+$('selTrB').onchange=()=>{trB=$('selTrB').value;if(trT&&!trItems().some(i=>(!trB||bKey(i)===trB)&&tKey(i)===trT))trT='';renderTr()};
+$('selTrT').onchange=()=>{trT=$('selTrT').value;if(trB&&!trItems().some(i=>(!trT||tKey(i)===trT)&&bKey(i)===trB))trB='';renderTr()};
 $('selRep').onchange=()=>{fRep=$('selRep').value;fCust='';renderCons()};
 $('onlyItemClear').onclick=()=>{fItemK=-1;renderCons()};
 $('q').oninput=()=>{render();renderCons()};
