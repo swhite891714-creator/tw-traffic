@@ -164,7 +164,7 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-13.5';
+const PAGE_VER='2026-11-14.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -277,7 +277,7 @@ function homeHtml(items){
     h+=`<div class="hsec">依類別找</div><div class="tlist">`+show.map(([k,x])=>`<button type="button" class="trow" data-type="${esc(k)}"><b>${esc(k)}</b><span class="tn"><em class="${x.h?'':'z'}">${fmt(x.h)}</em> 有貨 · 共 ${fmt(x.n)}</span></button>`).join('')+`</div>`;
     if(ts.length>TYPE_SHOW)h+=`<button type="button" class="tmore" data-tmore>${showAllTypes?'收合類別 ▴':`顯示全部 ${fmt(ts.length)} 個類別 ▾`}</button>`;
   }
-  return h+`<button type="button" class="allbtn" data-all>看全部 ${fmt(items.length)} 項商品</button>`;
+  return h;
 }
 // 從首頁點進來後，清單最上面放「回品牌首頁」
 function backHtml(){return `<button type="button" class="backbtn" data-home>‹ 回品牌首頁</button>`}
