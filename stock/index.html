@@ -243,9 +243,13 @@ const LOGO_CDN='https://cdn.shopify.com/s/files/1/0593/5025/3667/collections/';
 const LOGO={'FGN':['Fujigen_logo.webp'],'Providence':['Providence_new_logo_wh.png',1],'IVU':['IVU_wh_logo_9de09d04-1914-4f5a-ae91-7122dee0545d.png',1],'MKC Musical':['MKC_Musical.png',1],'MEDELI':['19_MEDELI.png',1],'SG Strings':['SGstrings_logo_84f84986-dc18-4917-90c8-9ef37a73b684.png',1],'Synergy':['Synergy_05358a2e-b67f-401c-b0e8-362eea5fae1a.png'],'Lizard Spit':['LS_logo.png',1],'FRIEDMAN':['friedman-amplification-vector-logo.png'],'Vertech':['vertech-logo.jpg'],'WAMPLER':['Wampler.png'],'Tone King':['tone-king-30-logo.png'],'No1 Stretch Strap':['No1.webp'],'DIEZEL':['3c5e6bab54402a5dd33f6132786a0061_3f460617-86e5-4bde-8fb9-bffec6455558.png'],'MELOFTY':['MELOFTY_LOGO.png',1],'TONE 5':['TONE5_Long_Logo_aac8ebe6-9b0b-4019-a4ae-fd68a43096e7.jpg'],'NUX':['logo-NuX.png'],'MOOER':['mooer_logo.png']};
 function logoHtml(k){
   const o=data&&data.lg&&data.lg[k],d=LOGO[k]||LOGO[Object.keys(LOGO).find(x=>x.toLowerCase()===String(k).toLowerCase())];
-  const u=o&&o.u?o.u:d?LOGO_CDN+d[0]+'?width=300':'',c=o&&o.u?!!o.c:!!(d&&d[1]);
-  if(!/^https:\/\//.test(u)){const t=String(k).trim();return `<span class="lg tx">${esc(/^[A-Za-z]/.test(t)?t.slice(0,2).toUpperCase():t.slice(0,1))}</span>`}
-  return `<span class="lg${c?' c':''}"><img src="${esc(u)}" alt="${esc(k)}" loading="lazy"></span>`;
+  // 優先：管理面板存在系統裡的圖片（d）> 自訂網址（u）> 內建 Shopify 圖
+  const own=o&&(/^data:image\/(png|webp|jpeg|gif);base64,/.test(o.d||'')?o.d:/^https:\/\//.test(o.u||'')?o.u:'');
+  const u=own||(d?LOGO_CDN+d[0]+'?width=300':''),c=own?!!o.c:!!(d&&d[1]);
+  const t=String(k).trim(),tx=esc(/^[A-Za-z]/.test(t)?t.slice(0,2).toUpperCase():t.slice(0,1));
+  if(!u)return `<span class="lg tx">${tx}</span>`;
+  // 網址的圖片讀不到（例如被刪掉）就改顯示品牌字母，不會出現破圖
+  return `<span class="lg${c?' c':''}" data-tx="${tx}"><img src="${esc(u)}" alt="${esc(k)}" loading="lazy" onerror="var p=this.parentNode;p.className='lg tx';p.textContent=p.dataset.tx"></span>`;
 }
 // 可收合區塊記住開關狀態（資料每 2 分鐘重新整理時不會跳回預設）
 const OPEN={};const isOpen=(k,def)=>k in OPEN?OPEN[k]:def;
@@ -253,7 +257,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.datas
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-15.3';
+const PAGE_VER='2026-11-15.4';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
