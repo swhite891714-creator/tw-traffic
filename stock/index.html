@@ -173,6 +173,7 @@ details.blk[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
 .bhd{display:flex;align-items:center;gap:12px;margin:10px 0 2px}
 .bhd .lg{--h:50px;width:92px;flex:0 0 auto}
 .bhd b{font-size:20px;font-weight:900}.bhd small{display:block;color:var(--muted);font-size:13px}
+.bhd.tyh{margin-top:4px}
 .bhd.sm{margin-top:20px}.bhd.sm .lg{--h:38px;width:70px}.bhd.sm b{font-size:17px}
 .lbar{display:flex;justify-content:flex-end;margin-top:4px}
 .lbar button{border:0;background:none;color:var(--accent);font-weight:700;padding:4px 0;cursor:pointer}
@@ -264,7 +265,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.datas
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-15.6';
+const PAGE_VER='2026-11-15.7';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -347,7 +348,7 @@ function render(){
   // 首頁：沒有搜尋、也沒選條件時，先顯示品牌卡片與類別
   document.body.classList.toggle('home',!on&&!showAll);
   // 從品牌格點進來：品牌、類別選單和「找到幾項」都先收起來，畫面只留狀態按鈕
-  document.body.classList.toggle('bp',!!fBrand&&!fType&&!T.length);
+  document.body.classList.toggle('bp',(!!fBrand!==!!fType)&&!T.length);
   if(!on&&!showAll){list.innerHTML=homeHtml(items);return}
   if(!s.length){list.innerHTML=backHtml()+emptyHtml(T,text.length);return}
   const sorted=[...s].sort((a,b)=>zh(bKey(a),bKey(b))||zh(tKey(a),tKey(b))||(inStock(b)-inStock(a))||(items.indexOf(a)-items.indexOf(b)));
@@ -359,9 +360,17 @@ function render(){
     const more=cq||lq?`<span class="more">${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
     return `<div class="row g ${st}"${go?` data-k="${k}" data-rgo="${go}"`:''}><span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2">${sub.join('')}</span>`:''}<span class="qty"><b>${fmt(q)}</b><small>${esc(i.unit||'件')}</small></span>${more}</div>`};
   // 從品牌進來：類別預設全部收起，要看哪個再點開（只有一個類別就直接打開）；有搜尋或選類別時全部打開
-  const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||fType),oneCat=new Set(sorted.map(i=>bKey(i)+'|'+tKey(i))).size===1;
+  const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||(fBrand&&fType)),oneCat=new Set(sorted.map(i=>bKey(i)+'|'+tKey(i))).size===1;
   let html=backHtml(),ci=0;
   const cnt=g=>`有貨 <em>${fmt(g.filter(inStock).length)}</em> / ${fmt(g.length)}`;
+  // 從類別進來：上面是類別名稱，下面每個品牌一個可收合區塊（預設收起，只有一個品牌就直接打開）
+  if(fType&&!fBrand&&!T.length){
+    html+=`<div class="bhd tyh"><div><b>${esc(fType)}</b><small>有貨 ${fmt(sorted.filter(inStock).length)} / ${fmt(sorted.length)} 項 · ${fmt(brands.length)} 個品牌</small></div></div><!--LBAR-->`;let anyOp=false;
+    for(const b of brands){const g=sorted.filter(i=>bKey(i)===b),key='y:'+fType+'|'+b,op=isOpen(key,brands.length===1);anyOp=anyOp||op;
+      html+=`<details class="blk cat tb" data-ok="${esc(key)}"${op?' open':''}><summary>${logoHtml(b)}<b>${esc(b)}</b><span class="pct">${cnt(g)}</span></summary><div class="in">${g.map(row).join('')}</div></details>`}
+    html=html.replace('<!--LBAR-->',`<div class="lbar"><button type="button" data-fold>${anyOp?'全部收起':'全部展開'}</button></div>`);
+    list.innerHTML=html;return;
+  }
   if(brands.length===1){const g=sorted;html+=`<div class="bhd">${logoHtml(brands[0])}<div><b>${esc(brands[0])}</b><small>有貨 ${fmt(g.filter(inStock).length)} / ${fmt(g.length)} 項</small></div></div>`}
   html+='<!--LBAR-->';let anyOp=false;
   for(const b of brands){
