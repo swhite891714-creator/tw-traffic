@@ -263,11 +263,13 @@ function logoHtml(k){
 }
 // 可收合區塊記住開關狀態（資料每 2 分鐘重新整理時不會跳回預設）
 const OPEN={};const isOpen=(k,def)=>k in OPEN?OPEN[k]:def;
-document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.dataset.ok)OPEN[d.dataset.ok]=d.open},true);
+// 「全部展開／全部收起」按鈕跟著實際狀態變：同一個清單裡只要有一個打開就顯示「全部收起」，全部收起才顯示「全部展開」
+function foldSync(box){if(!box)return;const b=box.querySelector('[data-fold]');if(!b)return;b.textContent=[...box.querySelectorAll('details.cat')].some(d=>d.open)?'全部收起':'全部展開'}
+document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dataset.ok))return;OPEN[d.dataset.ok]=d.open;foldSync(d.closest('#list,#trList,#consList'))},true);
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-15.10';
+const PAGE_VER='2026-11-15.11';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
