@@ -267,7 +267,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.datas
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-15.9';
+const PAGE_VER='2026-11-15.10';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -368,7 +368,7 @@ function render(){
   // 從類別進來：上面是類別名稱，下面每個品牌一個可收合區塊（預設收起，只有一個品牌就直接打開）
   if(fType&&!fBrand&&!T.length){
     html+=`<div class="bhd tyh"><div><b>${esc(fType)}</b><small>有貨 ${fmt(sorted.filter(inStock).length)} / ${fmt(sorted.length)} 項 · ${fmt(brands.length)} 個品牌</small></div></div><!--LBAR-->`;let anyOp=false;
-    for(const b of brands){const g=sorted.filter(i=>bKey(i)===b),key='y:'+fType+'|'+b,op=isOpen(key,brands.length===1);anyOp=anyOp||op;
+    for(const b of brands){const g=sorted.filter(i=>bKey(i)===b),key='y:'+fType+'|'+b,op=isOpen(key,false);anyOp=anyOp||op;
       html+=`<details class="blk cat tb" data-ok="${esc(key)}"${op?' open':''}><summary>${logoHtml(b)}<b>${esc(b)}</b><span class="pct">${cnt(g)}</span></summary><div class="in">${g.map(row).join('')}</div></details>`}
     html=html.replace('<!--LBAR-->',`<div class="lbar"><button type="button" data-fold>${anyOp?'全部收起':'全部展開'}</button></div>`);
     list.innerHTML=html;return;
@@ -379,7 +379,7 @@ function render(){
     const gb=sorted.filter(i=>bKey(i)===b);
     if(brands.length>1)html+=`<div class="bhd sm">${logoHtml(b)}<div><b>${hl(b,T)}</b><small>有貨 ${fmt(gb.filter(inStock).length)} / ${fmt(gb.length)} 項</small></div></div>`;
     for(const t of [...new Set(gb.map(tKey))]){
-      const g=gb.filter(i=>tKey(i)===t),key='c:'+b+'|'+t,op=isOpen(key,openAll||oneCat);ci++;anyOp=anyOp||op;
+      const g=gb.filter(i=>tKey(i)===t),key='c:'+b+'|'+t,op=isOpen(key,openAll);ci++;anyOp=anyOp||op;
       html+=`<details class="blk cat" data-ok="${esc(key)}"${op?' open':''}><summary><b>${hl(hasType(g[0])?t:'全部商品',T)}</b><span class="pct">${cnt(g)}</span></summary><div class="in">${g.map(row).join('')}</div></details>`;
     }
   }
@@ -479,7 +479,7 @@ function renderCons(){
     const rows=bookRows(c,T);if(!rows.length)continue;n++;
     const q=rows.reduce((a,x)=>a+x.q,0);
     // 每位客戶一個可收合區塊：預設收起；有搜尋、選了客戶、只有一位客戶，或從商品點進來（有這個商品的客戶）時打開
-    const ck='k:'+view+'|'+c.name,force=fItemK>=0&&has(c),cop=force||isOpen(ck,!!(T.length||fCust||order.length===1));anyC=anyC||cop;
+    const ck='k:'+view+'|'+c.name,force=fItemK>=0&&has(c),cop=force||isOpen(ck,!!(T.length||fCust));anyC=anyC||cop;
     let h=`<details class="blk cat" data-ok="${esc(ck)}"${cop?' open':''}><summary><b>${hl(c.name,T)}</b><span class="pct">${rows.length} 項 · ${B.name} <em>${fmt(q)}</em> 件</span></summary><div class="in">`;
     h+=rows.map(x=>`<div class="row g${x.k===fItemK?' hl':''}"><span class="model">${hl(nameOf(x.it),T)}<span class="sub">${esc(groupOf(x.it))}</span></span><span class="qty"><b>${fmt(x.q)}</b><span class="status">${esc(x.it.unit||'件')}</span></span></div>`).join('')+'</div></details>';
     const r=useRep?repOfC(c):'',b=blocks[r]||(blocks[r]={h:'',c:0,q:0});b.h+=h;b.c++;b.q+=q;
@@ -487,7 +487,7 @@ function renderCons(){
   for(const r of (useRep?reps:[''])){const b=blocks[r];if(!b)continue;
     if(useRep)html+=`<div class="rhdr${r==='未指定業務'?' none':''}"><b>${hl(r,T)}</b><small>${b.c} 位客戶 · ${B.name} ${fmt(b.q)} 件</small></div>`;
     html+=b.h;}
-  if(n>1)html=`<div class="lbar"><button type="button" data-fold>${anyC?'全部收起':'全部展開'}</button></div>`+html;
+  if(n)html=`<div class="lbar"><button type="button" data-fold>${anyC?'全部收起':'全部展開'}</button></div>`+html;
   box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':B.empty}</div>`;
 }
 /* ---------- 即將到貨（在途） ----------
@@ -513,7 +513,7 @@ function renderTr(){
   if(!s.length){box.innerHTML=`<div class="empty">${trItems().length?'沒有符合條件的即將到貨商品':'目前沒有即將到貨的商品'}</div>`;return}
   const sumQ=arr=>arr.reduce((a,i)=>a+(+i.tq||0),0);
   const tbs=[...new Set(s.map(bKey))];let anyOpT=false;
-  let html=`<p class="trsum">即將到貨 ${fmt(s.length)} 項，共 ${fmt(sumQ(s))} 件</p>`+(tbs.length>1?'<!--TFOLD-->':'');
+  let html=`<p class="trsum">即將到貨 ${fmt(s.length)} 項，共 ${fmt(sumQ(s))} 件</p><!--TFOLD-->`;
   for(const b of [...new Set(s.map(bKey))]){
     const g=s.filter(x=>bKey(x)===b),key='t:'+b;let inner='',lt=null;
     for(const i of g){
@@ -521,7 +521,7 @@ function renderTr(){
       inner+=`<div class="row g tr"><span class="model">${hl(nameOf(i),T)}</span><span class="sub2">${teText(i.te).replace('class="te','class="s te '+(teOK(i.te)?'soon':'wait'))}<span class="s z">現貨 ${fmt(+i.qty||0)}</span></span><span class="qty"><b>${fmt(+i.tq)}</b><span class="status">在途</span></span></div>`;
     }
     // 預設收起；有搜尋、選了品牌或只有一個品牌時打開
-    const top=isOpen(key,!!(T.length||trB||tbs.length===1));anyOpT=anyOpT||top;
+    const top=isOpen(key,!!(T.length||trB));anyOpT=anyOpT||top;
     html+=`<details class="blk cat tb" data-ok="${esc(key)}"${top?' open':''}><summary>${logoHtml(b)}<b>${hl(b,T)}</b><small>${fmt(g.length)} 項 · ${fmt(sumQ(g))} 件</small></summary><div class="in">${inner}</div></details>`;
   }
   html=html.replace('<!--TFOLD-->',`<div class="lbar"><button type="button" data-fold>${anyOpT?'全部收起':'全部展開'}</button></div>`);
