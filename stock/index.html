@@ -264,7 +264,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.datas
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-15.5';
+const PAGE_VER='2026-11-15.6';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -358,7 +358,8 @@ function render(){
     const go=cq?'cons':lq?'loan':'';
     const more=cq||lq?`<span class="more">${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
     return `<div class="row g ${st}"${go?` data-k="${k}" data-rgo="${go}"`:''}><span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2">${sub.join('')}</span>`:''}<span class="qty"><b>${fmt(q)}</b><small>${esc(i.unit||'件')}</small></span>${more}</div>`};
-  const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||fType||statusF);
+  // 從品牌進來：類別預設全部收起，要看哪個再點開（只有一個類別就直接打開）；有搜尋或選類別時全部打開
+  const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||fType),oneCat=new Set(sorted.map(i=>bKey(i)+'|'+tKey(i))).size===1;
   let html=backHtml(),ci=0;
   const cnt=g=>`有貨 <em>${fmt(g.filter(inStock).length)}</em> / ${fmt(g.length)}`;
   if(brands.length===1){const g=sorted;html+=`<div class="bhd">${logoHtml(brands[0])}<div><b>${esc(brands[0])}</b><small>有貨 ${fmt(g.filter(inStock).length)} / ${fmt(g.length)} 項</small></div></div>`}
@@ -367,7 +368,7 @@ function render(){
     const gb=sorted.filter(i=>bKey(i)===b);
     if(brands.length>1)html+=`<div class="bhd sm">${logoHtml(b)}<div><b>${hl(b,T)}</b><small>有貨 ${fmt(gb.filter(inStock).length)} / ${fmt(gb.length)} 項</small></div></div>`;
     for(const t of [...new Set(gb.map(tKey))]){
-      const g=gb.filter(i=>tKey(i)===t),key='c:'+b+'|'+t,op=isOpen(key,openAll||ci===0);ci++;anyOp=anyOp||op;
+      const g=gb.filter(i=>tKey(i)===t),key='c:'+b+'|'+t,op=isOpen(key,openAll||oneCat);ci++;anyOp=anyOp||op;
       html+=`<details class="blk cat" data-ok="${esc(key)}"${op?' open':''}><summary><b>${hl(hasType(g[0])?t:'全部商品',T)}</b><span class="pct">${cnt(g)}</span></summary><div class="in">${g.map(row).join('')}</div></details>`;
     }
   }
