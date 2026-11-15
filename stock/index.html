@@ -176,6 +176,13 @@ details.blk[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
 .bhd.sm{margin-top:20px}.bhd.sm .lg{--h:38px;width:70px}.bhd.sm b{font-size:17px}
 .lbar{display:flex;justify-content:flex-end;margin-top:4px}
 .lbar button{border:0;background:none;color:var(--accent);font-weight:700;padding:4px 0;cursor:pointer}
+.tgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tc{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 8px;min-height:52px;text-align:left;border:0;border-radius:12px;background:var(--tile);padding:8px 10px 8px 12px;cursor:pointer;color:inherit}
+.tc b{font-size:15px;line-height:1.25;overflow-wrap:anywhere}
+.tc small{grid-column:1;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tc small em{font-style:normal;color:var(--accent);font-weight:700}
+.tc::after{content:'';grid-column:2;grid-row:1 / span 2;width:7px;height:7px;border-right:2px solid var(--muted);border-top:2px solid var(--muted);transform:rotate(45deg);margin-right:2px}
+.tc.z b{color:var(--muted)}.tc.z small em{color:var(--muted)}
 details.cat>summary{padding:12px 16px}details.cat>summary b{font-size:16px}
 details.tb>summary{padding:10px 16px}
 details.tb>summary .lg{--h:38px;width:70px;flex:0 0 auto}
@@ -257,7 +264,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.datas
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-15.4';
+const PAGE_VER='2026-11-15.5';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -389,8 +396,8 @@ function homeHtml(items){
   if(items.some(hasType)){
     const t={};items.forEach(i=>{const k=tKey(i),x=t[k]||(t[k]={n:0,h:0});x.n++;if(inStock(i))x.h++});
     const ts=Object.entries(t).sort((a,b)=>(b[1].h>0)-(a[1].h>0)||b[1].h-a[1].h||b[1].n-a[1].n||zh(a[0],b[0]));
-    h+=`<details class="blk" data-ok="h:type"${isOpen('h:type',false)?' open':''}><summary><b>依類別找</b><small>${fmt(ts.length)} 個類別</small></summary><div class="in"><div class="tchips">`+
-      ts.map(([k,x])=>`<button type="button" class="tchip" data-type="${esc(k)}">${esc(k)}<small>${fmt(x.h)}/${fmt(x.n)}</small></button>`).join('')+`</div></div></details>`;
+    h+=`<details class="blk" data-ok="h:type"${isOpen('h:type',false)?' open':''}><summary><b>依類別找</b><small>${fmt(ts.length)} 個類別</small></summary><div class="in"><div class="tgrid">`+
+      ts.map(([k,x])=>`<button type="button" class="tc${x.h?'':' z'}" data-type="${esc(k)}"><b>${esc(k)}</b><small>有貨 <em>${fmt(x.h)}</em> / ${fmt(x.n)}</small></button>`).join('')+`</div></div></details>`;
   }
   return h;
 }
