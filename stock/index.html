@@ -201,6 +201,18 @@ details.tb>summary .lg{--h:38px;width:70px;flex:0 0 auto}
 .sub2{grid-column:1;display:flex;flex-wrap:wrap;gap:3px 10px;font-size:12.5px}
 .s{font-weight:700}.s.soon{color:var(--soon)}.s.wait{color:var(--warn)}.s.low{color:var(--warn)}.s.z{color:var(--muted);font-weight:500}
 .row.g .more{margin-top:6px}
+/* 商品小圖（有圖才出現）＋點圖放大 */
+.row.g.im{grid-template-columns:52px minmax(0,1fr) auto}
+.row.g.im .model,.row.g.im .sub2{grid-column:2}
+.row.g.im .qty{grid-column:3}
+.pth{grid-column:1;grid-row:1 / span 2;width:52px;height:52px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--tile);overflow:hidden;cursor:zoom-in;align-self:center}
+.pth img{width:100%;height:100%;object-fit:cover;display:block}
+#pzBg{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px))}
+#pzBg img{max-width:100%;max-height:68vh;border-radius:12px;background:#fff;object-fit:contain}
+#pzBg .pzi{color:#fff;text-align:center;max-width:560px}
+#pzBg .pzi b{display:block;font-size:18px;overflow-wrap:anywhere}
+#pzBg .pzi small{color:#cfd8d5;font-size:14px}
+#pzX{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:24px;line-height:1;cursor:pointer}
 .backbtn{margin-top:10px}
 </style>
 </head>
@@ -269,7 +281,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-15.11';
+const PAGE_VER='2026-11-15.12';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -277,6 +289,8 @@ async function checkVersion(){
     if(m&&m[1]!==PAGE_VER){await fetch('./',{cache:'reload'}).catch(()=>{});location.reload()}
   }catch(e){}
 }
+const imOK=i=>typeof i.im==='string'&&/^img\/[A-Za-z0-9_-]+-[0-9a-z]+\.(webp|jpg)$/.test(i.im);
+const thumb=(i,k)=>imOK(i)?`<button type="button" class="pth" data-pz="${k}" aria-label="放大看 ${esc(nameOf(i))} 的照片"><img src="${esc(i.im)}" alt="" loading="lazy" onerror="const r=this.closest('.row');if(r)r.classList.remove('im');this.parentNode.remove()"></button>`:'';
 let data=null,statusF='',fBrand='',fType='',trB='',trT='',view='stock',fCust='',fItemK=-1,showAll=false,showAllTypes=false,fRep='';
 // 寄庫客戶的所屬業務；沒設定的歸在「未指定業務」
 const repOfC=c=>String((c&&c.rep)||'').trim()||'未指定業務';
@@ -362,7 +376,7 @@ function render(){
     if(t)sub.push(`<span class="s ${teOK(i.te)?'soon':'wait'}">🚚 在途 ${fmt(t)}${teOK(i.te)?'・'+teMD(i.te)+' 到':'・到貨日確認中'}</span>`);
     const go=cq?'cons':lq?'loan':'';
     const more=cq||lq?`<span class="more">${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
-    return `<div class="row g ${st}"${go?` data-k="${k}" data-rgo="${go}"`:''}><span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2">${sub.join('')}</span>`:''}<span class="qty"><b>${fmt(q)}</b><small>${esc(i.unit||'件')}</small></span>${more}</div>`};
+    return `<div class="row g ${st}${imOK(i)?' im':''}"${go?` data-k="${k}" data-rgo="${go}"`:''}>${thumb(i,k)}<span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2">${sub.join('')}</span>`:''}<span class="qty"><b>${fmt(q)}</b><small>${esc(i.unit||'件')}</small></span>${more}</div>`};
   // 從品牌進來：類別預設全部收起，要看哪個再點開（只有一個類別就直接打開）；有搜尋或選類別時全部打開
   const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||(fBrand&&fType)),oneCat=new Set(sorted.map(i=>bKey(i)+'|'+tKey(i))).size===1;
   let html=backHtml(),ci=0;
@@ -520,7 +534,7 @@ function renderTr(){
     const g=s.filter(x=>bKey(x)===b),key='t:'+b;let inner='',lt=null;
     for(const i of g){
       if(hasType(i)&&tKey(i)!==lt){lt=tKey(i);inner+=`<div class="tcat">${hl(lt,T)}</div>`}
-      inner+=`<div class="row g tr"><span class="model">${hl(nameOf(i),T)}</span><span class="sub2">${teText(i.te).replace('class="te','class="s te '+(teOK(i.te)?'soon':'wait'))}<span class="s z">現貨 ${fmt(+i.qty||0)}</span></span><span class="qty"><b>${fmt(+i.tq)}</b><span class="status">在途</span></span></div>`;
+      inner+=`<div class="row g tr${imOK(i)?' im':''}">${thumb(i,items.indexOf(i))}<span class="model">${hl(nameOf(i),T)}</span><span class="sub2">${teText(i.te).replace('class="te','class="s te '+(teOK(i.te)?'soon':'wait'))}<span class="s z">現貨 ${fmt(+i.qty||0)}</span></span><span class="qty"><b>${fmt(+i.tq)}</b><span class="status">在途</span></span></div>`;
     }
     // 預設收起；有搜尋、選了品牌或只有一個品牌時打開
     const top=isOpen(key,!!(T.length||trB));anyOpT=anyOpT||top;
@@ -597,6 +611,21 @@ refresh(true);
 setTimeout(checkVersion,3000);
 setInterval(()=>{if(!document.hidden)refresh()},120000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
+</script>
+<div id="pzBg" hidden role="dialog" aria-modal="true" aria-label="商品照片"><button type="button" id="pzX" aria-label="關閉">×</button><img id="pzImg" alt=""><div class="pzi" id="pzInfo"></div></div>
+<script>
+(function(){const bg=document.getElementById('pzBg');let pushed=false;
+  const close=()=>{if(bg.hidden)return;bg.hidden=true;document.getElementById('pzImg').removeAttribute('src');if(pushed){pushed=false;history.back()}};
+  document.addEventListener('click',e=>{const p=e.target.closest('[data-pz]');if(!p)return;e.preventDefault();e.stopPropagation();
+    const i=((data&&data.items)||[])[+p.dataset.pz];if(!i||!imOK(i))return;
+    document.getElementById('pzImg').src=i.im;
+    const q=+i.qty||0,t=+i.tq||0;
+    document.getElementById('pzInfo').innerHTML=`<b>${esc(nameOf(i))}</b><small>${esc(bKey(i))}${hasType(i)?' · '+esc(tKey(i)):''} · ${q>0?'現貨 '+fmt(q)+' '+esc(i.unit||'件'):'目前缺貨'}${t?' · 在途 '+fmt(t):''}</small>`;
+    bg.hidden=false;try{history.pushState({pz:1},'');pushed=true}catch(_){}},true);
+  bg.addEventListener('click',close);
+  addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+  addEventListener('popstate',()=>{if(!bg.hidden){pushed=false;close()}});
+})();
 </script>
 </body>
 </html>
