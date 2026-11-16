@@ -201,6 +201,7 @@ label{display:grid;gap:4px;font-size:14px;color:var(--muted)}
   <div class="chk" id="fChk" hidden></div>
   <label class="check"><input type="checkbox" id="fHl"> 黃底標示</label>
   <label class="check"><input type="checkbox" id="fRed"> 紅字粗體標示</label>
+  <label class="check"><input type="checkbox" id="fSpotOnly"> 清單大數字只算現貨（可預定寫在下面那行）</label>
   <p class="note">初始庫存可以直接修改；目前數量不能超過初始庫存，數量為 0 時會自動顯示黃底。</p>
   <div class="err" id="err" hidden></div>
   <div class="actions">
@@ -277,9 +278,9 @@ let lim2={},onlyMis=false,histCount=100,items=[],limits={},histItems=[],db=null,
 const num=v=>{const n=parseFloat(String(v??'').replace(/,/g,''));return isFinite(n)?n:0};
 const fmt=n=>n.toLocaleString('zh-TW');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const FIELDS=['cat','model','color','qty','qtyPre','qtySpot','loan','note','memo2','shipped','hl','red'];
-const LABEL={init:'初始庫存',initPre:'可預定初始',initSpot:'現貨初始',qtyPre:'可預定庫存',qtySpot:'現貨庫存',loan:'可預定借現貨',cat:'品類',model:'型號',color:'顏色',cbm:'材積',qty:'數量',note:'備註',memo2:'客戶寄庫',shipped:'已出貨',hl:'黃底',red:'紅字'};
-const pick=o=>o?Object.fromEntries(FIELDS.concat('order').map(k=>[k,o[k]??((k==='hl'||k==='red')?false:'')])):null;
+const FIELDS=['cat','model','color','qty','qtyPre','qtySpot','loan','note','memo2','shipped','hl','red','spotOnly'];
+const LABEL={init:'初始庫存',initPre:'可預定初始',initSpot:'現貨初始',qtyPre:'可預定庫存',qtySpot:'現貨庫存',loan:'可預定借現貨',cat:'品類',model:'型號',color:'顏色',cbm:'材積',qty:'數量',note:'備註',memo2:'客戶寄庫',shipped:'已出貨',hl:'黃底',red:'紅字',spotOnly:'大數字只算現貨'};
+const pick=o=>o?Object.fromEntries(FIELDS.concat('order').map(k=>[k,o[k]??((k==='hl'||k==='red'||k==='spotOnly')?false:'')])):null;
 const same=(a,b)=>JSON.stringify(pick(a))===JSON.stringify(pick(b));
 
 /* ---------- 可預定庫存／現貨庫存 ---------- */
@@ -352,12 +353,14 @@ function render(){
   if(!s.length){list.innerHTML='<div class="empty">找不到符合的品項。</div>';return}
   list.innerHTML=s.map((i,k)=>{
     const parts=[i.color].filter(Boolean);
+    // 大數字：一般是可預定＋現貨；勾了「大數字只算現貨」的品項只顯示現貨（避免別人以為有現貨可以出）
+    const big=i.spotOnly?Math.max(0,splitOf(i).spot):num(i.qty);
     // 每個品類的第一筆前面加上品類標題（品項數、目前庫存合計）
     let head='';
     if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><span class="grp-lbl">庫存</span></div>`}
-    return head+`<button class="row${(num(i.qty)===0||i.red)?' zero':''}${(i.hl||num(i.qty)===0)?' hl':''}" data-id="${i.id}">
+    return head+`<button class="row${(big===0||i.red)?' zero':''}${(i.hl||big===0)?' hl':''}" data-id="${i.id}">
       <span class="model">${esc(i.model)}</span>
-      <span class="qty"><b>${fmt(num(i.qty))}</b>${(sp=>`<small class="split">${splitTxt(sp)}</small>${oweOf(sp)?`<small class="owe">⚠ 現貨欠 ${fmt(oweOf(sp))}</small>`:''}${heldTxt(i,sp)?`<small class="held">📦 ${heldTxt(i,sp)}</small>`:''}`)(splitOf(i))}${loanOf(i)?`<small class="loanq">可預定借現貨 ${fmt(loanOf(i))}</small>`:''}${pubMode&&i.shippedQty?`<small class="shipq">已出貨 ${fmt(i.shippedQty)}</small>`:''}${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
+      <span class="qty"><b>${fmt(big)}</b>${i.spotOnly?'<small class="split">現貨庫存</small>':''}${(sp=>`<small class="split">${splitTxt(sp)}</small>${oweOf(sp)?`<small class="owe">⚠ 現貨欠 ${fmt(oweOf(sp))}</small>`:''}${heldTxt(i,sp)?`<small class="held">📦 ${heldTxt(i,sp)}</small>`:''}`)(splitOf(i))}${loanOf(i)?`<small class="loanq">可預定借現貨 ${fmt(loanOf(i))}</small>`:''}${pubMode&&i.shippedQty?`<small class="shipq">已出貨 ${fmt(i.shippedQty)}</small>`:''}${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
       <span class="meta">${esc([parts.join(' · '),i.note||''].filter(Boolean).join('\n'))}</span>
       ${i.memo2?`<span class="memo2"><b>客戶寄庫</b>\n${esc(i.memo2)}</span>`:''}
       ${i.shipped?`<span class="memo2 ship"><b>已出貨</b>\n${esc(i.shipped)}</span>`:''}
@@ -376,7 +379,7 @@ function openEdit(item){
   $('fInitP').value=L.pre;$('fInitS').value=L.spot;$('fQtyP').value=sp.pre;$('fQtyS').value=sp.spot;$('fLoan').value=loanOf(item);$('fRet').value='';
   restockApplied={P:0,S:0};$('fRestockP').checked=false;$('fRestockS').checked=false;
   // 只有擁有者能改初始庫存，其他人看得到但不能改
-  const own=isOwnerV;['fInitP','fInitS'].forEach(id=>$(id).readOnly=!own);document.querySelectorAll('[data-s="fInitP"],[data-s="fInitS"]').forEach(b=>b.disabled=!own);$('initHint').textContent=own?'':'（初始只有擁有者能改）';initChanged();$('fNote').value=item.note||'';$('fMemo2').value=item.memo2||'';$('fShip').value=item.shipped||'';$('fHl').checked=!!item.hl;$('fRed').checked=!!item.red;
+  const own=isOwnerV;['fInitP','fInitS'].forEach(id=>$(id).readOnly=!own);document.querySelectorAll('[data-s="fInitP"],[data-s="fInitS"]').forEach(b=>b.disabled=!own);$('initHint').textContent=own?'':'（初始只有擁有者能改）';initChanged();$('fNote').value=item.note||'';$('fMemo2').value=item.memo2||'';$('fShip').value=item.shipped||'';$('fHl').checked=!!item.hl;$('fRed').checked=!!item.red;$('fSpotOnly').checked=!!item.spotOnly;
   liveChk();
   $('fHistBox').open=false;renderItemHist();
   show('sheet');
@@ -643,7 +646,7 @@ $('sheet').onsubmit=async e=>{
   const before=pick(editing),id=editing.id;
   const after={cat:$('fCat').value.trim(),model:$('fModel').value.trim(),color:editing.color||'',
     qtyPre:intv('fQtyP'),qtySpot:spotv(),qty:qtyVal(),loan:intv('fLoan'),
-    note:$('fNote').value.trim(),memo2:$('fMemo2').value.trim(),shipped:$('fShip').value.trim(),hl:$('fHl').checked,red:$('fRed').checked,order:editing.order};
+    note:$('fNote').value.trim(),memo2:$('fMemo2').value.trim(),shipped:$('fShip').value.trim(),hl:$('fHl').checked,red:$('fRed').checked,spotOnly:$('fSpotOnly').checked,order:editing.order};
   const initB=initOf(id),initA=isOwnerV?initPair():initB;
   if(after.loan>after.qtyPre){$('err').textContent=`借用 ${fmt(after.loan)} 台不能超過可預定目前的 ${fmt(after.qtyPre)} 台。`;$('err').hidden=false;return}
   if(initA&&(after.qtyPre>initA.pre||after.qtySpot>initA.spot)){$('err').textContent=`${after.qtyPre>initA.pre?'可預定':'現貨'}的目前數量不能超過它的初始庫存。要增加數量，請先把初始調高。`;$('err').hidden=false;return}
@@ -658,7 +661,7 @@ $('sheet').onsubmit=async e=>{
       // 你沒動過的欄位自動換成最新值，你改過的欄位保留你的內容
       const F={cat:'fCat',model:'fModel',qtyPre:'fQtyP',qtySpot:'fQtyS',loan:'fLoan',note:'fNote',memo2:'fMemo2',shipped:'fShip'};
       Object.entries(F).forEach(([k,el])=>{if(String(after[k]??'')===String(before[k]??''))$(el).value=nb[k]??''});
-      if(after.hl===!!before.hl)$('fHl').checked=!!nb.hl;if(after.red===!!before.red)$('fRed').checked=!!nb.red;
+      if(after.hl===!!before.hl)$('fHl').checked=!!nb.hl;if(after.red===!!before.red)$('fRed').checked=!!nb.red;if(after.spotOnly===!!before.spotOnly)$('fSpotOnly').checked=!!nb.spotOnly;
       editing=n;liveChk();renderItemHist();
       $('err').innerHTML=`這個品項剛被其他人（或你在別的裝置）改過：${what}。<br>你輸入的內容還在，確認沒問題再按一次「儲存」。`;$('err').hidden=false;return}$('err').textContent=err.code==='invalid_argument'?'你沒有修改權限，請向擁有者要求「Contributor（可參與）」以上的權限。':'儲存失敗，請稍後再試一次。';$('err').hidden=false}
   finally{$('save').disabled=false}
@@ -844,7 +847,7 @@ function srcMatches(src){
 }
 function buildSnap(showNotes){
   return {at:new Date().toISOString(),showNotes,items:items.map(i=>{
-    const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,order:num(i.order)};
+    const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,spotOnly:!!i.spotOnly,order:num(i.order)};
     if(showNotes){o.note=i.note||'';o.memo2=i.memo2||'';o.shipped=i.shipped||''}
     return o})};
 }
@@ -913,7 +916,7 @@ async function startPublic(){
 // 交給「更新 Nux 公開頁」排程工作，由它寫進 GitHub 的 nux/data.json；約 1～2 分鐘後公開頁就會自動換上新資料。
 const PUB_TASK='trig_01Ljpv9wts2qHvNUPxr14g2C';
 function publicSnap(){
-  const list=items.map(i=>{const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,order:num(i.order)};
+  const list=items.map(i=>{const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,spotOnly:!!i.spotOnly,order:num(i.order)};
     if(limits[i.id]!=null)o.init=limits[i.id];
     {const sp=splitOf(i);o.qtyPre=sp.pre;o.qtySpot=sp.spot;if(loanOf(i))o.loan=loanOf(i)}
     if(i.note)o.note=i.note;if(i.memo2)o.memo2=i.memo2;if(i.shipped){const n=noteTotal(i.shipped);if(n)o.shippedQty=n}return o});
