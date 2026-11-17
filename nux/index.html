@@ -360,7 +360,7 @@ function render(){
     if(k===0||s[k-1].cat!==i.cat){const g=s.filter(x=>x.cat===i.cat);head=`<div class="grp"><span>${esc(i.cat||'未分類')}</span><span class="grp-lbl">庫存</span></div>`}
     return head+`<button class="row${(big===0||i.red)?' zero':''}${(i.hl||big===0)?' hl':''}" data-id="${i.id}">
       <span class="model">${esc(i.model)}</span>
-      <span class="qty"><b>${fmt(big)}</b>${i.spotOnly?'<small class="split">現貨庫存</small>':''}${(sp=>`<small class="split">${splitTxt(sp)}</small>${oweOf(sp)?`<small class="owe">⚠ 現貨欠 ${fmt(oweOf(sp))}</small>`:''}${heldTxt(i,sp)?`<small class="held">📦 ${heldTxt(i,sp)}</small>`:''}`)(splitOf(i))}${loanOf(i)?`<small class="loanq">可預定借現貨 ${fmt(loanOf(i))}</small>`:''}${pubMode&&i.shippedQty?`<small class="shipq">已出貨 ${fmt(i.shippedQty)}</small>`:''}${limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
+      <span class="qty"><b>${fmt(big)}</b>${i.spotOnly?'<small class="split">現貨庫存</small>':''}${(sp=>`<small class="split">${splitTxt(sp)}</small>${oweOf(sp)?`<small class="owe">⚠ 現貨欠 ${fmt(oweOf(sp))}</small>`:''}${heldTxt(i,sp)?`<small class="held">📦 ${heldTxt(i,sp)}</small>`:''}`)(splitOf(i))}${loanOf(i)?`<small class="loanq">可預定借現貨 ${fmt(loanOf(i))}</small>`:''}${/* 公開頁不顯示初始庫存與已出貨數量 */!pubMode&&limits[i.id]!=null?`<small>初始 ${fmt(limits[i.id])}</small>`:''}</span>
       <span class="meta">${esc([parts.join(' · '),i.note||''].filter(Boolean).join('\n'))}</span>
       ${i.memo2?`<span class="memo2"><b>客戶寄庫</b>\n${esc(i.memo2)}</span>`:''}
       ${i.shipped?`<span class="memo2 ship"><b>已出貨</b>\n${esc(i.shipped)}</span>`:''}
@@ -912,14 +912,13 @@ async function startPublic(){
 }
 
 /* ---------- 一鍵更新 GitHub 公開頁 ---------- */
-// 按下後：把目前庫存（含備註、客戶寄庫，已出貨只算台數不含客戶名稱）整理成快照，
+// 按下後：把目前庫存（含備註、客戶寄庫；不含初始庫存與已出貨）整理成快照，
 // 交給「更新 Nux 公開頁」排程工作，由它寫進 GitHub 的 nux/data.json；約 1～2 分鐘後公開頁就會自動換上新資料。
 const PUB_TASK='trig_01Ljpv9wts2qHvNUPxr14g2C';
 function publicSnap(){
   const list=items.map(i=>{const o={id:i.id,cat:i.cat||'',model:i.model||'',color:i.color||'',qty:num(i.qty),hl:!!i.hl,red:!!i.red,spotOnly:!!i.spotOnly,order:num(i.order)};
-    if(limits[i.id]!=null)o.init=limits[i.id];
     {const sp=splitOf(i);o.qtyPre=sp.pre;o.qtySpot=sp.spot;if(loanOf(i))o.loan=loanOf(i)}
-    if(i.note)o.note=i.note;if(i.memo2)o.memo2=i.memo2;if(i.shipped){const n=noteTotal(i.shipped);if(n)o.shippedQty=n}return o});
+    if(i.note)o.note=i.note;if(i.memo2)o.memo2=i.memo2;return o});/* 公開資料不帶初始庫存與已出貨 */
   return {at:new Date().toISOString(),showNotes:true,count:list.length,items:list};
 }
 let pubBusy=false;
