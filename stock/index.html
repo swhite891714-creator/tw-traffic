@@ -161,8 +161,8 @@ details.blk[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
 .bt{border:0;background:none;padding:4px 2px 6px;display:grid;justify-items:center;gap:6px;min-width:0;cursor:pointer;border-radius:14px;color:inherit}
 .bt.soon{cursor:default;opacity:.7}
 .lg{--h:56px;width:100%;height:var(--h);border-radius:12px;display:grid;place-items:center;background:var(--tile);overflow:hidden;position:relative}
-.lg img{max-width:80%;max-height:calc(var(--h) * .68);object-fit:contain;mix-blend-mode:darken}
-.lg.c img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:none;max-height:none;width:auto;height:calc(var(--h) * 1.5)}
+.lg img{max-width:calc(80% * var(--z,1));max-height:calc(var(--h) * .68 * var(--z,1));object-fit:contain;mix-blend-mode:darken}
+.lg.c img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:none;max-height:none;width:auto;height:calc(var(--h) * 1.5 * var(--z,1))}
 .lg.tx{color:#7b8a84;font-weight:900;font-size:15px}
 .bt b{font-size:13px;line-height:1.2;text-align:center;overflow-wrap:anywhere}
 .bt small{font-size:12px;color:var(--muted);margin-top:-4px;font-variant-numeric:tabular-nums}
@@ -268,10 +268,12 @@ function logoHtml(k){
   // 優先：管理面板存在系統裡的圖片（d）> 自訂網址（u）> 內建 Shopify 圖
   const own=o&&(/^data:image\/(png|webp|jpeg|gif);base64,/.test(o.d||'')?o.d:/^https:\/\//.test(o.u||'')?o.u:'');
   const u=own||(d?LOGO_CDN+d[0]+'?width=300':''),c=own?!!o.c:!!(d&&d[1]);
+  // z＝管理面板調的大小（百分比）
+  const z=o&&+o.z>=40&&+o.z<=250&&+o.z!==100?` style="--z:${+o.z/100}"`:'';
   const t=String(k).trim(),tx=esc(/^[A-Za-z]/.test(t)?t.slice(0,2).toUpperCase():t.slice(0,1));
   if(!u)return `<span class="lg tx">${tx}</span>`;
   // 網址的圖片讀不到（例如被刪掉）就改顯示品牌字母，不會出現破圖
-  return `<span class="lg${c?' c':''}" data-tx="${tx}"><img src="${esc(u)}" alt="${esc(k)}" loading="lazy" onerror="var p=this.parentNode;p.className='lg tx';p.textContent=p.dataset.tx"></span>`;
+  return `<span class="lg${c?' c':''}"${z} data-tx="${tx}"><img src="${esc(u)}" alt="${esc(k)}" loading="lazy" onerror="var p=this.parentNode;p.className='lg tx';p.textContent=p.dataset.tx"></span>`;
 }
 // 可收合區塊記住開關狀態（資料每 2 分鐘重新整理時不會跳回預設）
 const OPEN={};const isOpen=(k,def)=>k in OPEN?OPEN[k]:def;
@@ -281,7 +283,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-17.3';
+const PAGE_VER='2026-11-17.4';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
