@@ -281,7 +281,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-15.12';
+const PAGE_VER='2026-11-17.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -301,6 +301,11 @@ const hasType=i=>!!String(i.type||i.cat||'').trim();
 const groupOf=i=>bKey(i)+(hasType(i)?' · '+tKey(i):'');
 const nameOf=i=>[i.model,i.color].filter(Boolean).join(' · ');
 const zh=(a,b)=>{const u=x=>x==='未填品牌'||x==='未分類'?1:0;return (u(a)-u(b))||String(a).localeCompare(String(b),'zh-Hant')};
+// 後台設定的品牌／類別順序（data.bo／data.to）；沒設定就照原本的方式排
+let BO=[],TO=[];
+const ordIx=(arr,k)=>{const i=arr.indexOf(k);return i<0?1e9:i};
+const zb=(a,b)=>(BO.length?ordIx(BO,a)-ordIx(BO,b):0)||zh(a,b);
+const zt=(a,b)=>(TO.length?ordIx(TO,a)-ordIx(TO,b):0)||zh(a,b);
 const inStock=i=>(+i.qty||0)>0;
 
 /* ---------- 搜尋 ----------
@@ -338,7 +343,7 @@ function fillSel(id,all,list,cur){
   sel.innerHTML=`<option value="">${all}</option>`+list.map(([k,n])=>`<option value="${esc(k)}">${esc(k)}（${fmt(n)}）</option>`).join('');
   sel.value=cur;sel.classList.toggle('on',!!cur);
 }
-function countBy(arr,key){const m={};arr.forEach(i=>{const k=key(i);m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>zh(a[0],b[0]))}
+function countBy(arr,key){const m={},c=key===bKey?zb:key===tKey?zt:zh;arr.forEach(i=>{const k=key(i);m[k]=(m[k]||0)+1});return Object.entries(m).sort((a,b)=>c(a[0],b[0]))}
 
 function render(){
   const items=(data&&data.items)||[],T=toks(),bt=(i,b,t)=>(!b||bKey(i)===b)&&(!t||tKey(i)===t);
@@ -369,7 +374,7 @@ function render(){
   document.body.classList.toggle('bp',(!!fBrand!==!!fType)&&!T.length);
   if(!on&&!showAll){list.innerHTML=homeHtml(items);return}
   if(!s.length){list.innerHTML=backHtml()+emptyHtml(T,text.length);return}
-  const sorted=[...s].sort((a,b)=>zh(bKey(a),bKey(b))||zh(tKey(a),tKey(b))||(inStock(b)-inStock(a))||(items.indexOf(a)-items.indexOf(b)));
+  const sorted=[...s].sort((a,b)=>zb(bKey(a),bKey(b))||zt(tKey(a),tKey(b))||(inStock(b)-inStock(a))||(items.indexOf(a)-items.indexOf(b)));
   // 依品牌分段；每個類別是一個可收合的區塊（只看一個品牌時，第一個類別預設打開；有搜尋或篩選時全部打開）
   const row=i=>{const k=items.indexOf(i),cq=+i.cq||0,lq=+i.lq||0,q=+i.qty||0,t=+i.tq||0,st=i.st==='low'?'low':q>0?'ok':'zero',sub=[];
     if(q<=0)sub.push('<span class="s z">缺貨</span>');else if(i.st==='low')sub.push('<span class="s low">剩不多</span>');
@@ -406,7 +411,7 @@ function render(){
    每個品牌一張卡片，大字是有貨項數；有貨的品牌排前面。類別用會換行的按鈕列出（不用左右滑）。 */
 function homeHtml(items){
   const m={};items.forEach(i=>{const k=bKey(i),x=m[k]||(m[k]={n:0,h:0});x.n++;if(inStock(i))x.h++});
-  const bs=Object.entries(m).sort((a,b)=>(b[1].h>0)-(a[1].h>0)||zh(a[0],b[0]));
+  const bs=Object.entries(m).sort((a,b)=>BO.length?zb(a[0],b[0]):(b[1].h>0)-(a[1].h>0)||zh(a[0],b[0]));
   let h='';
   // 即將到貨：預設收起，只看到總數；點開看最快到的 4 項
   const tr=trItems();
@@ -423,7 +428,7 @@ function homeHtml(items){
     eb.map(b=>`<div class="bt soon">${logoHtml(b)}<b>${esc(b)}</b><small>商品整理中</small></div>`).join('')+`</div></div></details>`;
   if(items.some(hasType)){
     const t={};items.forEach(i=>{const k=tKey(i),x=t[k]||(t[k]={n:0,h:0});x.n++;if(inStock(i))x.h++});
-    const ts=Object.entries(t).sort((a,b)=>(b[1].h>0)-(a[1].h>0)||b[1].h-a[1].h||b[1].n-a[1].n||zh(a[0],b[0]));
+    const ts=Object.entries(t).sort((a,b)=>TO.length?zt(a[0],b[0]):(b[1].h>0)-(a[1].h>0)||b[1].h-a[1].h||b[1].n-a[1].n||zh(a[0],b[0]));
     h+=`<details class="blk" data-ok="h:type"${isOpen('h:type',false)?' open':''}><summary><b>依類別找</b><small>${fmt(ts.length)} 個類別</small></summary><div class="in"><div class="tgrid">`+
       ts.map(([k,x])=>`<button type="button" class="tc${x.h?'':' z'}" data-type="${esc(k)}"><b>${esc(k)}</b><small>有貨 <em>${fmt(x.h)}</em> / ${fmt(x.n)}</small></button>`).join('')+`</div></div></details>`;
   }
@@ -524,7 +529,7 @@ function renderTr(){
   const anyT=all.some(hasType);$('selTrT').hidden=!anyT;$('trfsel').classList.toggle('one',!anyT);
   if(anyT)fillSel('selTrT','全部類別',addCur(countBy(all.filter(i=>bt(i,trB,'')),tKey),trT),trT);
   const tk=i=>/^\d{4}-\d\d-\d\d$/.test(i.te||'')?i.te:'9999';
-  const s=all.filter(i=>bt(i,trB,trT)).sort((a,b)=>zh(bKey(a),bKey(b))||zh(tKey(a),tKey(b))||(tk(a)<tk(b)?-1:tk(a)>tk(b)?1:0)||(items.indexOf(a)-items.indexOf(b)));
+  const s=all.filter(i=>bt(i,trB,trT)).sort((a,b)=>zb(bKey(a),bKey(b))||zt(tKey(a),tKey(b))||(tk(a)<tk(b)?-1:tk(a)>tk(b)?1:0)||(items.indexOf(a)-items.indexOf(b)));
   const box=$('trList');
   if(!s.length){box.innerHTML=`<div class="empty">${trItems().length?'沒有符合條件的即將到貨商品':'目前沒有即將到貨的商品'}</div>`;return}
   const sumQ=arr=>arr.reduce((a,i)=>a+(+i.tq||0),0);
@@ -604,7 +609,7 @@ $('chipStatus').addEventListener('click',()=>setTimeout(revealCtl,0));
 async function refresh(first){
   if(!first)checkVersion();
   const j=await load();
-  if(j){data=j;$('status').textContent=j.at?`更新於 ${fmtAt(j.at)}`:'尚未發布';render();renderCons()}
+  if(j){data=j;BO=Array.isArray(j.bo)?j.bo.map(String):[];TO=Array.isArray(j.to)?j.to.map(String):[];$('status').textContent=j.at?`更新於 ${fmtAt(j.at)}`:'尚未發布';render();renderCons()}
   else if(first){$('status').textContent='讀取失敗';render()}
 }
 refresh(true);
