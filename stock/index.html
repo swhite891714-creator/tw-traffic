@@ -281,7 +281,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-17.1';
+const PAGE_VER='2026-11-17.2';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -289,8 +289,10 @@ async function checkVersion(){
     if(m&&m[1]!==PAGE_VER){await fetch('./',{cache:'reload'}).catch(()=>{});location.reload()}
   }catch(e){}
 }
-const imOK=i=>typeof i.im==='string'&&/^img\/[A-Za-z0-9_-]+-[0-9a-z]+\.(webp|jpg)$/.test(i.im);
-const thumb=(i,k)=>imOK(i)?`<button type="button" class="pth" data-pz="${k}" aria-label="放大看 ${esc(nameOf(i))} 的照片"><img src="${esc(i.im)}" alt="" loading="lazy" onerror="const r=this.closest('.row');if(r)r.classList.remove('im');this.parentNode.remove()"></button>`:'';
+// 商品照片：新格式「商品id.版本」→ img/商品id.webp?v=版本；也相容舊的完整路徑
+const imSrc=i=>{if(typeof i.im!=='string')return '';const m=i.im.match(/^([A-Za-z0-9_-]+)\.([0-9a-z]+)$/);if(m)return `img/${m[1]}.webp?v=${m[2]}`;return /^img\/[A-Za-z0-9_-]+-[0-9a-z]+\.(webp|jpg)$/.test(i.im)?i.im:''};
+const imOK=i=>!!imSrc(i);
+const thumb=(i,k)=>imOK(i)?`<button type="button" class="pth" data-pz="${k}" aria-label="放大看 ${esc(nameOf(i))} 的照片"><img src="${esc(imSrc(i))}" alt="" loading="lazy" onerror="const r=this.closest('.row');if(r)r.classList.remove('im');this.parentNode.remove()"></button>`:'';
 let data=null,statusF='',fBrand='',fType='',trB='',trT='',view='stock',fCust='',fItemK=-1,showAll=false,showAllTypes=false,fRep='';
 // 寄庫客戶的所屬業務；沒設定的歸在「未指定業務」
 const repOfC=c=>String((c&&c.rep)||'').trim()||'未指定業務';
@@ -623,7 +625,7 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()}
   const close=()=>{if(bg.hidden)return;bg.hidden=true;document.getElementById('pzImg').removeAttribute('src');if(pushed){pushed=false;history.back()}};
   document.addEventListener('click',e=>{const p=e.target.closest('[data-pz]');if(!p)return;e.preventDefault();e.stopPropagation();
     const i=((data&&data.items)||[])[+p.dataset.pz];if(!i||!imOK(i))return;
-    document.getElementById('pzImg').src=i.im;
+    document.getElementById('pzImg').src=imSrc(i);
     const q=+i.qty||0,t=+i.tq||0;
     document.getElementById('pzInfo').innerHTML=`<b>${esc(nameOf(i))}</b><small>${esc(bKey(i))}${hasType(i)?' · '+esc(tKey(i)):''} · ${q>0?'現貨 '+fmt(q)+' '+esc(i.unit||'件'):'目前缺貨'}${t?' · 在途 '+fmt(t):''}</small>`;
     bg.hidden=false;try{history.pushState({pz:1},'');pushed=true}catch(_){}},true);
