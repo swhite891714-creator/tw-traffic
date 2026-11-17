@@ -281,7 +281,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-17.2';
+const PAGE_VER='2026-11-17.3';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -324,10 +324,26 @@ function hl(text,T){
   return s.split(re).map((p,k)=>k%2?`<mark>${esc(p)}</mark>`:esc(p)).join('');
 }
 
-async function load(){
+async function loadRaw(){
   try{const r=await fetch(GH+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}});if(r.ok){const j=await r.json();if(j&&Array.isArray(j.items))return j}}catch(e){}
   try{const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});if(r.ok)return await r.json()}catch(e){}
   return null;
+}
+// 品牌 Logo 另外放在 lg.json（資料比較小、更新比較快）；舊格式的 data.lg 也照樣能用
+const GHLG='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/lg.json?ref=main';
+let lgCache=null;
+async function loadLg(){
+  try{const r=await fetch(GHLG+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}});if(r.ok){const j=await r.json();if(j&&typeof j==='object')return j}}catch(e){}
+  try{const r=await fetch('lg.json?t='+Date.now(),{cache:'no-store'});if(r.ok){const j=await r.json();if(j&&typeof j==='object')return j}}catch(e){}
+  return null;
+}
+async function load(){
+  const [j,lg]=await Promise.all([loadRaw(),(async()=>lgCache||(lgCache=await loadLg()))()]);
+  if(!j)return null;
+  // 新格式：品牌、類別用編號（bl／tl 清單），在這裡換回名稱
+  if(Array.isArray(j.bl))for(const i of j.items){i.brand=j.bl[i.b]!=null?String(j.bl[i.b]):'';if(Array.isArray(j.tl)&&i.t!=null&&j.tl[i.t]!=null)i.type=String(j.tl[i.t])}
+  if(!j.lg&&lg)j.lg=lg;
+  return j;
 }
 // 更新時間：台北時間，並標示多久以前
 function fmtAt(s){
@@ -609,7 +625,7 @@ function revealCtl(){
 $('chipStatus').addEventListener('click',()=>setTimeout(revealCtl,0));
 
 async function refresh(first){
-  if(!first)checkVersion();
+  if(!first){checkVersion();lgCache=null}
   const j=await load();
   if(j){data=j;BO=Array.isArray(j.bo)?j.bo.map(String):[];TO=Array.isArray(j.to)?j.to.map(String):[];$('status').textContent=j.at?`更新於 ${fmtAt(j.at)}`:'尚未發布';render();renderCons()}
   else if(first){$('status').textContent='讀取失敗';render()}
