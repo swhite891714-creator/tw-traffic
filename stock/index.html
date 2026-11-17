@@ -133,6 +133,10 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
 .onlyitem button{flex:0 0 auto;border:0;background:none;color:inherit;font-weight:700;cursor:pointer;text-decoration:underline}
 #consList .row.hl{background:var(--warn-bg);box-shadow:inset 4px 0 0 var(--warn);padding-left:10px}
 .empty{padding:40px 8px;text-align:center;color:var(--muted);display:grid;gap:10px;justify-items:center}
+.cpick{margin:14px 0;padding:22px 18px;border-radius:14px;background:var(--surface,#fff);border:1px dashed var(--line,#d9e1de);display:grid;gap:10px;justify-items:center;text-align:center}
+.cpick b{font-size:18px}.cpick span{color:var(--muted);font-size:15px;line-height:1.6;max-width:30em}
+.cpick .cpall{margin-top:6px;padding:9px 16px;border-radius:10px;border:1px solid var(--line,#d9e1de);background:transparent;color:inherit;font:inherit;font-size:15px;cursor:pointer}
+#selCust.need{border-color:var(--warn);box-shadow:0 0 0 3px var(--warn-bg)}
 .empty b{color:var(--fg);font-size:18px;overflow-wrap:anywhere}
 .foot{margin:24px 0 0;font-size:13px;color:var(--muted);text-align:center}
 
@@ -179,6 +183,7 @@ details.blk[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
 .bhd.sm{margin-top:20px}.bhd.sm .lg{--h:38px;width:70px}.bhd.sm b{font-size:17px}
 .lbar{display:flex;justify-content:flex-end;margin-top:4px}
 .lbar button{border:0;background:none;color:var(--accent);font-weight:700;padding:4px 0;cursor:pointer}
+#consList .lbar{justify-content:space-between}
 .tgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .tc{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:2px 8px;min-height:52px;text-align:left;border:0;border-radius:12px;background:var(--tile);padding:8px 10px 8px 12px;cursor:pointer;color:inherit}
 .tc b{font-size:15px;line-height:1.25;overflow-wrap:anywhere}
@@ -283,7 +288,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-17.4';
+const PAGE_VER='2026-11-17.5';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -295,7 +300,7 @@ async function checkVersion(){
 const imSrc=i=>{if(typeof i.im!=='string')return '';const m=i.im.match(/^([A-Za-z0-9_-]+)\.([0-9a-z]+)$/);if(m)return `img/${m[1]}.webp?v=${m[2]}`;return /^img\/[A-Za-z0-9_-]+-[0-9a-z]+\.(webp|jpg)$/.test(i.im)?i.im:''};
 const imOK=i=>!!imSrc(i);
 const thumb=(i,k)=>imOK(i)?`<button type="button" class="pth" data-pz="${k}" aria-label="放大看 ${esc(nameOf(i))} 的照片"><img src="${esc(imSrc(i))}" alt="" loading="lazy" onerror="const r=this.closest('.row');if(r)r.classList.remove('im');this.parentNode.remove()"></button>`:'';
-let data=null,statusF='',fBrand='',fType='',trB='',trT='',view='stock',fCust='',fItemK=-1,showAll=false,showAllTypes=false,fRep='';
+let data=null,statusF='',fBrand='',fType='',trB='',trT='',view='stock',fCust='',fItemK=-1,cAll=false,showAll=false,showAllTypes=false,fRep='';
 // 寄庫客戶的所屬業務；沒設定的歸在「未指定業務」
 const repOfC=c=>String((c&&c.rep)||'').trim()||'未指定業務';
 const TYPE_SHOW=8;
@@ -512,6 +517,11 @@ function renderCons(){
   if(fItemK>=0&&!(fi&&cs.some(has)))fItemK=-1;
   $('onlyItem').hidden=fItemK<0;
   if(fItemK>=0)$('onlyItemText').textContent=`${nameOf(fi)}：`+cs.filter(has).map(c=>`${c.name} ${B.name} ${fmt(c.items.filter(x=>x.k===fItemK).reduce((a,x)=>a+(+x.q||0),0))} 件`).join('、');
+  // 客戶多的時候不先列出所有客戶：要先選客戶（或業務）、搜尋，或按「列出全部客戶」才顯示清單
+  const pick=csR.length>1&&!fCust&&!fRep&&!T.length&&fItemK<0&&!cAll;
+  sel.classList.toggle('need',pick);
+  if(pick){const totQ=csR.reduce((a,c)=>a+tot(c),0);
+    box.innerHTML=`<div class="cpick"><b>請先選擇要看的客戶</b><span>目前共 ${csR.length} 位客戶有${B.name}（${fmt(totQ)} 件）。從上面的「客戶」選單選一位${useRep?'，或先選業務':''}；也可以在搜尋框輸入客戶名稱或商品型號。</span><button type="button" class="cpall" data-call>列出全部客戶</button></div>`;return}
   let html='',n=0,anyC=false;
   const order=fItemK>=0?[...csR].sort((a,b)=>has(b)-has(a)):csR;
   const blocks={};
@@ -528,7 +538,7 @@ function renderCons(){
   for(const r of (useRep?reps:[''])){const b=blocks[r];if(!b)continue;
     if(useRep)html+=`<div class="rhdr${r==='未指定業務'?' none':''}"><b>${hl(r,T)}</b><small>${b.c} 位客戶 · ${B.name} ${fmt(b.q)} 件</small></div>`;
     html+=b.h;}
-  if(n)html=`<div class="lbar"><button type="button" data-fold>${anyC?'全部收起':'全部展開'}</button></div>`+html;
+  if(n)html=`<div class="lbar">${cAll&&!fCust&&!fRep&&!T.length&&fItemK<0&&csR.length>1?'<button type="button" data-cnone>收起客戶清單</button>':'<span></span>'}<button type="button" data-fold>${anyC?'全部收起':'全部展開'}</button></div>`+html;
   box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':B.empty}</div>`;
 }
 /* ---------- 即將到貨（在途） ----------
@@ -569,7 +579,7 @@ function renderTr(){
   box.innerHTML=html;
 }
 function setView(v){
-  if(view!==v){fCust='';fRep=''}
+  if(view!==v){fCust='';fRep='';cAll=false}
   view=v;
   document.querySelectorAll('#tabs .tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.v===v?'true':'false'));
   $('stockCtl').hidden=$('list').hidden=v!=='stock';
@@ -583,6 +593,7 @@ function goView(v){fItemK=-1;setView(v);renderCons();window.scrollTo(0,0)}
 ['consList','trList'].forEach(id=>$(id).addEventListener('click',e=>{const fo=e.target.closest('[data-fold]');if(!fo)return;const ds=[...$(id).querySelectorAll('details.cat')],any=ds.some(d=>d.open);ds.forEach(d=>{d.open=!any;OPEN[d.dataset.ok]=!any});fo.textContent=any?'全部展開':'全部收起'}));
 $('tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)goView(b.dataset.v)};
 $('selCust').onchange=()=>{fCust=$('selCust').value;renderCons()};
+$('consList').addEventListener('click',e=>{if(e.target.closest('[data-call]')){cAll=true;renderCons()}else if(e.target.closest('[data-cnone]')){cAll=false;renderCons();window.scrollTo(0,0)}});
 $('selTrB').onchange=()=>{trB=$('selTrB').value;if(trT&&!trItems().some(i=>(!trB||bKey(i)===trB)&&tKey(i)===trT))trT='';renderTr()};
 $('selTrT').onchange=()=>{trT=$('selTrT').value;if(trB&&!trItems().some(i=>(!trT||tKey(i)===trT)&&bKey(i)===trB))trB='';renderTr()};
 $('selRep').onchange=()=>{fRep=$('selRep').value;fCust='';renderCons()};
