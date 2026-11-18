@@ -233,7 +233,7 @@ details.tb>summary .lg{--h:38px;width:70px;flex:0 0 auto}
       <button type="button" class="tab" role="tab" data-v="stock" aria-selected="true">庫存<small id="tabStockN"></small></button>
       <button type="button" class="tab" role="tab" data-v="tr" aria-selected="false">即將到貨<small id="tabTrN"></small></button>
       <button type="button" class="tab" role="tab" data-v="cons" aria-selected="false">客戶寄庫<small id="tabConsN"></small></button>
-      <button type="button" class="tab" role="tab" data-v="loan" aria-selected="false">客戶借出<small id="tabLoanN"></small></button>
+      <button type="button" class="tab" role="tab" data-v="loan" aria-selected="false"><span id="tabLoanLb">客戶借出</span><small id="tabLoanN"></small></button>
     </div>
   </div>
   <div class="ctl" id="stockCtl">
@@ -254,7 +254,7 @@ details.tb>summary .lg{--h:38px;width:70px;flex:0 0 auto}
     <div class="fsel" id="trfsel"><select id="selTrB" aria-label="品牌"><option value="">全部品牌</option></select><select id="selTrT" aria-label="類別"><option value="">全部類別</option></select></div>
   </div>
   <div class="list" id="trList" hidden></div>
-  <p class="foot">這是唯讀頁面，只能查看庫存、即將到貨、客戶寄庫與客戶借出數量。數字由管理者更新。</p>
+  <p class="foot">這是唯讀頁面，只能查看庫存、即將到貨、客戶寄庫與借出數量。數字由管理者更新。</p>
 </div>
 <script>
 /* ========== 唯讀公開頁 ==========
@@ -288,7 +288,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-17.5';
+const PAGE_VER='2026-11-18.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -474,7 +474,7 @@ function emptyHtml(T,textN){
 /* ---------- 客戶寄庫／客戶借出 ----------
    資料的 cons（寄庫）和 loans（借出）格式相同：每位客戶的商品（k＝商品在 items 裡的位置，q＝件數）。
    搜尋框三個分頁共用，切換時換資料來源。樣品不在公開資料裡。 */
-const BOOK={cons:{key:'cons',name:'寄庫',empty:'目前沒有客戶寄庫'},loan:{key:'loans',name:'借出',empty:'目前沒有客戶借出'}};
+const BOOK={cons:{key:'cons',name:'寄庫',empty:'目前沒有客戶寄庫'},loan:{key:'loans',name:'借出',empty:'目前沒有借出'}};
 const bookOf=v=>((data&&data[BOOK[v].key])||[]).filter(c=>c&&c.name&&Array.isArray(c.items));
 function bookRows(c,T){
   const items=(data&&data.items)||[];
@@ -489,6 +489,7 @@ function renderTabs(T,stockN){
   $('tabTrN').textContent=tt?`${fmt(T.length?trItems().filter(i=>itemHit(i,T)).length:tt)} 項`:'';
   document.querySelector('#tabs [data-v="cons"]').hidden=!cc.length;
   document.querySelector('#tabs [data-v="loan"]').hidden=!ll.length;
+  $('tabLoanLb').textContent=ll.some(c=>c.b)?'借出':'客戶借出';
   $('tabStockN').textContent=T.length?fmt(stockN):'';
   const n=(v,arr)=>arr.length?`${fmt(T.length?bookHits(v,T):arr.length)} 位`:'';
   $('tabConsN').textContent=n('cons',cc);$('tabLoanN').textContent=n('loan',ll);
@@ -500,16 +501,20 @@ function renderCons(){
   const items=(data&&data.items)||[],B=BOOK[view],cs=bookOf(view),T=toks();
   const tot=c=>c.items.reduce((n,x)=>n+(+x.q||0),0);
   // 寄庫分頁有業務資料時：上方多一個業務選單，清單依業務分區
-  const useRep=view==='cons'&&cs.some(c=>String(c.rep||'').trim());
-  const rcnt={};cs.forEach(c=>{const r=repOfC(c);rcnt[r]=(rcnt[r]||0)+1});
-  const reps=Object.keys(rcnt).sort((a,b)=>(a==='未指定業務')-(b==='未指定業務')||zh(a,b));
+  // 借出分頁有業務借出時：分成「業務借出」「客戶借出」兩區，上方選單改成選類型
+  const isL=view==='loan',lb=isL&&cs.some(c=>c.b);
+  const gOf=c=>isL?(c.b?'業務借出':'客戶借出'):repOfC(c);
+  const useRep=lb||(view==='cons'&&cs.some(c=>String(c.rep||'').trim()));
+  const rcnt={};cs.forEach(c=>{const r=gOf(c);rcnt[r]=(rcnt[r]||0)+1});
+  const reps=Object.keys(rcnt).sort((a,b)=>isL?(a==='客戶借出')-(b==='客戶借出'):(a==='未指定業務')-(b==='未指定業務')||zh(a,b));
   if(!useRep||!reps.includes(fRep))fRep='';
   $('selRep').hidden=!useRep;$('cfsel').classList.toggle('one',!useRep);
-  $('selRep').innerHTML='<option value="">全部業務</option>'+reps.map(r=>`<option value="${esc(r)}">${esc(r)}（${rcnt[r]} 位）</option>`).join('');
+  $('selRep').innerHTML=`<option value="">${isL?'業務＋客戶':'全部業務'}</option>`+reps.map(r=>`<option value="${esc(r)}">${esc(r)}（${rcnt[r]} 位）</option>`).join('');$('selRep').setAttribute('aria-label',isL?'借出類型':'業務');
   $('selRep').value=fRep;$('selRep').classList.toggle('on',!!fRep);
-  const csR=fRep?cs.filter(c=>repOfC(c)===fRep):cs;
+  const csR=fRep?cs.filter(c=>gOf(c)===fRep):cs;
   const sel=$('selCust');
-  sel.innerHTML=`<option value="">全部客戶（${csR.length} 位）</option>`+csR.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}（${fmt(tot(c))} 件）</option>`).join('');
+  const who=isL&&fRep==='業務借出'?'業務':isL&&lb&&!fRep?'對象':'客戶';
+  sel.innerHTML=`<option value="">全部${who}（${csR.length} 位）</option>`+csR.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}${c.b?'（業務）':''}・${fmt(tot(c))} 件</option>`).join('');
   if(!csR.some(c=>c.name===fCust))fCust='';
   sel.value=fCust;sel.classList.toggle('on',!!fCust);
   const box=$('consList'),fi=fItemK>=0?items[fItemK]:null;
@@ -521,7 +526,7 @@ function renderCons(){
   const pick=csR.length>1&&!fCust&&!fRep&&!T.length&&fItemK<0&&!cAll;
   sel.classList.toggle('need',pick);
   if(pick){const totQ=csR.reduce((a,c)=>a+tot(c),0);
-    box.innerHTML=`<div class="cpick"><b>請先選擇要看的客戶</b><span>目前共 ${csR.length} 位客戶有${B.name}（${fmt(totQ)} 件）。從上面的「客戶」選單選一位${useRep?'，或先選業務':''}；也可以在搜尋框輸入客戶名稱或商品型號。</span><button type="button" class="cpall" data-call>列出全部客戶</button></div>`;return}
+    box.innerHTML=`<div class="cpick"><b>請先選擇要看的${isL&&lb?'業務或客戶':'客戶'}</b><span>目前共 ${csR.length} 位${isL&&lb?'業務和客戶':'客戶'}有${B.name}（${fmt(totQ)} 件）。從上面的選單選一位${useRep?(isL?'，或先選「業務借出」／「客戶借出」':'，或先選業務'):''}；也可以在搜尋框輸入客戶名稱或商品型號。</span><button type="button" class="cpall" data-call>${isL&&lb?'列出全部':'列出全部客戶'}</button></div>`;return}
   let html='',n=0,anyC=false;
   const order=fItemK>=0?[...csR].sort((a,b)=>has(b)-has(a)):csR;
   const blocks={};
@@ -533,10 +538,10 @@ function renderCons(){
     const ck='k:'+view+'|'+c.name,force=fItemK>=0&&has(c),cop=force||isOpen(ck,!!(T.length||fCust));anyC=anyC||cop;
     let h=`<details class="blk cat" data-ok="${esc(ck)}"${cop?' open':''}><summary><b>${hl(c.name,T)}</b><span class="pct">${rows.length} 項 · ${B.name} <em>${fmt(q)}</em> 件</span></summary><div class="in">`;
     h+=rows.map(x=>`<div class="row g${x.k===fItemK?' hl':''}"><span class="model">${hl(nameOf(x.it),T)}<span class="sub">${esc(groupOf(x.it))}</span></span><span class="qty"><b>${fmt(x.q)}</b><span class="status">${esc(x.it.unit||'件')}</span></span></div>`).join('')+'</div></details>';
-    const r=useRep?repOfC(c):'',b=blocks[r]||(blocks[r]={h:'',c:0,q:0});b.h+=h;b.c++;b.q+=q;
+    const r=useRep?gOf(c):'',b=blocks[r]||(blocks[r]={h:'',c:0,q:0});b.h+=h;b.c++;b.q+=q;
   }
   for(const r of (useRep?reps:[''])){const b=blocks[r];if(!b)continue;
-    if(useRep)html+=`<div class="rhdr${r==='未指定業務'?' none':''}"><b>${hl(r,T)}</b><small>${b.c} 位客戶 · ${B.name} ${fmt(b.q)} 件</small></div>`;
+    if(useRep)html+=`<div class="rhdr${r==='未指定業務'?' none':''}"><b>${hl(r,T)}</b><small>${b.c} 位${isL&&r==='業務借出'?'業務':'客戶'} · ${B.name} ${fmt(b.q)} 件</small></div>`;
     html+=b.h;}
   if(n)html=`<div class="lbar">${cAll&&!fCust&&!fRep&&!T.length&&fItemK<0&&csR.length>1?'<button type="button" data-cnone>收起客戶清單</button>':'<span></span>'}<button type="button" data-fold>${anyC?'全部收起':'全部展開'}</button></div>`+html;
   box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':B.empty}</div>`;
