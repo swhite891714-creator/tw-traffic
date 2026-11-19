@@ -316,7 +316,8 @@ const LOGO={'FGN':['Fujigen_logo.webp'],'Providence':['Providence_new_logo_wh.pn
 function logoHtml(k){
   const o=data&&data.lg&&data.lg[k],d=LOGO[k]||LOGO[Object.keys(LOGO).find(x=>x.toLowerCase()===String(k).toLowerCase())];
   // 優先：管理面板存在系統裡的圖片（d）> 自訂網址（u）> 內建 Shopify 圖
-  const own=o&&(/^data:image\/(png|webp|jpeg|gif);base64,/.test(o.d||'')?o.d:/^https:\/\//.test(o.u||'')?o.u:'');
+  // 管理面板上傳的 Logo：新版是 GitHub 上的圖檔（f＝img/lg_指紋.webp），舊版是整張圖（d）
+  const own=o&&(/^data:image\/(png|webp|jpeg|gif);base64,/.test(o.d||'')?o.d:/^img\/lg_[0-9a-f]+-[0-9a-z]+\.webp$/.test(o.f||'')?o.f:/^https:\/\//.test(o.u||'')?o.u:'');
   const u=own||(d?LOGO_CDN+d[0]+'?width=300':''),c=own?!!o.c:!!(d&&d[1]);
   // z＝管理面板調的大小（百分比）
   const z=o&&+o.z>=40&&+o.z<=250&&+o.z!==100?` style="--z:${+o.z/100}"`:'';
@@ -333,7 +334,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.6';
+const PAGE_VER='2026-11-19.7';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
