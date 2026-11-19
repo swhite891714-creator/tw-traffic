@@ -277,7 +277,7 @@ html.win{--sans:"Microsoft JhengHei UI","Microsoft JhengHei","Noto Sans TC",syst
       <button type="button" class="tab" role="tab" data-v="stock" aria-selected="true">庫存<small id="tabStockN"></small></button>
       <button type="button" class="tab" role="tab" data-v="tr" aria-selected="false">即將到貨<small id="tabTrN"></small></button>
       <button type="button" class="tab" role="tab" data-v="cons" aria-selected="false">客戶寄庫<small id="tabConsN"></small></button>
-      <button type="button" class="tab" role="tab" data-v="owe" aria-selected="false">客戶欠貨<small id="tabOweN"></small></button>
+      <button type="button" class="tab" role="tab" data-v="owe" aria-selected="false">客戶缺貨<small id="tabOweN"></small></button>
       <button type="button" class="tab" role="tab" data-v="loan" aria-selected="false"><span id="tabLoanLb">客戶借出</span><small id="tabLoanN"></small></button>
     </div>
   </div>
@@ -299,7 +299,7 @@ html.win{--sans:"Microsoft JhengHei UI","Microsoft JhengHei","Noto Sans TC",syst
     <div class="fsel" id="trfsel"><select id="selTrB" aria-label="品牌"><option value="">全部品牌</option></select><select id="selTrT" aria-label="類別"><option value="">全部類別</option></select></div>
   </div>
   <div class="list" id="trList" hidden></div>
-  <p class="foot">這是唯讀頁面，只能查看庫存、即將到貨、客戶寄庫、客戶欠貨與借出數量。數字由管理者更新。</p>
+  <p class="foot">這是唯讀頁面，只能查看庫存、即將到貨、客戶寄庫、客戶缺貨與借出數量。數字由管理者更新。</p>
 </div>
 <script>
 /* ========== 唯讀公開頁 ==========
@@ -334,7 +334,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.7';
+const PAGE_VER='2026-11-19.8';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -468,7 +468,7 @@ function render(){
     if(q<=0)sub.push('<span class="s z">缺貨</span>');else if(i.st==='low')sub.push('<span class="s low">剩不多</span>');
     if(t)sub.push(`<span class="s ${teOK(i.te)?'soon':'wait'}">🚚 在途 ${fmt(t)}${teOK(i.te)?'・'+teMD(i.te)+' 到':'・到貨日確認中'}</span>`);
     const go=cq?'cons':lq?'loan':oq?'owe':'';
-    const more=cq||lq||oq?`<span class="more">${oq?`<button type="button" class="ow" data-go="owe">客戶欠 ${fmt(oq)} ›</button>`:''}${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
+    const more=cq||lq||oq?`<span class="more">${oq?`<button type="button" class="ow" data-go="owe">客戶缺 ${fmt(oq)} ›</button>`:''}${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
     return `<div class="row g ${st}${imOK(i)?' im':''}"${go?` data-k="${k}" data-rgo="${go}"`:''}>${thumb(i,k)}<span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2">${sub.join('')}</span>`:''}<span class="qty"><b>${fmt(q)}</b><small>${esc(i.unit||'件')}</small></span>${more}</div>`};
   // 從品牌進來：類別預設全部收起，要看哪個再點開（只有一個類別就直接打開）；有搜尋或選類別時全部打開
   const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||(fBrand&&fType)),oneCat=new Set(sorted.map(i=>bKey(i)+'|'+tKey(i))).size===1;
@@ -523,7 +523,7 @@ function homeHtml(items){
   return h;
 }
 // 從首頁點進來後，清單最上面放「回品牌首頁」
-/* 搜尋時，其他分頁（即將到貨、客戶寄庫、客戶欠貨、借出）找到的也直接列在庫存結果下面，不用切分頁
+/* 搜尋時，其他分頁（即將到貨、客戶寄庫、客戶缺貨、借出）找到的也直接列在庫存結果下面，不用切分頁
    每一區最多先列 4 位客戶（或 6 項商品），其餘按「看全部」到那個分頁 */
 function crossHtml(T){
   if(!T.length)return '';
@@ -533,7 +533,7 @@ function crossHtml(T){
     h+=`<div class="xsec tr"><div class="xh"><b>🚚 即將到貨</b><small>${fmt(tr.length)} 項 · ${fmt(tr.reduce((a,i)=>a+(+i.tq||0),0))} 件</small></div>`+
       ss.slice(0,6).map(i=>`<div class="mini"><span class="nm">${hl(nameOf(i),T)}</span><span class="sub">${esc(bKey(i))} · ${teOK(i.te)?'預計 '+teMD(i.te)+' 到貨':'到貨日確認中'} · 現貨 ${fmt(+i.qty||0)}</span><span class="q"><b>${fmt(+i.tq)}</b><small>在途</small></span></div>`).join('')+
       (tr.length>6?`<button type="button" class="xall" data-view="tr">看全部 ${fmt(tr.length)} 項即將到貨 ›</button>`:'')+'</div>'}
-  for(const [v,cls,title] of [['cons','cons','客戶寄庫'],['owe','owe','客戶欠貨'],['loan','loan','借出']]){
+  for(const [v,cls,title] of [['cons','cons','客戶寄庫'],['owe','owe','客戶缺貨'],['loan','loan','借出']]){
     const hits=bookOf(v).map(c=>({c,rows:bookRows(c,T)})).filter(x=>x.rows.length);if(!hits.length)continue;
     const tq=hits.reduce((a,x)=>a+x.rows.reduce((b,r)=>b+r.q,0),0),nm=BOOK[v].name;
     h+=`<div class="xsec ${cls}"><div class="xh"><b>${title}</b><small>${fmt(hits.length)} 位 · ${nm} ${fmt(tq)} 件</small></div>`+
@@ -557,7 +557,7 @@ function emptyHtml(T,textN){
 /* ---------- 客戶寄庫／客戶借出 ----------
    資料的 cons（寄庫）和 loans（借出）格式相同：每位客戶的商品（k＝商品在 items 裡的位置，q＝件數）。
    搜尋框三個分頁共用，切換時換資料來源。樣品不在公開資料裡。 */
-const BOOK={cons:{key:'cons',name:'寄庫',empty:'目前沒有客戶寄庫'},owe:{key:'owe',name:'欠貨',empty:'目前沒有客戶欠貨'},loan:{key:'loans',name:'借出',empty:'目前沒有借出'}};
+const BOOK={cons:{key:'cons',name:'寄庫',empty:'目前沒有客戶寄庫'},owe:{key:'owe',name:'缺貨',empty:'目前沒有客戶缺貨'},loan:{key:'loans',name:'借出',empty:'目前沒有借出'}};
 const bookOf=v=>((data&&data[BOOK[v].key])||[]).filter(c=>c&&c.name&&Array.isArray(c.items));
 function bookRows(c,T){
   const items=(data&&data.items)||[];
