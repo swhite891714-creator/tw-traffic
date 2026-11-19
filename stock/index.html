@@ -20,16 +20,14 @@
 <style>
 /* 唯讀公開頁：標題會捲走，搜尋框與分頁留在上方；狀態和品牌用一排按鈕篩選；有貨排在前面，缺貨淡化 */
 :root{
-  --bg:#e9eeec; --surface:#ffffff; --fg:#0b1612; --muted:#3e4d47; --line:#bfcac5;
-  --accent:#0f6e5c; --accent-fg:#ffffff; --ok-bg:#dff1ec; --danger:#c0362c; --danger-bg:#fde8e6; --warn:#9a4b00; --warn-bg:#fff0de; --mark:#ffe58a; --mark-fg:#14211d;
+  --bg:#f3f5f4; --surface:#fcfdfc; --fg:#2a3631; --muted:#5d6b66; --line:#d6dedb; --owe:#7458b5;
+  --accent:#2b7a68; --accent-fg:#ffffff; --ok-bg:#e3f1ec; --danger:#b4463c; --danger-bg:#fbecea; --warn:#9a5a1c; --warn-bg:#fcf2e6; --mark:#ffe58a; --mark-fg:#14211d;
   --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   --gut:max(16px,env(safe-area-inset-left,0px));
   color-scheme:light;
 }
-@media (prefers-color-scheme:dark){:root{
-  --bg:#0e1513; --surface:#16201d; --fg:#f0f5f3; --muted:#b3c3bd; --line:#3a4a45;
-  --accent:#4fc4a6; --accent-fg:#06201a; --ok-bg:#17352d; --danger:#ff7b6f; --danger-bg:#3a1714; --warn:#ffb065; --warn-bg:#3a2612; --mark:#7a6416; --mark-fg:#fff6d6; color-scheme:dark}}
+/* 一律用淺色：不跟著手機或電腦的深色模式變黑 */
 *{box-sizing:border-box}
 html,body{margin:0}
 body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:17px;line-height:1.5;padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -135,7 +133,7 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
 .more{grid-column:1 / -1;display:flex;gap:24px;justify-content:flex-end;margin-top:8px}
 .more button{border:1px solid var(--warn);background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:5px 10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .more button.ln{border-color:var(--accent);background:transparent;color:var(--accent)}
-.more button.ow{border-color:#7c4dce;background:transparent;color:#7c4dce}
+.more button.ow{border-color:var(--owe);background:transparent;color:var(--owe)}
 .row .s.ok2{color:var(--accent);font-weight:700}
 /* 分頁多到 5 個時字小一點，手機還是一排放得下 */
 #tabs.t5 .tab{font-size:14px}
@@ -154,8 +152,7 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
 
 
 /* ===== 2026-11 新版面（G1）：品牌 logo 格、可收合區塊、清單只標需要注意的狀態 ===== */
-:root{--tile:#eef1ef;--soon:#1d5fb8}
-@media (prefers-color-scheme:dark){:root{--soon:#79a8f0}}
+:root{--tile:#eef1ef;--soon:#3a6db0}
 .top{margin:0 calc(-1 * var(--gut));padding-left:var(--gut);padding-right:var(--gut);background:var(--surface)}
 .dock{background:var(--surface);box-shadow:0 6px 10px -10px rgba(0,0,0,.35)}
 .sbox input{background:var(--bg);border:1.5px solid transparent;border-radius:12px}
@@ -192,7 +189,7 @@ details.blk[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
 .xsec{background:var(--surface,#fff);border:1px solid var(--line);border-radius:14px;padding:10px 14px 12px}
 .xsec>.xh{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:2px}
 .xsec>.xh b{font-size:16px}.xsec>.xh small{color:var(--muted);font-size:13px}
-.xsec.tr>.xh b{color:var(--soon)}.xsec.cons>.xh b{color:var(--warn)}.xsec.owe>.xh b{color:#7c4dce}.xsec.loan>.xh b{color:var(--accent)}
+.xsec.tr>.xh b{color:var(--soon)}.xsec.cons>.xh b{color:var(--warn)}.xsec.owe>.xh b{color:var(--owe)}.xsec.loan>.xh b{color:var(--accent)}
 .xsec .xc{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
 .xsec .xc>button{border:0;background:none;padding:2px 0;font:inherit;font-weight:700;font-size:15px;color:inherit;cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:3px}
 .xsec .mini{border-top:0;padding:5px 0}
@@ -252,7 +249,9 @@ details.tb>summary .lg{--h:38px;width:70px;flex:0 0 auto}
 #toTop[hidden]{display:none}
 body:has(#pzBg:not([hidden])) #toTop{display:none}
 /* 對比加強（Windows 螢幕上字太淡、底色太亮） */
-html.win{--sans:"Microsoft JhengHei UI","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif}
+html.win{--sans:"Microsoft JhengHei UI","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+  /* Windows 螢幕偏亮、字筆畫細：文字和框線比 Mac／手機再深一點，避免看起來太淡 */
+  --fg:#1c2824;--muted:#44524c;--line:#c3cdc8}
 </style>
 </head>
 <body>
@@ -334,7 +333,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.5';
+const PAGE_VER='2026-11-19.6';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
