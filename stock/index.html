@@ -338,7 +338,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.10';
+const PAGE_VER='2026-11-19.11';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -515,9 +515,8 @@ function homeHtml(items){
   }
   const eb=((data&&Array.isArray(data.eb))?data.eb:[]).filter(b=>b&&!m[b]);
   h+=`<details class="blk" data-ok="h:brand"${isOpen('h:brand',false)?' open':''}><summary><b>品牌</b><small>${fmt(bs.length+eb.length)} 個品牌</small></summary><div class="in"><div class="bgrid">`+
-    bs.map(([k,x])=>`<button type="button" class="bt${x.h?'':' z'}" data-brand="${esc(k)}">${logoHtml(k)}<b>${esc(k)}</b><small>有貨 <em>${fmt(x.h)}</em> / ${fmt(x.n)}</small></button>`).join('')+
-    // 還沒有商品、但管理員設成顯示的品牌：放在最後，不能點
-    eb.map(b=>`<div class="bt soon">${logoHtml(b)}<b>${esc(b)}</b><small>商品整理中</small></div>`).join('')+`</div></div></details>`;
+    // 還沒有商品、但管理員設成顯示的品牌（商品整理中）：有自訂品牌順序時照順序排進去，沒有的話放最後；不能點
+    [...bs.map(([k,x])=>({k,x})),...eb.map(k=>({k,x:null}))].sort((a,b)=>BO.length?zb(a.k,b.k):(!a.x)-(!b.x)).map(({k,x})=>x?`<button type="button" class="bt${x.h?'':' z'}" data-brand="${esc(k)}">${logoHtml(k)}<b>${esc(k)}</b><small>有貨 <em>${fmt(x.h)}</em> / ${fmt(x.n)}</small></button>`:`<div class="bt soon">${logoHtml(k)}<b>${esc(k)}</b><small>商品整理中</small></div>`).join('')+`</div></div></details>`;
   if(items.some(hasType)){
     const t={};items.forEach(i=>{const k=tKey(i),x=t[k]||(t[k]={n:0,h:0});x.n++;if(inStock(i))x.h++});
     const ts=Object.entries(t).sort((a,b)=>TO.length?zt(a[0],b[0]):(b[1].h>0)-(a[1].h>0)||b[1].h-a[1].h||b[1].n-a[1].n||zh(a[0],b[0]));
