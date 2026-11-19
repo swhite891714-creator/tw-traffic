@@ -242,8 +242,13 @@ details.tb>summary .lg{--h:38px;width:70px;flex:0 0 auto}
 #pzBg .pzi small{color:#cfd8d5;font-size:14px}
 #pzX{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:24px;line-height:1;cursor:pointer}
 .backbtn{margin-top:10px}
-#toTop{position:fixed;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:14;width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);color:var(--fg);box-shadow:0 4px 14px rgba(0,0,0,.18);display:grid;place-items:center;align-content:center;gap:0;font:inherit;font-size:20px;font-weight:700;line-height:1;cursor:pointer}
-#toTop small{font-size:10px;font-weight:700;margin-top:2px}
+#toTop{position:fixed;left:0;right:0;margin:0 auto;width:max-content;bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:14;display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 16px 0 12px;border-radius:999px;border:0;background:var(--accent);color:var(--accent-fg,#fff);box-shadow:0 6px 18px rgba(15,110,92,.35),0 2px 4px rgba(0,0,0,.12);font:inherit;font-size:15px;font-weight:700;letter-spacing:.04em;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .15s ease,box-shadow .15s ease,opacity .2s ease;animation:ttIn .22s ease-out}
+#toTop svg{width:20px;height:20px;flex:0 0 auto}
+#toTop:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(15,110,92,.42),0 3px 6px rgba(0,0,0,.14)}
+#toTop:active{transform:scale(.95)}
+#toTop:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@keyframes ttIn{from{opacity:0;transform:translateY(12px) scale(.9)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#toTop{animation:none;transition:none}}
 #toTop[hidden]{display:none}
 body:has(#pzBg:not([hidden])) #toTop{display:none}
 /* 對比加強（Windows 螢幕上字太淡、底色太亮） */
@@ -329,7 +334,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.4';
+const PAGE_VER='2026-11-19.5';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -751,11 +756,11 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()}
   addEventListener('popstate',()=>{if(!bg.hidden){pushed=false;close()}});
 })();
 </script>
-<button type="button" id="toTop" aria-label="回到最上面" hidden>↑<small>最上面</small></button>
+<button type="button" id="toTop" aria-label="回到最上面" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 11l7-7 7 7"/><path d="M12 4v16"/></svg>置頂</button>
 <script>
 // 一鍵回到最上面：往下捲超過一個畫面才出現
 (function(){const b=document.getElementById('toTop');if(!b)return;let t=0;
-  const upd=()=>{b.hidden=(window.scrollY||document.documentElement.scrollTop)<Math.max(400,innerHeight*0.8)};
+  const upd=()=>{b.hidden=(window.scrollY||document.documentElement.scrollTop)<300};
   addEventListener('scroll',()=>{if(!t)t=requestAnimationFrame(()=>{t=0;upd()})},{passive:true});
   b.addEventListener('click',()=>{try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)}});upd()})();
 </script>
