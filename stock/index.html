@@ -230,6 +230,17 @@ details.tb>summary .lg{--h:38px;width:70px;flex:0 0 auto}
 </style>
 </head>
 <body>
+<div id="oldMsg" hidden style="margin:12px;padding:14px 16px;border-radius:12px;background:#fdecea;color:#a12a1f;font:15px/1.6 sans-serif;border:1px solid #f3b5ae"></div>
+<script>
+/* 舊版瀏覽器（例如 Windows 7 的舊 Chrome、IE）看不懂新的語法，整頁會停在「讀取中…」。
+   先用最基本的語法檢查，看不懂就直接告訴使用者換瀏覽器；之後頁面出錯也把原因顯示出來，方便回報。 */
+(function(){
+  var show=function(t){var m=document.getElementById('oldMsg');if(!m)return;m.innerHTML=t;m.hidden=false};
+  var ok=true;try{new Function('let a={b:1};const c=a?.b??2;return [...[1]].includes(1)&&`${c}`')()}catch(e){ok=false}
+  if(!ok||!window.fetch||!window.Promise){show('<b>這個瀏覽器版本太舊，庫存資料讀不出來。</b><br>請改用最新版的 <b>Google Chrome</b> 或 <b>Microsoft Edge</b> 打開這個網址。');return}
+  window.addEventListener('error',function(e){if(e&&e.message&&!window.__pgOK)show('<b>頁面發生錯誤，資料可能沒有顯示。</b><br>請重新整理；如果還是一樣，請把這段文字截圖回報：<br><small>'+String(e.message).replace(/[<>&]/g,'')+'</small>')});
+})();
+</script>
 <div class="wrap">
   <div class="top"><h1>庫存查詢</h1><span class="status" id="status">讀取中…</span></div>
   <div class="dock">
@@ -297,7 +308,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.1';
+const PAGE_VER='2026-11-19.2';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -340,22 +351,37 @@ function hl(text,T){
   return s.split(re).map((p,k)=>k%2?`<mark>${esc(p)}</mark>`:esc(p)).join('');
 }
 
+// 有時間限制的讀取：網路被擋或很慢時不會一直等下去
+async function fetchJ(url,opt,ms){
+  const ac=window.AbortController?new AbortController():null,tm=setTimeout(()=>ac&&ac.abort(),ms);
+  try{const r=await fetch(url,{...opt,...(ac?{signal:ac.signal}:{})});if(!r.ok)return null;return await r.json()}catch(e){return null}finally{clearTimeout(tm)}
+}
+/* 資料同時向兩個地方讀：GitHub（推送後幾秒就是新的，但每個網路每小時只能讀 60 次，公司網路多人共用很快會用完）
+   和網站本身的 data.json（沒有次數限制，更新慢約 1 分鐘）。先回來的先用，另一個在 1.5 秒內回來而且比較新就換成它。 */
 async function loadRaw(){
-  try{const r=await fetch(GH+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}});if(r.ok){const j=await r.json();if(j&&Array.isArray(j.items))return j}}catch(e){}
-  try{const r=await fetch('data.json?t='+Date.now(),{cache:'no-store'});if(r.ok)return await r.json()}catch(e){}
-  return null;
+  const okJ=j=>j&&Array.isArray(j.items)?j:null;
+  const a=fetchJ(GH+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}},6000).then(okJ);
+  const b=fetchJ('data.json?t='+Date.now(),{cache:'no-store'},12000).then(okJ);
+  const newer=(x,y)=>!x?y:!y?x:(String(y.at||'')>String(x.at||'')?y:x);
+  return await new Promise(res=>{let got=null,n=0,tm=null;
+    const done=j=>{n++;got=newer(got,j);if(n===2){clearTimeout(tm);res(got)}else if(got&&!tm)tm=setTimeout(()=>res(got),1500)};
+    a.then(done);b.then(done);});
 }
 // 品牌 Logo 另外放在 lg.json（資料比較小、更新比較快）；舊格式的 data.lg 也照樣能用
 const GHLG='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/lg.json?ref=main';
 let lgCache=null;
+// Logo：先讀網站本身的 lg.json（沒有次數限制），讀不到再問 GitHub；讀不到也不影響庫存資料顯示
 async function loadLg(){
-  try{const r=await fetch(GHLG+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}});if(r.ok){const j=await r.json();if(j&&typeof j==='object')return j}}catch(e){}
-  try{const r=await fetch('lg.json?t='+Date.now(),{cache:'no-store'});if(r.ok){const j=await r.json();if(j&&typeof j==='object')return j}}catch(e){}
-  return null;
+  const ok=j=>j&&typeof j==='object'?j:null;
+  return ok(await fetchJ('lg.json?t='+Date.now(),{cache:'no-store'},10000))||ok(await fetchJ(GHLG+'&t='+Date.now(),{cache:'no-store',headers:{Accept:'application/vnd.github.raw+json'}},6000));
 }
+let lgAt=0;
 async function load(){
-  const [j,lg]=await Promise.all([loadRaw(),(async()=>lgCache||(lgCache=await loadLg()))()]);
+  const j=await loadRaw();
   if(!j)return null;
+  // Logo 不擋住資料：沒有的話背景去讀，讀到再重畫（10 分鐘才重讀一次，省 GitHub 次數）
+  const lg=lgCache;
+  if(!lgCache||Date.now()-lgAt>6e5){lgAt=Date.now();loadLg().then(x=>{if(x){lgCache=x;if(data&&data!==null){data.lg=data.lg&&data.lg!==lg?data.lg:x;render();renderCons()}}})}
   // 新格式：品牌、類別用編號（bl／tl 清單），在這裡換回名稱
   if(Array.isArray(j.bl))for(const i of j.items){i.brand=j.bl[i.b]!=null?String(j.bl[i.b]):'';if(Array.isArray(j.tl)&&i.t!=null&&j.tl[i.t]!=null)i.type=String(j.tl[i.t])}
   if(!j.lg&&lg)j.lg=lg;
@@ -655,10 +681,12 @@ function revealCtl(){
 $('chipStatus').addEventListener('click',()=>setTimeout(revealCtl,0));
 
 async function refresh(first){
-  if(!first){checkVersion();lgCache=null}
+  if(!first)checkVersion();
   const j=await load();
-  if(j){data=j;BO=Array.isArray(j.bo)?j.bo.map(String):[];TO=Array.isArray(j.to)?j.to.map(String):[];$('status').textContent=j.at?`更新於 ${fmtAt(j.at)}`:'尚未發布';render();renderCons()}
-  else if(first){$('status').textContent='讀取失敗';render()}
+  if(j){window.__pgOK=1;data=j;BO=Array.isArray(j.bo)?j.bo.map(String):[];TO=Array.isArray(j.to)?j.to.map(String):[];$('status').textContent=j.at?`更新於 ${fmtAt(j.at)}`:'尚未發布';render();renderCons()}
+  else if(first){$('status').textContent='讀取失敗';render();
+    $('list').innerHTML='<div class="empty"><b>庫存資料讀不到</b><span>可能是網路暫時不穩，或公司網路擋住了 GitHub。10 秒後會自動再試一次，也可以按下面的按鈕。</span><button type="button" class="link" onclick="location.reload()">重新整理</button></div>';
+    setTimeout(()=>{if(!data)refresh(true)},10000)}
 }
 refresh(true);
 setTimeout(checkVersion,3000);
