@@ -1,6 +1,10 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head>
+<head><script>
+/* Windows：螢幕通常比較亮、網路字型筆畫比較細，字看起來淡。偵測到 Windows 就改用系統的微軟正黑體並加深文字 */
+(function(){try{var p=(navigator.userAgentData&&navigator.userAgentData.platform)||navigator.platform||navigator.userAgent||'';if(/win/i.test(p))document.documentElement.classList.add('win')}catch(e){}})();
+</script>
+
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>庫存查詢</title>
@@ -16,7 +20,7 @@
 <style>
 /* 唯讀公開頁：標題會捲走，搜尋框與分頁留在上方；狀態和品牌用一排按鈕篩選；有貨排在前面，缺貨淡化 */
 :root{
-  --bg:#f2f5f4; --surface:#ffffff; --fg:#14211d; --muted:#596a64; --line:#d9e1de;
+  --bg:#e9eeec; --surface:#ffffff; --fg:#0b1612; --muted:#3e4d47; --line:#bfcac5;
   --accent:#0f6e5c; --accent-fg:#ffffff; --ok-bg:#dff1ec; --danger:#c0362c; --danger-bg:#fde8e6; --warn:#9a4b00; --warn-bg:#fff0de; --mark:#ffe58a; --mark-fg:#14211d;
   --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -24,7 +28,7 @@
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0e1513; --surface:#16201d; --fg:#e4ece9; --muted:#93a59f; --line:#283632;
+  --bg:#0e1513; --surface:#16201d; --fg:#f0f5f3; --muted:#b3c3bd; --line:#3a4a45;
   --accent:#4fc4a6; --accent-fg:#06201a; --ok-bg:#17352d; --danger:#ff7b6f; --danger-bg:#3a1714; --warn:#ffb065; --warn-bg:#3a2612; --mark:#7a6416; --mark-fg:#fff6d6; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -175,7 +179,7 @@ details.blk[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
 .lg{--h:56px;width:100%;height:var(--h);border-radius:12px;display:grid;place-items:center;background:var(--tile);overflow:hidden;position:relative}
 .lg img{max-width:calc(80% * var(--z,1));max-height:calc(var(--h) * .68 * var(--z,1));object-fit:contain;mix-blend-mode:darken}
 .lg.c img{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);max-width:none;max-height:none;width:auto;height:calc(var(--h) * 1.5 * var(--z,1))}
-.lg.tx{color:#7b8a84;font-weight:900;font-size:15px}
+.lg.tx{color:var(--muted);font-weight:900;font-size:15px}
 .bt b{font-size:13px;line-height:1.2;text-align:center;overflow-wrap:anywhere}
 .bt small{font-size:12px;color:var(--muted);margin-top:-4px;font-variant-numeric:tabular-nums}
 .bt small em{font-style:normal;color:var(--accent);font-weight:700}
@@ -220,7 +224,7 @@ details.tb>summary .lg{--h:38px;width:70px;flex:0 0 auto}
 .row.g .qty{grid-row:1 / span 2;grid-column:2;display:block;text-align:right;min-width:40px}
 .row.g .qty b{display:block;font-size:22px;line-height:1.1}
 .row.g .qty small,.row.g .qty .status{font-size:11px;color:var(--muted)}
-.row.g.zero .qty b{color:#c2cbc7}
+.row.g.zero .qty b{color:var(--muted)}
 .row.g.tr .qty b{color:var(--soon)}
 .sub2{grid-column:1;display:flex;flex-wrap:wrap;gap:3px 10px;font-size:12.5px}
 .s{font-weight:700}.s.soon{color:var(--soon)}.s.wait{color:var(--warn)}.s.low{color:var(--warn)}.s.z{color:var(--muted);font-weight:500}
@@ -238,6 +242,12 @@ details.tb>summary .lg{--h:38px;width:70px;flex:0 0 auto}
 #pzBg .pzi small{color:#cfd8d5;font-size:14px}
 #pzX{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));right:12px;width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:24px;line-height:1;cursor:pointer}
 .backbtn{margin-top:10px}
+#toTop{position:fixed;left:max(14px,env(safe-area-inset-left,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:14;width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);color:var(--fg);box-shadow:0 4px 14px rgba(0,0,0,.18);display:grid;place-items:center;align-content:center;gap:0;font:inherit;font-size:20px;font-weight:700;line-height:1;cursor:pointer}
+#toTop small{font-size:10px;font-weight:700;margin-top:2px}
+#toTop[hidden]{display:none}
+body:has(#pzBg:not([hidden])) #toTop{display:none}
+/* 對比加強（Windows 螢幕上字太淡、底色太亮） */
+html.win{--sans:"Microsoft JhengHei UI","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif}
 </style>
 </head>
 <body>
@@ -319,7 +329,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.3';
+const PAGE_VER='2026-11-19.4';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -740,6 +750,14 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()}
   addEventListener('keydown',e=>{if(e.key==='Escape')close()});
   addEventListener('popstate',()=>{if(!bg.hidden){pushed=false;close()}});
 })();
+</script>
+<button type="button" id="toTop" aria-label="回到最上面" hidden>↑<small>最上面</small></button>
+<script>
+// 一鍵回到最上面：往下捲超過一個畫面才出現
+(function(){const b=document.getElementById('toTop');if(!b)return;let t=0;
+  const upd=()=>{b.hidden=(window.scrollY||document.documentElement.scrollTop)<Math.max(400,innerHeight*0.8)};
+  addEventListener('scroll',()=>{if(!t)t=requestAnimationFrame(()=>{t=0;upd()})},{passive:true});
+  b.addEventListener('click',()=>{try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)}});upd()})();
 </script>
 </body>
 </html>
