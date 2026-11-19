@@ -252,6 +252,9 @@ body:has(#pzBg:not([hidden])) #toTop{display:none}
 html.win{--sans:"Microsoft JhengHei UI","Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
   /* Windows 螢幕偏亮、字筆畫細：文字和框線比 Mac／手機再深一點，避免看起來太淡 */
   --fg:#1c2824;--muted:#44524c;--line:#c3cdc8}
+#kbHide{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:10px;z-index:80;display:inline-flex;align-items:center;gap:4px;height:38px;padding:0 14px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);box-shadow:0 4px 14px rgba(0,0,0,.18);font:inherit;font-size:14px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#kbHide svg{width:18px;height:18px}
+#kbHide[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -334,7 +337,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.8';
+const PAGE_VER='2026-11-19.9';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -763,6 +766,31 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()}
   const upd=()=>{b.hidden=(window.scrollY||document.documentElement.scrollTop)<300};
   addEventListener('scroll',()=>{if(!t)t=requestAnimationFrame(()=>{t=0;upd()})},{passive:true});
   b.addEventListener('click',()=>{try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){window.scrollTo(0,0)}});upd()})();
+</script>
+<button type="button" id="kbHide" hidden aria-label="收起鍵盤"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>收起鍵盤</button>
+<script>
+/* 手機收鍵盤：
+   1. 打字時鍵盤上方出現「收起鍵盤」按鈕
+   2. 點畫面空白處（不是按鈕、輸入框）就收起
+   3. 在畫面上下滑動（不是在輸入框裡）也會收起，方便看搜尋結果 */
+(function(){
+  if(!(window.matchMedia&&matchMedia('(pointer:coarse)').matches))return;
+  const btn=document.getElementById('kbHide');if(!btn)return;
+  const FIELD='input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=file]):not([type=range]):not([type=color]),textarea,[contenteditable="true"]';
+  const isField=el=>!!(el&&el.matches&&el.matches(FIELD));
+  const act='button,a,label,select,summary,input,textarea,[role=button],[data-k],[data-p],[data-id],.pr,.row,.chip';
+  const hide=()=>{const a=document.activeElement;if(isField(a))a.blur();btn.hidden=true};
+  const place=()=>{const vv=window.visualViewport;const gap=vv?Math.max(0,window.innerHeight-(vv.height+vv.offsetTop)):0;btn.style.bottom=(gap+10)+'px'};
+  btn.addEventListener('pointerdown',e=>{e.preventDefault();hide()});
+  btn.addEventListener('click',e=>{e.preventDefault();hide()});
+  document.addEventListener('focusin',e=>{if(isField(e.target)){btn.hidden=false;place()}});
+  document.addEventListener('focusout',()=>setTimeout(()=>{if(!isField(document.activeElement))btn.hidden=true},80));
+  if(window.visualViewport){visualViewport.addEventListener('resize',place);visualViewport.addEventListener('scroll',place)}
+  let sx=0,sy=0,moved=false;
+  document.addEventListener('touchstart',e=>{const t=e.touches[0];sx=t.clientX;sy=t.clientY;moved=false},{passive:true});
+  document.addEventListener('touchmove',e=>{if(moved||!isField(document.activeElement))return;const t=e.touches[0];if(Math.abs(t.clientY-sy)>24&&!isField(e.target)){moved=true;hide()}},{passive:true});
+  document.addEventListener('touchend',e=>{if(moved||!isField(document.activeElement))return;const el=e.target;if(el.closest&&(el.closest(act)||el.closest('#kbHide')))return;hide()},{passive:true});
+})();
 </script>
 </body>
 </html>
