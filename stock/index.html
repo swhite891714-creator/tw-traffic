@@ -194,6 +194,7 @@ details.blk[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
 .xsec .xc>button{border:0;background:none;padding:2px 0;font:inherit;font-weight:700;font-size:15px;color:inherit;cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:3px}
 .xsec .mini{border-top:0;padding:5px 0}
 .xsec .mini .q b{font-size:17px;color:var(--fg)}
+.xsec .xc>button.xmore{text-decoration:none;display:block;width:100%;margin:2px 0 4px;border:0;background:color-mix(in srgb,var(--accent) 9%,transparent);color:var(--accent);font:inherit;font-size:14px;font-weight:700;border-radius:8px;padding:8px;cursor:pointer;text-align:center}
 .xsec .xall{display:block;width:100%;margin-top:8px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;font-size:14px;font-weight:700;border-radius:10px;padding:8px;cursor:pointer}
 .allbtn2{display:block;width:100%;margin-top:10px;border:0;background:color-mix(in srgb,var(--soon) 12%,transparent);color:var(--soon);font-weight:700;border-radius:10px;padding:10px;cursor:pointer}
 .bhd{display:flex;align-items:center;gap:12px;margin:10px 0 2px}
@@ -337,7 +338,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.9';
+const PAGE_VER='2026-11-19.10';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -534,16 +535,16 @@ function crossHtml(T){
   const tr=trItems().filter(i=>itemHit(i,T));
   if(tr.length){const tk=i=>teOK(i.te)?i.te:'9999',ss=[...tr].sort((a,b)=>tk(a)<tk(b)?-1:tk(a)>tk(b)?1:0);
     h+=`<div class="xsec tr"><div class="xh"><b>🚚 即將到貨</b><small>${fmt(tr.length)} 項 · ${fmt(tr.reduce((a,i)=>a+(+i.tq||0),0))} 件</small></div>`+
-      ss.slice(0,6).map(i=>`<div class="mini"><span class="nm">${hl(nameOf(i),T)}</span><span class="sub">${esc(bKey(i))} · ${teOK(i.te)?'預計 '+teMD(i.te)+' 到貨':'到貨日確認中'} · 現貨 ${fmt(+i.qty||0)}</span><span class="q"><b>${fmt(+i.tq)}</b><small>在途</small></span></div>`).join('')+
-      (tr.length>6?`<button type="button" class="xall" data-view="tr">看全部 ${fmt(tr.length)} 項即將到貨 ›</button>`:'')+'</div>'}
+      (()=>{const k='xs:tr',op=!!OPEN[k],sh=op?ss:ss.slice(0,6);return sh.map(i=>`<div class="mini"><span class="nm">${hl(nameOf(i),T)}</span><span class="sub">${esc(bKey(i))} · ${teOK(i.te)?'預計 '+teMD(i.te)+' 到貨':'到貨日確認中'} · 現貨 ${fmt(+i.qty||0)}</span><span class="q"><b>${fmt(+i.tq)}</b><small>在途</small></span></div>`).join('')+
+      (ss.length>6?`<button type="button" class="xall" data-xk="${k}">${op?'收起 ▴':`展開全部 ${fmt(ss.length)} 項 ▾`}</button>`:'')})()+'</div>'}
   for(const [v,cls,title] of [['cons','cons','客戶寄庫'],['owe','owe','客戶缺貨'],['loan','loan','借出']]){
     const hits=bookOf(v).map(c=>({c,rows:bookRows(c,T)})).filter(x=>x.rows.length);if(!hits.length)continue;
     const tq=hits.reduce((a,x)=>a+x.rows.reduce((b,r)=>b+r.q,0),0),nm=BOOK[v].name;
     h+=`<div class="xsec ${cls}"><div class="xh"><b>${title}</b><small>${fmt(hits.length)} 位 · ${nm} ${fmt(tq)} 件</small></div>`+
-      hits.slice(0,4).map(({c,rows})=>`<div class="xc"><button type="button" data-xc="${v}" data-xn="${esc(c.name)}">${hl(c.name,T)}${c.b?'（業務）':''}${v==='cons'&&c.rep?` <small style="font-weight:400;color:var(--muted)">· ${esc(c.rep)}</small>`:''} ›</button>`+
-        rows.slice(0,5).map(x=>`<div class="mini"><span class="nm">${hl(nameOf(x.it),T)}</span><span class="sub">${esc(groupOf(x.it))}${v==='owe'?` · ${+x.it.qty>0?'現貨 '+fmt(+x.it.qty):+x.it.tq>0?'在途 '+fmt(+x.it.tq):'還沒到貨'}`:''}</span><span class="q"><b>${fmt(x.q)}</b><small>${nm}</small></span></div>`).join('')+
-        (rows.length>5?`<div class="mini"><span class="sub">…還有 ${rows.length-5} 項</span></div>`:'')+'</div>').join('')+
-      (hits.length>4?`<button type="button" class="xall" data-view="${v}">看全部 ${fmt(hits.length)} 位${title} ›</button>`:'')+'</div>'}
+      (OPEN['xs:'+v]?hits:hits.slice(0,4)).map(({c,rows})=>{const ck='xc:'+v+'|'+c.name,cop=!!OPEN[ck];return `<div class="xc"><button type="button" data-xc="${v}" data-xn="${esc(c.name)}">${hl(c.name,T)}${c.b?'（業務）':''}${v==='cons'&&c.rep?` <small style="font-weight:400;color:var(--muted)">· ${esc(c.rep)}</small>`:''} ›</button>`+
+        (cop?rows:rows.slice(0,5)).map(x=>`<div class="mini"><span class="nm">${hl(nameOf(x.it),T)}</span><span class="sub">${esc(groupOf(x.it))}${v==='owe'?` · ${+x.it.qty>0?'現貨 '+fmt(+x.it.qty):+x.it.tq>0?'在途 '+fmt(+x.it.tq):'還沒到貨'}`:''}</span><span class="q"><b>${fmt(x.q)}</b><small>${nm}</small></span></div>`).join('')+
+        (rows.length>5?`<button type="button" class="xmore" data-xk="${esc(ck)}">${cop?'收起 ▴':`展開全部 ${rows.length} 項（還有 ${rows.length-5} 項）▾`}</button>`:'')+'</div>'}).join('')+
+      (hits.length>4?`<button type="button" class="xall" data-xk="xs:${v}">${OPEN['xs:'+v]?'收起 ▴':`展開全部 ${fmt(hits.length)} 位${title} ▾`}</button>`:'')+'</div>'}
   return h?`<div class="xres"><div class="xt">其他分頁也找到「${esc($('q').value.trim())}」</div>${h}</div>`:'';
 }
 function backHtml(){return `<button type="button" class="backbtn" data-home>‹ 回品牌首頁</button>`}
@@ -711,6 +712,7 @@ $('list').addEventListener('click',e=>{
     else{fBrand='';fType='';statusF='';$('q').value='';showAll=false}
     render();renderCons();window.scrollTo(0,0);return;
   }
+  const xk=e.target.closest('[data-xk]');if(xk){const k=xk.dataset.xk,y=xk.getBoundingClientRect().top;OPEN[k]=!OPEN[k];render();const nb=[...document.querySelectorAll('[data-xk]')].find(b=>b.dataset.xk===k);if(nb&&!OPEN[k])window.scrollBy(0,nb.getBoundingClientRect().top-y);return}
   const xc=e.target.closest('[data-xc]');if(xc){fItemK=-1;setView(xc.dataset.xc);fCust=xc.dataset.xn;$('q').value='';render();renderCons();window.scrollTo(0,0);return}
   const v=e.target.closest('[data-view]');if(v){goView(v.dataset.view);return}
   const c=e.target.closest('[data-clear]');
