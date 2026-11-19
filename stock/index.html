@@ -183,6 +183,17 @@ details.blk[open]>summary::after{transform:rotate(-135deg);margin-top:4px}
 .mini{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1px 10px;padding:9px 0;border-top:1px solid var(--line);align-items:center}
 .mini .nm{font-weight:700;font-size:15px;overflow-wrap:anywhere}.mini .sub{font-size:12.5px;color:var(--muted)}
 .mini .q{grid-row:1 / span 2;grid-column:2;text-align:right}.mini .q b{font-family:var(--mono);font-size:20px;color:var(--soon)}.mini .q small{display:block;font-size:11px;color:var(--muted)}
+.xres{margin-top:22px;display:grid;gap:12px}
+.xres>.xt{font-size:14px;color:var(--muted);font-weight:700;padding:0 2px}
+.xsec{background:var(--surface,#fff);border:1px solid var(--line);border-radius:14px;padding:10px 14px 12px}
+.xsec>.xh{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:2px}
+.xsec>.xh b{font-size:16px}.xsec>.xh small{color:var(--muted);font-size:13px}
+.xsec.tr>.xh b{color:var(--soon)}.xsec.cons>.xh b{color:var(--warn)}.xsec.owe>.xh b{color:#7c4dce}.xsec.loan>.xh b{color:var(--accent)}
+.xsec .xc{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
+.xsec .xc>button{border:0;background:none;padding:2px 0;font:inherit;font-weight:700;font-size:15px;color:inherit;cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:3px}
+.xsec .mini{border-top:0;padding:5px 0}
+.xsec .mini .q b{font-size:17px;color:var(--fg)}
+.xsec .xall{display:block;width:100%;margin-top:8px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;font-size:14px;font-weight:700;border-radius:10px;padding:8px;cursor:pointer}
 .allbtn2{display:block;width:100%;margin-top:10px;border:0;background:color-mix(in srgb,var(--soon) 12%,transparent);color:var(--soon);font-weight:700;border-radius:10px;padding:10px;cursor:pointer}
 .bhd{display:flex;align-items:center;gap:12px;margin:10px 0 2px}
 .bhd .lg{--h:50px;width:92px;flex:0 0 auto}
@@ -308,7 +319,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-19.2';
+const PAGE_VER='2026-11-19.3';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -433,7 +444,8 @@ function render(){
   // 從品牌格點進來：品牌、類別選單和「找到幾項」都先收起來，畫面只留狀態按鈕
   document.body.classList.toggle('bp',(!!fBrand!==!!fType)&&!T.length);
   if(!on&&!showAll){list.innerHTML=homeHtml(items);return}
-  if(!s.length){list.innerHTML=backHtml()+emptyHtml(T,text.length);return}
+  const xh=crossHtml(T);
+  if(!s.length){list.innerHTML=backHtml()+(xh&&!(fBrand||fType||statusF)?`<div class="empty" style="padding:18px 8px 4px"><b>庫存商品裡沒有「${esc($('q').value.trim())}」</b></div>`+xh:emptyHtml(T,text.length)+xh);return}
   const sorted=[...s].sort((a,b)=>zb(bKey(a),bKey(b))||zt(tKey(a),tKey(b))||(inStock(b)-inStock(a))||(items.indexOf(a)-items.indexOf(b)));
   // 依品牌分段；每個類別是一個可收合的區塊（只看一個品牌時，第一個類別預設打開；有搜尋或篩選時全部打開）
   const oqm={};bookOf('owe').forEach(c=>c.items.forEach(x=>{oqm[x.k]=(oqm[x.k]||0)+(+x.q||0)}));
@@ -466,7 +478,7 @@ function render(){
     }
   }
   html=html.replace('<!--LBAR-->',`<div class="lbar"><button type="button" data-fold>${anyOp?'全部收起':'全部展開'}</button></div>`);
-  list.innerHTML=html;
+  list.innerHTML=html+xh;
 }
 /* ---------- 首頁：品牌卡片＋類別 ----------
    每個品牌一張卡片，大字是有貨項數；有貨的品牌排前面。類別用會換行的按鈕列出（不用左右滑）。 */
@@ -496,6 +508,26 @@ function homeHtml(items){
   return h;
 }
 // 從首頁點進來後，清單最上面放「回品牌首頁」
+/* 搜尋時，其他分頁（即將到貨、客戶寄庫、客戶欠貨、借出）找到的也直接列在庫存結果下面，不用切分頁
+   每一區最多先列 4 位客戶（或 6 項商品），其餘按「看全部」到那個分頁 */
+function crossHtml(T){
+  if(!T.length)return '';
+  const items=(data&&data.items)||[];let h='';
+  const tr=trItems().filter(i=>itemHit(i,T));
+  if(tr.length){const tk=i=>teOK(i.te)?i.te:'9999',ss=[...tr].sort((a,b)=>tk(a)<tk(b)?-1:tk(a)>tk(b)?1:0);
+    h+=`<div class="xsec tr"><div class="xh"><b>🚚 即將到貨</b><small>${fmt(tr.length)} 項 · ${fmt(tr.reduce((a,i)=>a+(+i.tq||0),0))} 件</small></div>`+
+      ss.slice(0,6).map(i=>`<div class="mini"><span class="nm">${hl(nameOf(i),T)}</span><span class="sub">${esc(bKey(i))} · ${teOK(i.te)?'預計 '+teMD(i.te)+' 到貨':'到貨日確認中'} · 現貨 ${fmt(+i.qty||0)}</span><span class="q"><b>${fmt(+i.tq)}</b><small>在途</small></span></div>`).join('')+
+      (tr.length>6?`<button type="button" class="xall" data-view="tr">看全部 ${fmt(tr.length)} 項即將到貨 ›</button>`:'')+'</div>'}
+  for(const [v,cls,title] of [['cons','cons','客戶寄庫'],['owe','owe','客戶欠貨'],['loan','loan','借出']]){
+    const hits=bookOf(v).map(c=>({c,rows:bookRows(c,T)})).filter(x=>x.rows.length);if(!hits.length)continue;
+    const tq=hits.reduce((a,x)=>a+x.rows.reduce((b,r)=>b+r.q,0),0),nm=BOOK[v].name;
+    h+=`<div class="xsec ${cls}"><div class="xh"><b>${title}</b><small>${fmt(hits.length)} 位 · ${nm} ${fmt(tq)} 件</small></div>`+
+      hits.slice(0,4).map(({c,rows})=>`<div class="xc"><button type="button" data-xc="${v}" data-xn="${esc(c.name)}">${hl(c.name,T)}${c.b?'（業務）':''}${v==='cons'&&c.rep?` <small style="font-weight:400;color:var(--muted)">· ${esc(c.rep)}</small>`:''} ›</button>`+
+        rows.slice(0,5).map(x=>`<div class="mini"><span class="nm">${hl(nameOf(x.it),T)}</span><span class="sub">${esc(groupOf(x.it))}${v==='owe'?` · ${+x.it.qty>0?'現貨 '+fmt(+x.it.qty):+x.it.tq>0?'在途 '+fmt(+x.it.tq):'還沒到貨'}`:''}</span><span class="q"><b>${fmt(x.q)}</b><small>${nm}</small></span></div>`).join('')+
+        (rows.length>5?`<div class="mini"><span class="sub">…還有 ${rows.length-5} 項</span></div>`:'')+'</div>').join('')+
+      (hits.length>4?`<button type="button" class="xall" data-view="${v}">看全部 ${fmt(hits.length)} 位${title} ›</button>`:'')+'</div>'}
+  return h?`<div class="xres"><div class="xt">其他分頁也找到「${esc($('q').value.trim())}」</div>${h}</div>`:'';
+}
 function backHtml(){return `<button type="button" class="backbtn" data-home>‹ 回品牌首頁</button>`}
 // 找不到時，告訴使用者下一步怎麼做
 function emptyHtml(T,textN){
@@ -661,6 +693,7 @@ $('list').addEventListener('click',e=>{
     else{fBrand='';fType='';statusF='';$('q').value='';showAll=false}
     render();renderCons();window.scrollTo(0,0);return;
   }
+  const xc=e.target.closest('[data-xc]');if(xc){fItemK=-1;setView(xc.dataset.xc);fCust=xc.dataset.xn;$('q').value='';render();renderCons();window.scrollTo(0,0);return}
   const v=e.target.closest('[data-view]');if(v){goView(v.dataset.view);return}
   const c=e.target.closest('[data-clear]');
   if(c){if(c.dataset.clear==='q')$('q').value='';else{fBrand='';fType='';statusF=''}render();renderCons();return}
