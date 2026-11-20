@@ -95,6 +95,7 @@ select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .owc{display:flex;flex-wrap:wrap;align-items:center;gap:5px 6px;font-size:13px}
 .owc .lb{color:var(--muted);margin-right:2px}
 .own .v,.own .v b{color:var(--warn)}
+.owr0{font-size:13.5px;color:var(--muted)}.owr0 b{color:var(--fg)}
 .owr{font-size:14px;font-weight:700}.owr.okk,.owr.okk b{color:var(--accent)}.owr.bad,.owr.bad b{color:var(--danger)}.owr b{font-size:16px}
 .owc.cv .cc b{color:var(--warn)}
 .owc{display:grid;gap:6px;min-width:0}
@@ -119,6 +120,7 @@ details.nosblk>summary b{color:var(--warn)}
 .nosnote b{color:var(--warn)}
 .tcat.nosb{color:var(--warn)}
 .row.g.nos .qty b{color:var(--warn)}
+.mini.nos .q b,.mini.nos .sub{color:var(--warn)}
 .trsum .tsa{color:var(--accent)}.trsum .tsb{color:var(--warn)}
 .nojump{box-sizing:border-box;display:grid;gap:3px;width:100%;margin-top:10px;text-align:left;font:inherit;border:1.5px solid var(--danger);background:var(--danger-bg);color:var(--fg);border-radius:12px;padding:11px 14px;cursor:pointer}
 .nojump b{font-size:15px;color:var(--danger)}
@@ -383,7 +385,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-20.4';
+const PAGE_VER='2026-11-20.5';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -515,7 +517,7 @@ function render(){
   const oqm={};bookOf('owe').forEach(c=>c.items.forEach(x=>{oqm[x.k]=(oqm[x.k]||0)+(+x.q||0)}));
   const row=i=>{const k=items.indexOf(i),cq=+i.cq||0,lq=+i.lq||0,oq=oqm[k]||0,q=+i.qty||0,t=+i.tq||0,st=i.st==='low'?'low':q>0?'ok':'zero',sub=[];
     if(q<=0)sub.push('<span class="s z">缺貨</span>');else if(i.st==='low')sub.push('<span class="s low">剩不多</span>');
-    if(t){const x=shipTxt(i);sub.push(`<span class="s ${x.c}">🚚 在途 ${fmt(t)}・${x.t}</span>`)}
+    if(t)sub.push(trTags(i));
     const go=cq?'cons':lq?'loan':oq?'owe':'';
     const more=cq||lq||oq?`<span class="more">${oq?`<button type="button" class="ow" data-go="owe">客戶缺 ${fmt(oq)} ›</button>`:''}${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
     return `<div class="row g ${st}${imOK(i)?' im':''}"${go?` data-k="${k}" data-rgo="${go}"`:''}>${thumb(i,k)}<span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2">${sub.join('')}</span>`:''}<span class="qty"><b>${fmt(q)}</b><small>${esc(i.unit||'件')}</small></span>${more}</div>`};
@@ -554,8 +556,8 @@ function homeHtml(items){
   const tr=trItems();
   if(tr.length){
     const tk=i=>teOK(i.te)?i.te:'9999',s=[...tr].sort((a,b)=>tk(a)<tk(b)?-1:tk(a)>tk(b)?1:0);
-    h+=`<details class="blk" data-ok="h:tr"${isOpen('h:tr',false)?' open':''}><summary><b>🚚 已訂貨／即將到貨</b><small>${fmt(tr.length)} 項 · ${fmt(tr.reduce((a,i)=>a+(+i.tq||0),0))} 件</small></summary><div class="in">`+
-      s.slice(0,4).map(i=>`<div class="mini"><span class="nm">${esc(nameOf(i))}</span><span class="sub">${esc(bKey(i))} · ${shipTxt(i).t}</span><span class="q"><b>${fmt(+i.tq)}</b><small>在途</small></span></div>`).join('')+
+    h+=`<details class="blk" data-ok="h:tr"${isOpen('h:tr',false)?' open':''}><summary><b>🚚 已訂貨／即將到貨</b><small>${trHead(tr)}</small></summary><div class="in">`+
+      s.slice(0,4).flatMap(i=>trMiniRows(i).map(m=>`<div class="mini${m.nos?' nos':''}"><span class="nm">${esc(nameOf(i))}</span><span class="sub">${esc(bKey(i))} · ${m.sub}</span><span class="q"><b>${fmt(m.q)}</b><small>${m.lb}</small></span></div>`)).join('')+
       `<button type="button" class="allbtn2" data-view="tr">看全部已訂貨／即將到貨 ›</button></div></details>`;
   }
   const eb=((data&&Array.isArray(data.eb))?data.eb:[]).filter(b=>b&&!m[b]);
@@ -578,8 +580,8 @@ function crossHtml(T){
   const items=(data&&data.items)||[];let h='';
   const tr=trItems().filter(i=>itemHit(i,T));
   if(tr.length){const tk=i=>teOK(i.te)?i.te:'9999',ss=[...tr].sort((a,b)=>tk(a)<tk(b)?-1:tk(a)>tk(b)?1:0);
-    h+=`<div class="xsec tr"><div class="xh"><b>🚚 已訂貨／即將到貨</b><small>${fmt(tr.length)} 項 · ${fmt(tr.reduce((a,i)=>a+(+i.tq||0),0))} 件</small></div>`+
-      (()=>{const k='xs:tr',op=!!OPEN[k],sh=op?ss:ss.slice(0,6);return sh.map(i=>`<div class="mini"><span class="nm">${hl(nameOf(i),T)}</span><span class="sub">${esc(bKey(i))} · ${shipTxt(i,true).t} · 現貨 ${fmt(+i.qty||0)}</span><span class="q"><b>${fmt(+i.tq)}</b><small>在途</small></span></div>`).join('')+
+    h+=`<div class="xsec tr"><div class="xh"><b>🚚 已訂貨／即將到貨</b><small>${trHead(tr)}</small></div>`+
+      (()=>{const k='xs:tr',op=!!OPEN[k],sh=op?ss:ss.slice(0,6);return sh.flatMap(i=>trMiniRows(i,true).map(m=>`<div class="mini${m.nos?' nos':''}"><span class="nm">${hl(nameOf(i),T)}</span><span class="sub">${esc(bKey(i))} · ${m.sub} · 現貨 ${fmt(+i.qty||0)}</span><span class="q"><b>${fmt(m.q)}</b><small>${m.lb}</small></span></div>`)).join('')+
       (ss.length>6?`<button type="button" class="xall" data-xk="${k}">${op?'收起 ▴':`展開全部 ${fmt(ss.length)} 項 ▾`}</button>`:'')})()+'</div>'}
   for(const [v,cls,title] of [['cons','cons','客戶寄庫'],['owe','owe','客戶缺貨'],['loan','loan','借出']]){
     const hits=bookOf(v).map(c=>({c,rows:bookRows(c,T)})).filter(x=>x.rows.length);if(!hits.length)continue;
@@ -670,7 +672,7 @@ function renderCons(){
     // 每位客戶一個可收合區塊：預設收起；有搜尋、選了客戶、只有一位客戶，或從商品點進來（有這個商品的客戶）時打開
     const ck='k:'+view+'|'+c.name,force=fItemK>=0&&has(c),cop=force||isOpen(ck,!!(T.length||fCust));anyC=anyC||cop;
     let h=`<details class="blk cat" data-ok="${esc(ck)}"${cop?' open':''}><summary><b>${hl(c.name,T)}</b><span class="pct">${rows.length} 項 · ${B.name} <em>${fmt(q)}</em> 件</span></summary><div class="in">`;
-    h+=rows.map(x=>`<div class="row g${x.k===fItemK?' hl':''}"><span class="model">${hl(nameOf(x.it),T)}<span class="sub">${esc(groupOf(x.it))}${view==='owe'?` · ${+x.it.qty>0?`<span class="s ok2">現貨 ${fmt(+x.it.qty)}</span>`:+x.it.tq>0?(()=>{const y=shipTxt(x.it);return `<span class="s ${y.c}">在途 ${fmt(+x.it.tq)}・${y.t}</span>`})():'還沒到貨'}`:''}</span></span><span class="qty"><b>${fmt(x.q)}</b><span class="status">${esc(x.it.unit||'件')}</span></span></div>`).join('')+'</div></details>';
+    h+=rows.map(x=>`<div class="row g${x.k===fItemK?' hl':''}"><span class="model">${hl(nameOf(x.it),T)}<span class="sub">${esc(groupOf(x.it))}${view==='owe'?` · ${+x.it.qty>0?`<span class="s ok2">現貨 ${fmt(+x.it.qty)}</span>`:+x.it.tq>0?trTags(x.it):'還沒到貨'}`:''}</span></span><span class="qty"><b>${fmt(x.q)}</b><span class="status">${esc(x.it.unit||'件')}</span></span></div>`).join('')+'</div></details>';
     const r=useRep?gOf(c):'',b=blocks[r]||(blocks[r]={h:'',c:0,q:0});b.h+=h;b.c++;b.q+=q;
   }
   for(const r of (useRep?reps:[''])){const b=blocks[r];if(!b)continue;
@@ -685,13 +687,17 @@ const trItems=()=>((data&&data.items)||[]).filter(i=>+i.tq>0);
 const teOK=te=>{if(!/^\d{4}-\d\d-\d\d$/.test(te||''))return false;return te>=new Date(Date.now()+8*3600e3).toISOString().slice(0,10)};
 const teMD=te=>`${+te.slice(5,7)}/${+te.slice(8)}`;
 // 在途狀態：tw＝廠商還沒出貨的件數（後台「貨物在途」標示），te＝最快的預計到貨日
-function shipTxt(i,long){const tq=+i.tq||0,tw=Math.min(+i.tw||0,tq),tg=Math.min(+i.tg||0,tq-tw),ok=teOK(i.te),d=ok?teMD(i.te):'';
-  // tw＝廠商還沒出貨、tg＝已出貨（後台「貨物在途」有標示的才算）；都沒標示的照舊顯示「已訂貨」
-  if(tw>=tq)return {c:'nos',t:'已訂貨・廠商還沒出貨'};
-  const when=ok?(long?`預計 ${d} 到貨`:`${d} 到`):'到貨日確認中';
-  if(tw>0)return {c:'part',t:`已出貨 ${fmt(tq-tw)}・還沒出貨 ${fmt(tw)}${ok?'・'+when:''}`};
+// 在途分兩部分，分開標示、分開計算：go＝已出貨（含沒標示的舊紀錄），tw＝廠商還沒出貨
+const twQ=i=>Math.min(+i.tw||0,+i.tq||0),goQ2=i=>(+i.tq||0)-twQ(i);
+function goTxt(i,long){const tg=Math.min(+i.tg||0,goQ2(i)),ok=teOK(i.te),d=ok?teMD(i.te):'',when=ok?(long?`預計 ${d} 到貨`:`${d} 到`):'到貨日確認中';
   if(tg>0)return {c:ok?'soon':'go',t:`已出貨・${when}`};
   return {c:ok?'soon':'wait',t:ok?when:'已訂貨・到貨日確認中'};}
+// 一行裡的在途標籤（庫存列、缺貨分頁）：已出貨和還沒出貨各一個
+function trTags(i){const g=goQ2(i),w=twQ(i),x=goTxt(i);return (g?`<span class="s ${x.c}">🚚 在途 ${fmt(g)}・${x.t}</span>`:'')+(w?`<span class="s nos">📋 已訂未出貨 ${fmt(w)}</span>`:'')}
+// 標題的件數：已出貨和還沒出貨分開寫
+const trHead=tr=>{const g=tr.reduce((a,i)=>a+goQ2(i),0),w=tr.reduce((a,i)=>a+twQ(i),0);return `${fmt(tr.length)} 項 · ${g?`在途 ${fmt(g)} 件`:''}${g&&w?'・':''}${w?`未出貨 ${fmt(w)} 件`:''}`};
+// 部分出貨的商品拆成兩列：一列在途（已出貨），一列廠商還沒出貨
+function trMiniRows(i,long){const g=goQ2(i),w=twQ(i),r=[];if(g)r.push({sub:goTxt(i,long).t,q:g,lb:'在途'});if(w)r.push({sub:'已訂貨・廠商還沒出貨',q:w,lb:'未出貨',nos:1});return r}
 function teText(te){
   if(!/^\d{4}-\d\d-\d\d$/.test(te||''))return '<span class="te wait">已訂貨・到貨日確認中</span>';
   const t=new Date(Date.now()+8*3600e3).toISOString().slice(0,10);
@@ -712,19 +718,20 @@ function chips(list,T,key){const MAX=6,op=CCOPEN.has(key),h=([n,q],x)=>`<span cl
   return `<span class="ccs${op?' all':''}">`+top.map((x,j)=>h(x,j>=MAX)).join('')+(top.length>MAX?`<button type="button" class="ccbtn" data-cc="${esc(key)}" data-n="${top.length-MAX}">${op?'收合 ˄':`還有 ${top.length-MAX} 位 ›`}</button>`:'')+'</span>'}
 // 每個數字只出現一次：右邊大字是重點（在途件數／還缺幾件），框裡只放組成和結果
 const shortOf=(i,k,om)=>Math.max(0,(+i.ov||0)+(om[k]?om[k].t:0)-(+i.qty||0));
-function needBox(i,k,T,inTr,om,cm){
-  const o=om[k],ov=+i.ov||0,qty=+i.qty||0,tq=inTr?+i.tq||0:0,ot=o?o.t:0,left=qty-ov+tq-ot;
+// opt.tq＝這一列算的在途件數；opt.prior＝先到的已出貨件數（還沒出貨那一列用，依序先扣）；opt.noChips＝客戶名單已在上面列過
+function needBox(i,k,T,inTr,om,cm,opt={}){
+  const o=om[k],ov=+i.ov||0,qty=+i.qty||0,tq=inTr?(opt.tq!=null?opt.tq:+i.tq||0):0,ot=o?o.t:0,prior=opt.prior||0,left=qty-ov+prior+tq-ot,l0=qty-ov+prior-ot;
   const what=[ov?'超賣':'',ot?'缺貨':''].filter(Boolean).join('、');
   const cs=ov?(cm[k]||[]):[],cq=cs.reduce((a,x)=>a+x[1],0);
   // 沒有在途、只有一個原因、現貨 0：右邊「還缺」就是那個數字，框裡只寫原因
   const one=!inTr&&!qty&&!(ov&&ot);
   const parts=one?`<span class="${ov?'v':'o'}">原因：<b>${ov?'超賣（已賣出，貨還沒進）':'客戶缺貨'}</b></span>`:[ov?`<span class="v">超賣 <b>${fmt(ov)}</b></span>`:'',ot?`<span class="o">缺貨 <b>${fmt(ot)}</b></span>`:'',qty>0?`<span>現貨 <b>${fmt(qty)}</b>${inTr?'':' 可先補'}</span>`:''].filter(Boolean).join('');
   // 在途：顯示到貨後夠不夠；沒有在途：右邊已經是「還缺」，框裡不再重複
-  const tw=Math.min(+i.tw||0,tq),pre=inTr&&tw>0&&tw<tq?'全部到貨後':'到貨後';
-  const res=inTr?`<div class="owr ${left>=0?'okk':'bad'}">${left>=0?`${pre}補完${what}還剩 <b>${fmt(left)}</b>`:`${pre}仍不足 <b>${fmt(-left)}</b>`}</div>`:(qty>0&&left>=0?`<div class="owr okk">現貨就夠補</div>`:'');
+  const pre=prior?'這批到貨後':'到貨後';
+  const res=(prior?`<div class="owr0">先用已出貨的 ${fmt(prior)} 件補，${l0>=0?'就已經夠了':`還缺 <b>${fmt(-l0)}</b>`}</div>`:'')+(inTr?`<div class="owr ${left>=0?'okk':'bad'}">${left>=0?`${pre}補完${what}還剩 <b>${fmt(left)}</b>`:`${pre}仍不足 <b>${fmt(-left)}</b>`}</div>`:(qty>0&&left>=0?`<div class="owr okk">現貨就夠補</div>`:''));
   return `<div class="ow"><div class="own">${parts}</div>${res}`+
-    (o?`<div class="owc"><span class="lb">缺貨客戶</span>${chips(o.cs,T,'o'+k)}</div>`:'')+
-    (ov&&cs.length?`<div class="owc cv"><span class="lb">寄庫客戶${cq>ov?` ${fmt(cq)} 件，只有 ${fmt(cq-ov)} 件有實貨`:'（都還沒有實貨）'}</span>${chips(cs,T,'c'+k)}</div>`:'')+'</div>';
+    (o&&!opt.noChips?`<div class="owc"><span class="lb">缺貨客戶</span>${chips(o.cs,T,'o'+k)}</div>`:'')+
+    (ov&&cs.length&&!opt.noChips?`<div class="owc cv"><span class="lb">寄庫客戶${cq>ov?` ${fmt(cq)} 件，只有 ${fmt(cq-ov)} 件有實貨`:'（都還沒有實貨）'}</span>${chips(cs,T,'c'+k)}</div>`:'')+'</div>';
 }
 let trOw=false;
 function renderTr(){
@@ -757,7 +764,7 @@ function renderTr(){
     for(const i of g){
       if(hasType(i)&&tKey(i)!==lt){lt=tKey(i);inner+=`<div class="tcat">${hl(lt,T)}</div>`}
       const o=owN(i);
-      inner+=`<div class="row g tr${imOK(i)?' im':''}">${thumb(i,items.indexOf(i))}<span class="model">${hl(nameOf(i),T)}</span><span class="sub2">${(()=>{const x=shipTxt(i,true);return `<span class="s te ${x.c}">${x.t}</span>`})()}${o?'':`<span class="s z">現貨 ${fmt(+i.qty||0)}</span>`}</span><span class="qty"><b>${fmt(goQ(i))}</b><span class="status">在途</span></span>${o?needBox(i,kOf(i),T,true,om,cm):''}</div>`;
+      inner+=`<div class="row g tr${imOK(i)?' im':''}">${thumb(i,items.indexOf(i))}<span class="model">${hl(nameOf(i),T)}</span><span class="sub2">${(()=>{const x=goTxt(i,true);return `<span class="s te ${x.c}">${x.t}</span>`})()}${twOf(i)?`<span class="s nos">另有 ${fmt(twOf(i))} 件還沒出貨（在下面）</span>`:''}${o?'':`<span class="s z">現貨 ${fmt(+i.qty||0)}</span>`}</span><span class="qty"><b>${fmt(goQ(i))}</b><span class="status">在途</span></span>${o?needBox(i,kOf(i),T,true,om,cm,{tq:goQ(i)}):''}</div>`;
     }
     // 預設收起；有搜尋、選了品牌或只有一個品牌時打開
     const top=isOpen(key,!!(T.length||trB));anyOpT=anyOpT||top;
@@ -767,7 +774,7 @@ function renderTr(){
     for(const i of [...sB].sort((a,b)=>zb(bKey(a),bKey(b))||zt(tKey(a),tKey(b)))){
       if(bKey(i)!==lb){lb=bKey(i);inner+=`<div class="tcat nosb">${hl(lb,T)}</div>`}
       const o=owN(i),part=goQ(i)>0;
-      inner+=`<div class="row g nos${imOK(i)?' im':''}">${thumb(i,kOf(i))}<span class="model">${hl(nameOf(i),T)}</span><span class="sub2"><span class="s z">${esc(hasType(i)?tKey(i):'')}</span>${part?`<span class="s go">另有 ${fmt(goQ(i))} 件已出貨（在上面）</span>`:`<span class="s z">現貨 ${fmt(+i.qty||0)}</span>`}</span><span class="qty"><b>${fmt(twOf(i))}</b><span class="status">未出貨</span></span>${o&&!part?needBox(i,kOf(i),T,true,om,cm):o?`<div class="ow"><div class="own"><span>缺貨／超賣的計算在上面「即將到貨」同一項</span></div></div>`:''}</div>`}
+      inner+=`<div class="row g nos${imOK(i)?' im':''}">${thumb(i,kOf(i))}<span class="model">${hl(nameOf(i),T)}</span><span class="sub2"><span class="s z">${esc(hasType(i)?tKey(i):'')}</span>${part?`<span class="s go">另有 ${fmt(goQ(i))} 件已出貨（在上面）</span>`:`<span class="s z">現貨 ${fmt(+i.qty||0)}</span>`}</span><span class="qty"><b>${fmt(twOf(i))}</b><span class="status">未出貨</span></span>${o?needBox(i,kOf(i),T,true,om,cm,{tq:twOf(i),prior:goQ(i),noChips:part}):''}</div>`}
     html+=`<details class="blk cat tb nosblk" id="nosSec" data-ok="${key}"${op?' open':''}><summary><b>📋 已訂貨・廠商還沒出貨</b><small>${fmt(sB.length)} 項 · ${fmt(sumB(sB))} 件</small></summary><div class="in"><p class="nosnote">以下商品<b>已經跟廠商下單</b>，但廠商還沒出貨，到貨時間還不確定。</p>${inner}</div></details>`}
   if(noTr.length){const key='t:__owno',op=isOpen(key,!!(T.length||trB));anyOpT=anyOpT||op;
     html+=`<details class="blk cat tb owblk" id="owNoTr" data-ok="${key}"${op?' open':''}><summary><b>⚠ 目前沒有到貨消息</b><small>${fmt(noTr.length)} 項 · 還缺 ${fmt(noTr.reduce((a,i)=>a+shortOf(i,kOf(i),om),0))} 件</small></summary><div class="in"><p class="nonote">以下商品缺貨或超賣，但<b>還沒有訂貨紀錄</b>，不會隨著上面的即將到貨補上。</p>`+
