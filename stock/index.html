@@ -97,16 +97,28 @@ select.on{border-color:var(--accent);color:var(--accent);font-weight:700}
 .own .v,.own .v b{color:var(--warn)}
 .owr{font-size:14px;font-weight:700}.owr.okk,.owr.okk b{color:var(--accent)}.owr.bad,.owr.bad b{color:var(--danger)}.owr b{font-size:16px}
 .owc.cv .cc b{color:var(--warn)}
-.owc.cv .lb{flex-basis:100%}
-.ccmore{display:contents}.ccmore>summary{list-style:none;cursor:pointer;color:var(--accent);font-size:13px;padding:2px 4px}.ccmore>summary::-webkit-details-marker{display:none}.ccmore[open]>summary{display:none}
+.owc{display:grid;gap:6px;min-width:0}
+.owc .lb{margin:0}
+.ccs{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.ccs .cc{white-space:nowrap;line-height:1.5}
+.ccs .cc.xh{display:none}.ccs.all .cc.xh{display:inline-block}
+.ccbtn{font:inherit;font-size:13px;border:1px dashed var(--accent);background:none;color:var(--accent);border-radius:999px;padding:2px 10px;cursor:pointer;white-space:nowrap;line-height:1.5}
 .owc .cc{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--fg)}
 .owc .cc b{color:var(--owe);margin-left:6px}
 .trtool{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;margin-top:8px}
 .owf{font:inherit;font-size:14px;border:1.5px solid var(--owe);color:var(--owe);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;min-height:36px}
 .owf[aria-pressed="true"]{background:var(--owe);color:#fff}
-.owjump{font:inherit;font-size:14px;border:0;background:none;color:var(--owe);text-decoration:underline;cursor:pointer;padding:6px 0;min-height:36px}
+#trList{grid-template-columns:minmax(0,1fr)}
+#trList>*{min-width:0}
+.nojump{box-sizing:border-box;display:grid;gap:3px;width:100%;margin-top:10px;text-align:left;font:inherit;border:1.5px solid var(--danger);background:var(--danger-bg);color:var(--fg);border-radius:12px;padding:11px 14px;cursor:pointer}
+.nojump b{font-size:15px;color:var(--danger)}
+.nojump span{font-size:13px;color:var(--muted)}
+details.owblk{border:1.5px solid var(--danger);background:color-mix(in srgb,var(--danger-bg) 55%,var(--surface));margin-top:22px}
+details.owblk>summary b{color:var(--danger)}
+.nonote{margin:4px 0 6px;padding:9px 11px;border-radius:10px;background:var(--danger-bg);color:var(--fg);font-size:13.5px;line-height:1.55}
+.nonote b{color:var(--danger)}
+.s.nomsg{color:var(--danger)}
 .row.g.owno .qty b{color:var(--owe)}
-details.owblk>summary b{color:var(--owe)}
 .tbrand{margin-top:22px}
 .tbrand+.grp{padding-top:10px}
 .trnote{display:block;margin-top:3px;font-size:13px;font-weight:700;color:var(--accent)}
@@ -359,7 +371,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-20.1';
+const PAGE_VER='2026-11-20.2';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -673,17 +685,19 @@ function conMap(){const m={};bookOf('cons').forEach(c=>c.items.forEach(x=>{const
 // 需要補貨：有客戶缺貨，或已經超賣（ov＝超出庫存的件數，超賣的通常記在寄庫）
 const needOf=(i,k,om)=>!!(om[k]||+i.ov>0);
 function needHit(i,k,T,om,cm){const o=om[k],c=+i.ov>0?cm[k]:null;return kwHit([i.brand,i.type,i.cat,i.model,i.color,...(o?o.cs.map(x=>x[0]):[]),...(c?c.map(x=>x[0]):[])],T)}
-function chips(list,T,cls){const MAX=6,h=([n,q])=>`<span class="cc">${hl(n,T)}<b>${fmt(q)}</b></span>`;
+// 客戶名單：超過 6 位先收起，按「還有 N 位」展開（記住展開狀態，重畫也不會收回）
+const CCOPEN=new Set();
+function chips(list,T,key){const MAX=6,op=CCOPEN.has(key),h=([n,q],x)=>`<span class="cc${x?' xh':''}">${hl(n,T)}<b>${fmt(q)}</b></span>`;
   const hit=T.length?list.filter(([n])=>kwHit([n],T)):[],rest=list.filter(x=>!hit.includes(x)),top=[...hit,...rest];
-  return top.slice(0,MAX).map(h).join('')+(top.length>MAX?`<details class="ccmore"><summary>還有 ${top.length-MAX} 位 ›</summary>${top.slice(MAX).map(h).join('')}</details>`:'')}
+  return `<span class="ccs${op?' all':''}">`+top.map((x,j)=>h(x,j>=MAX)).join('')+(top.length>MAX?`<button type="button" class="ccbtn" data-cc="${esc(key)}" data-n="${top.length-MAX}">${op?'收合 ˄':`還有 ${top.length-MAX} 位 ›`}</button>`:'')+'</span>'}
 function needBox(i,k,T,inTr,om,cm){
   const o=om[k],ov=+i.ov||0,qty=+i.qty||0,tq=inTr?+i.tq||0:0,ot=o?o.t:0,left=qty-ov+tq-ot;
   const what=[ov?'超賣':'',ot?'缺貨':''].filter(Boolean).join('、');
   const cs=ov?(cm[k]||[]):[],cq=cs.reduce((a,x)=>a+x[1],0);
   return `<div class="ow"><div class="own"><span>現貨 <b>${fmt(qty)}</b></span>${ov?`<span class="v">超賣 <b>${fmt(ov)}</b></span>`:''}${inTr?`<span>即將到貨 <b>${fmt(tq)}</b></span>`:''}${ot?`<span class="o">缺貨 <b>${fmt(ot)}</b></span>`:''}</div>`+
     `<div class="owr ${left>=0?'okk':'bad'}">${left>=0?`${inTr?'到貨後':''}補完${what}還剩 <b>${fmt(left)}</b>`:`${inTr?'到貨後':''}${inTr?'仍':'還'}不足 <b>${fmt(-left)}</b>`}</div>`+
-    (o?`<div class="owc"><span class="lb">缺貨客戶</span>${chips(o.cs,T)}</div>`:'')+
-    (ov&&cs.length?`<div class="owc cv"><span class="lb">寄庫客戶 ${fmt(cq)} 件，其中 ${fmt(Math.min(ov,cq))} 件還沒有實貨</span>${chips(cs,T)}</div>`:'')+'</div>';
+    (o?`<div class="owc"><span class="lb">缺貨客戶</span>${chips(o.cs,T,'o'+k)}</div>`:'')+
+    (ov&&cs.length?`<div class="owc cv"><span class="lb">寄庫客戶 ${fmt(cq)} 件，其中 ${fmt(Math.min(ov,cq))} 件還沒有實貨</span>${chips(cs,T,'c'+k)}</div>`:'')+'</div>';
 }
 let trOw=false;
 function renderTr(){
@@ -702,7 +716,7 @@ function renderTr(){
   const owTrAll=trItems().filter(i=>owN(i)).length,owAny=owTrAll||items.some((i,k)=>needOf(i,k,om)&&!(+i.tq>0));
   const sumQ=arr=>arr.reduce((a,i)=>a+(+i.tq||0),0);
   let anyOpT=false;
-  const tool=owAny?`<div class="trtool">${owTrAll?`<button type="button" class="owf" data-trow aria-pressed="${trOw}">${trOw?'✓ ':''}只看要補貨的（${fmt(owTrAll)}）</button>`:'<span></span>'}${noTr.length?`<button type="button" class="owjump" data-owjump>↓ 另有 ${fmt(noTr.length)} 項要補貨、還沒有到貨</button>`:''}</div>`:'';
+  const tool=owAny?`<div class="trtool">${owTrAll?`<button type="button" class="owf" data-trow aria-pressed="${trOw}">${trOw?'✓ ':''}只看要補貨的（${fmt(owTrAll)}）</button>`:'<span></span>'}</div>${noTr.length?`<button type="button" class="nojump" data-owjump><b>⚠ 另有 ${fmt(noTr.length)} 項要補貨，目前沒有到貨消息</b><span>這些不在即將到貨清單裡，還沒有安排進貨 · 點這裡查看 ↓</span></button>`:''}`:'';
   if(!s.length&&!noTr.length){box.innerHTML=tool+`<div class="empty">${trItems().length?'沒有符合條件的即將到貨商品':'目前沒有即將到貨的商品'}</div>`;return}
   const owS=s.filter(i=>owN(i)).length;
   let html=(s.length?`<p class="trsum">即將到貨 ${fmt(s.length)} 項，共 ${fmt(sumQ(s))} 件${owS?`<span style="color:var(--owe)">，其中 ${fmt(owS)} 項要補缺貨或超賣</span>`:''}</p>`:'')+tool+'<!--TFOLD-->';
@@ -715,11 +729,11 @@ function renderTr(){
     }
     // 預設收起；有搜尋、選了品牌或只有一個品牌時打開
     const top=isOpen(key,!!(T.length||trB));anyOpT=anyOpT||top;
-    html+=`<details class="blk cat tb" data-ok="${esc(key)}"${top?' open':''}><summary>${logoHtml(b)}<b>${hl(b,T)}</b><small>${fmt(g.length)} 項 · ${fmt(sumQ(g))} 件${(()=>{const n=g.filter(i=>owN(i)).length;return n?` · <span style="color:var(--owe)">${n} 項要補貨</span>`:''})()}</small></summary><div class="in">${inner}</div></details>`;
+    html+=`<details class="blk cat tb" data-ok="${esc(key)}"${top?' open':''}><summary>${logoHtml(b)}<b>${hl(b,T)}</b><small>${fmt(g.length)} 項 · ${fmt(sumQ(g))} 件${(()=>{const n=g.filter(i=>owN(i)).length;return n?` · <span style="color:var(--owe)">${n} 項要補</span>`:''})()}</small></summary><div class="in">${inner}</div></details>`;
   }
   if(noTr.length){const key='t:__owno',op=isOpen(key,true);anyOpT=anyOpT||op;
-    html+=`<details class="blk cat tb owblk" id="owNoTr" data-ok="${key}"${op?' open':''}><summary><b>要補貨、還沒有即將到貨</b><small>${fmt(noTr.length)} 項 · 共 ${fmt(noTr.reduce((a,i)=>a+(om[kOf(i)]?om[kOf(i)].t:0)+(+i.ov||0),0))} 件</small></summary><div class="in">`+
-      noTr.map(i=>`<div class="row g owno${imOK(i)?' im':''}">${thumb(i,items.indexOf(i))}<span class="model">${hl(nameOf(i),T)}</span><span class="sub2"><span class="s z">${esc(groupOf(i))}</span><span class="s wait">還沒有到貨資訊</span></span><span class="qty"><b>${fmt((om[kOf(i)]?om[kOf(i)].t:0)+(+i.ov||0))}</b><span class="status">要補</span></span>${needBox(i,kOf(i),T,false,om,cm)}</div>`).join('')+'</div></details>'}
+    html+=`<details class="blk cat tb owblk" id="owNoTr" data-ok="${key}"${op?' open':''}><summary><b>⚠ 目前沒有到貨消息</b><small>${fmt(noTr.length)} 項 · ${fmt(noTr.reduce((a,i)=>a+(om[kOf(i)]?om[kOf(i)].t:0)+(+i.ov||0),0))} 件</small></summary><div class="in"><p class="nonote">以下商品缺貨或超賣，但<b>還沒有安排進貨</b>，不會隨著上面的即將到貨補上。</p>`+
+      noTr.map(i=>`<div class="row g owno${imOK(i)?' im':''}">${thumb(i,items.indexOf(i))}<span class="model">${hl(nameOf(i),T)}</span><span class="sub2"><span class="s z">${esc(groupOf(i))}</span><span class="s nomsg">沒有到貨消息</span></span><span class="qty"><b>${fmt((om[kOf(i)]?om[kOf(i)].t:0)+(+i.ov||0))}</b><span class="status">要補</span></span>${needBox(i,kOf(i),T,false,om,cm)}</div>`).join('')+'</div></details>'}
   html=html.replace('<!--TFOLD-->',`<div class="lbar"><button type="button" data-fold>${anyOpT?'全部收起':'全部展開'}</button></div>`);
   box.innerHTML=html;
 }
@@ -738,6 +752,7 @@ function goView(v){fItemK=-1;setView(v);renderCons();window.scrollTo(0,0)}
 ['consList','trList'].forEach(id=>$(id).addEventListener('click',e=>{const fo=e.target.closest('[data-fold]');if(!fo)return;const ds=[...$(id).querySelectorAll('details.cat')],any=ds.some(d=>d.open);ds.forEach(d=>{d.open=!any;OPEN[d.dataset.ok]=!any});fo.textContent=any?'全部展開':'全部收起'}));
 $('trList').addEventListener('click',e=>{
   if(e.target.closest('[data-trow]')){trOw=!trOw;renderTr();return}
+  const cb=e.target.closest('[data-cc]');if(cb){const k=cb.dataset.cc,box=cb.parentNode,op=!box.classList.contains('all');box.classList.toggle('all',op);op?CCOPEN.add(k):CCOPEN.delete(k);cb.textContent=op?'收合 ˄':`還有 ${cb.dataset.n} 位 ›`;return}
   if(e.target.closest('[data-owjump]')){const d=$('owNoTr');if(d){d.open=true;OPEN[d.dataset.ok]=true;d.scrollIntoView({behavior:'smooth',block:'start'})}}
 });
 $('tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)goView(b.dataset.v)};
