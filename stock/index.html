@@ -180,6 +180,40 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
 .pill.ok{background:var(--ok-bg);color:var(--accent)}
 .pill.low{background:var(--warn-bg);color:var(--warn)}
 .pill.zero{background:var(--danger-bg);color:var(--danger)}
+.tgs{gap:5px 6px;margin-top:4px}
+.oinf{display:flex;flex-wrap:wrap;margin-top:5px}
+.sub2.lns{display:grid;gap:6px;margin-top:4px;font-size:13px}
+.st{justify-self:start;font-size:12.5px;font-weight:700;padding:1px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:var(--surface)}
+.st.bad{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,var(--line));background:var(--danger-bg)}
+.st.o{color:var(--owe);border-color:color-mix(in srgb,var(--owe) 45%,var(--line))}
+.st.low{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+.ifo{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:baseline;padding:7px 10px;border-radius:10px;background:var(--bg);border:1px solid var(--line)}
+.ifo .k{color:var(--muted);font-size:12px;white-space:nowrap}
+.ifo .v{font:inherit;font-size:13px;font-weight:700;color:var(--fg);text-align:left;border:0;background:none;padding:0;display:flex;flex-wrap:wrap;gap:0 8px;align-items:baseline}
+.ifo .v i{font-style:normal;font-weight:500;color:var(--muted)}.ifo .v i b{font-weight:800;color:var(--fg)}
+.ifo button.v{cursor:pointer}
+.ifo .v.tr{color:var(--soon)}.ifo .v.tr i b{color:var(--soon)}
+.ifo .v.nos{color:var(--warn)}.ifo .v.nos i b{color:var(--warn)}
+.ifo .v.cs.ok i{color:var(--accent)}.ifo .v.cs.part i b{color:var(--accent)}.ifo .v.cs i b.x,.ifo .v.cs.no i{color:var(--danger)}
+.ifo .v.ln{color:var(--accent)}.ifo .v.ow{color:var(--owe)}
+.ln1{color:var(--muted);font-weight:500}.ln1 b{color:var(--fg)}.ln1 b.o{color:var(--owe)}
+.ln1.bad{color:var(--danger);font-weight:700}.ln1.z{color:var(--muted)}.ln1.low{color:var(--warn);font-weight:700}
+.ln1.tr{color:var(--soon)}.ln1.tr b{color:var(--soon)}.ln1.nos{color:var(--warn)}.ln1.nos b{color:var(--warn)}
+.ln1.csl{font:inherit;font-size:13px;text-align:left;border:0;background:none;padding:1px 0;cursor:pointer;font-weight:600}
+.ln1.csl.ok{color:var(--accent)}.ln1.csl.part{color:var(--warn)}.ln1.csl.part b{color:var(--accent)}.ln1.csl b.x{color:var(--danger)}.ln1.csl.no{color:var(--danger)}
+.lks{display:flex;flex-wrap:wrap;gap:4px 16px}
+.lk{font:inherit;font-size:13px;border:0;background:none;padding:2px 0;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.row.g .qty.none b{color:var(--muted)}
+.tg{display:inline-flex;align-items:center;font:inherit;font-size:12.5px;font-weight:700;line-height:1.5;padding:1px 8px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);white-space:nowrap}
+button.tg{cursor:pointer}
+.tg.z{color:var(--danger);border-color:color-mix(in srgb,var(--danger) 45%,var(--line))}
+.tg.low{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+.tg.v{color:var(--warn);background:var(--warn-bg);border-color:var(--warn)}
+.tg.ow{color:var(--owe);border-color:var(--owe)}
+.tg.tr{color:var(--soon);border-color:var(--soon)}
+.tg.nos{color:var(--warn);border-color:var(--warn)}
+.tg.cs{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 60%,var(--line))}
+.tg.ln{color:var(--accent);border-color:var(--accent)}
 .more{grid-column:1 / -1;display:flex;gap:24px;justify-content:flex-end;margin-top:8px}
 .more button{border:1px solid var(--warn);background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:5px 10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .more button.ln{border-color:var(--accent);background:transparent;color:var(--accent)}
@@ -390,7 +424,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-22.1';
+const PAGE_VER='2026-11-24.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -521,11 +555,23 @@ function render(){
   // 依品牌分段；每個類別是一個可收合的區塊（只看一個品牌時，第一個類別預設打開；有搜尋或篩選時全部打開）
   const oqm={};bookOf('owe').forEach(c=>c.items.forEach(x=>{oqm[x.k]=(oqm[x.k]||0)+(+x.q||0)}));
   const row=i=>{const k=items.indexOf(i),cq=+i.cq||0,lq=+i.lq||0,oq=oqm[k]||0,q=+i.qty||0,t=+i.tq||0,st=i.st==='low'?'low':q>0?'ok':'zero',sub=[];
-    if(q<=0)sub.push('<span class="s z">缺貨</span>');else if(i.st==='low')sub.push('<span class="s low">剩不多</span>');
-    if(t)sub.push(trTags(i));
-    const go=cq?'cons':lq?'loan':oq?'owe':'';
-    const more=cq||lq||oq?`<span class="more">${oq?`<button type="button" class="ow" data-go="owe">客戶缺 ${fmt(oq)} ›</button>`:''}${cq?`<button type="button" data-go="cons">寄庫 ${fmt(cq)} ›</button>`:''}${lq?`<button type="button" class="ln" data-go="loan">借出 ${fmt(lq)} ›</button>`:''}</span>`:'';
-    return `<div class="row g ${st}${imOK(i)?' im':''}"${go?` data-k="${k}" data-rgo="${go}"`:''}>${thumb(i,k)}<span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2">${sub.join('')}</span>`:''}<span class="qty"><b>${fmt(q)}</b><small>${esc(i.unit||'件')}</small></span>${more}</div>`};
+    // 右邊大字＝「現貨可出」（現貨先扣掉要補給缺貨客戶的）。名稱下面一個狀態標籤；其他資訊放進整齊的小表格（左邊欄名、右邊數字），沒有的就不顯示
+    const ov=+i.ov||0,g=t?goQ2(i):0,w=t?twQ(i):0,avail=Math.max(0,q-oq),base=q-ov-oq;
+    let st1='';
+    if(q>0&&oq>0)st1=`<span class="st o">現貨 ${fmt(q)}，${fmt(Math.min(q,oq))} 件先補缺貨客戶</span>`;
+    else if(q<=0&&(ov||oq))st1=`<span class="st bad">${ov&&oq?`缺 ${fmt(ov+oq)} 件（超賣 ${fmt(ov)}、客戶缺 ${fmt(oq)}）`:ov?`已超賣 ${fmt(ov)} 件`:`客戶在等 ${fmt(oq)} 件`}</span>`;
+    else if(q<=0)st1='<span class="st z">缺貨</span>';
+    else if(i.st==='low')st1='<span class="st low">剩不多</span>';
+    if(st1)sub.push(st1);
+    const ifo=[];
+    if(g)ifo.push(`<span class="k">在途</span><span class="v tr">${fmt(g)} 件${teOK(i.te)?`・${teMD(i.te)} 到`:''}<i>→ 到貨後可出 <b>${fmt(Math.max(0,base+g))}</b></i></span>`);
+    if(w)ifo.push(`<span class="k">廠商未出</span><span class="v nos">${fmt(w)} 件<i>→ ${g?'再':''}到貨後可出 <b>${fmt(Math.max(0,base+g+w))}</b></i></span>`);
+    if(cq){const real=Math.max(0,cq-ov);ifo.push(`<span class="k">寄庫</span><button type="button" class="v cs ${real>=cq?'ok':real?'part':'no'}" data-go="cons">${fmt(cq)} 件・客戶的${real>=cq?'<i>現貨都在</i>':real?`<i>現貨 <b>${fmt(real)}</b>・還沒貨 <b class="x">${fmt(cq-real)}</b></i>`:'<i>還沒有現貨</i>'} ›</button>`)}
+    if(lq)ifo.push(`<span class="k">借出</span><button type="button" class="v ln" data-go="loan">${fmt(lq)} 件 ›</button>`);
+    if(oq)ifo.push(`<span class="k">缺貨客戶</span><button type="button" class="v ow" data-go="owe">${fmt(oq)} 件・看是誰 ›</button>`);
+    if(ifo.length)sub.push(`<span class="ifo">${ifo.join('')}</span>`);
+    const go=cq?'cons':lq?'loan':oq?'owe':t?'tr':'';const more='';
+    return `<div class="row g ${st}${imOK(i)?' im':''}"${go?` data-k="${k}" data-rgo="${go}"`:''}>${thumb(i,k)}<span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2 lns">${sub.join('')}</span>`:''}<span class="qty${avail>0?'':' none'}"><b>${fmt(avail)}</b><small>現貨可出</small></span>${more}</div>`};
   // 從品牌進來：類別預設全部收起，要看哪個再點開（只有一個類別就直接打開）；有搜尋或選類別時全部打開
   const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||(fBrand&&fType)),oneCat=new Set(sorted.map(i=>bKey(i)+'|'+tKey(i))).size===1;
   let html=backHtml(),ci=0;
@@ -677,7 +723,7 @@ function renderCons(){
     // 每位客戶一個可收合區塊：預設收起；有搜尋、選了客戶、只有一位客戶，或從商品點進來（有這個商品的客戶）時打開
     const ck='k:'+view+'|'+c.name,force=fItemK>=0&&has(c),cop=force||isOpen(ck,!!(T.length||fCust));anyC=anyC||cop;
     let h=`<details class="blk cat" data-ok="${esc(ck)}"${cop?' open':''}><summary><b>${hl(c.name,T)}</b><span class="pct">${rows.length} 項 · ${B.name} <em>${fmt(q)}</em> 件</span></summary><div class="in">`;
-    h+=rows.map(x=>`<div class="row g${x.k===fItemK?' hl':''}"><span class="model">${hl(nameOf(x.it),T)}<span class="sub">${esc(groupOf(x.it))}${view==='owe'?` · ${+x.it.qty>0?`<span class="s ok2">現貨 ${fmt(+x.it.qty)}</span>`:+x.it.tq>0?trTags(x.it):'還沒到貨'}`:''}</span></span><span class="qty"><b>${fmt(x.q)}</b><span class="status">${esc(x.it.unit||'件')}</span></span></div>`).join('')+'</div></details>';
+    h+=rows.map(x=>`<div class="row g${x.k===fItemK?' hl':''}"><span class="model">${hl(nameOf(x.it),T)}<span class="sub">${esc(groupOf(x.it))}${view==='owe'?oweInfo(x.it):''}</span></span><span class="qty"><b>${fmt(x.q)}</b><span class="status">${esc(x.it.unit||'件')}</span></span></div>`).join('')+'</div></details>';
     const r=useRep?gOf(c):'',b=blocks[r]||(blocks[r]={h:'',c:0,q:0});b.h+=h;b.c++;b.q+=q;
   }
   for(const r of (useRep?reps:[''])){const b=blocks[r];if(!b)continue;
@@ -697,6 +743,13 @@ const twQ=i=>Math.min(+i.tw||0,+i.tq||0),goQ2=i=>(+i.tq||0)-twQ(i);
 function goTxt(i,long){const tg=Math.min(+i.tg||0,goQ2(i)),ok=teOK(i.te),d=ok?teMD(i.te):'',when=ok?(long?`預計 ${d} 到貨`:`${d} 到`):'到貨日確認中';
   if(tg>0)return {c:ok?'soon':'go',t:`已出貨・${when}`};
   return {c:ok?'soon':'wait',t:ok?when:'已訂貨・到貨日確認中'};}
+// 客戶缺貨分頁：這項商品現在有沒有貨、有沒有叫貨、是不是在路上
+function oweInfo(i){const q=+i.qty||0,g=goQ2(i),w=twQ(i),ok=teOK(i.te),p=[];
+  if(q>0)p.push(`<span class="tg ln">現貨 ${fmt(q)}</span>`);
+  if(g)p.push(`<span class="tg tr">🚚 在途 ${fmt(g)}・${ok?`預計 ${teMD(i.te)} 到`:'到貨日確認中'}</span>`);
+  if(w)p.push(`<span class="tg nos">📋 已叫貨，廠商未出貨 ${fmt(w)}</span>`);
+  if(!q&&!g&&!w)p.push('<span class="tg z">還沒有叫貨</span>');
+  return `<span class="tgs oinf">${p.join('')}</span>`}
 // 一行裡的在途標籤（庫存列、缺貨分頁）：已出貨和還沒出貨各一個
 function trTags(i){const g=goQ2(i),w=twQ(i),x=goTxt(i);return (g?`<span class="s ${x.c}">🚚 在途 ${fmt(g)}・${x.t}</span>`:'')+(w?`<span class="s nos">📋 已訂未出貨 ${fmt(w)}</span>`:'')}
 // 標題的件數：已出貨和還沒出貨分開寫
