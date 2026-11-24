@@ -195,7 +195,12 @@ mark{background:var(--mark);color:var(--mark-fg);border-radius:3px;padding:0 1px
 .ifo .v.tr{color:var(--soon)}.ifo .v.tr i b{color:var(--soon)}
 .ifo .v.nos{color:var(--warn)}.ifo .v.nos i b{color:var(--warn)}
 .ifo .v.cs.ok i{color:var(--accent)}.ifo .v.cs.part i b{color:var(--accent)}.ifo .v.cs i b.x,.ifo .v.cs.no i{color:var(--danger)}
-.ifo .v.ln{color:var(--accent)}.ifo .v.ow{color:var(--owe)}
+.ifo .v.ln{color:var(--accent)}.ifo .v.oq{color:var(--owe)}
+.ifo .exb{width:100%;justify-content:flex-start}
+.ifo .exa{margin-left:auto;font-size:12px;font-weight:600;color:var(--accent);white-space:nowrap;padding-left:8px}
+.ifo .exl{grid-column:1 / -1;padding:6px 0 4px;border-top:1px dashed var(--line)}
+.ifo .exl .cc{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:13px;color:var(--fg)}
+.ifo .exl .cc b{margin-left:6px;color:var(--warn)}
 .ln1{color:var(--muted);font-weight:500}.ln1 b{color:var(--fg)}.ln1 b.o{color:var(--owe)}
 .ln1.bad{color:var(--danger);font-weight:700}.ln1.z{color:var(--muted)}.ln1.low{color:var(--warn);font-weight:700}
 .ln1.tr{color:var(--soon)}.ln1.tr b{color:var(--soon)}.ln1.nos{color:var(--warn)}.ln1.nos b{color:var(--warn)}
@@ -424,7 +429,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-24.1';
+const PAGE_VER='2026-11-24.2';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -554,6 +559,8 @@ function render(){
   const sorted=[...s].sort((a,b)=>zb(bKey(a),bKey(b))||zt(tKey(a),tKey(b))||(inStock(b)-inStock(a))||(items.indexOf(a)-items.indexOf(b)));
   // 依品牌分段；每個類別是一個可收合的區塊（只看一個品牌時，第一個類別預設打開；有搜尋或篩選時全部打開）
   const oqm={};bookOf('owe').forEach(c=>c.items.forEach(x=>{oqm[x.k]=(oqm[x.k]||0)+(+x.q||0)}));
+  // 每項商品的客戶名單（寄庫、缺貨、借出），在庫存列裡點一下就能展開
+  const cmR=conMap(),omR=oweMap(),lmR={};bookOf('loan').forEach(c=>c.items.forEach(x=>{const q=+x.q||0;if(q>0)(lmR[x.k]||(lmR[x.k]=[])).push([c.name+(c.b?'（業務）':''),q])}));Object.values(lmR).forEach(a=>a.sort((x,y)=>y[1]-x[1]));
   const row=i=>{const k=items.indexOf(i),cq=+i.cq||0,lq=+i.lq||0,oq=oqm[k]||0,q=+i.qty||0,t=+i.tq||0,st=i.st==='low'?'low':q>0?'ok':'zero',sub=[];
     // 右邊大字＝「現貨可出」（現貨先扣掉要補給缺貨客戶的）。名稱下面一個狀態標籤；其他資訊放進整齊的小表格（左邊欄名、右邊數字），沒有的就不顯示
     const ov=+i.ov||0,g=t?goQ2(i):0,w=t?twQ(i):0,avail=Math.max(0,q-oq),base=q-ov-oq;
@@ -566,9 +573,11 @@ function render(){
     const ifo=[];
     if(g)ifo.push(`<span class="k">在途</span><span class="v tr">${fmt(g)} 件${teOK(i.te)?`・${teMD(i.te)} 到`:''}<i>→ 到貨後可出 <b>${fmt(Math.max(0,base+g))}</b></i></span>`);
     if(w)ifo.push(`<span class="k">廠商未出</span><span class="v nos">${fmt(w)} 件<i>→ ${g?'再':''}到貨後可出 <b>${fmt(Math.max(0,base+g+w))}</b></i></span>`);
-    if(cq){const real=Math.max(0,cq-ov);ifo.push(`<span class="k">寄庫</span><button type="button" class="v cs ${real>=cq?'ok':real?'part':'no'}" data-go="cons">${fmt(cq)} 件・客戶的${real>=cq?'<i>現貨都在</i>':real?`<i>現貨 <b>${fmt(real)}</b>・還沒貨 <b class="x">${fmt(cq-real)}</b></i>`:'<i>還沒有現貨</i>'} ›</button>`)}
-    if(lq)ifo.push(`<span class="k">借出</span><button type="button" class="v ln" data-go="loan">${fmt(lq)} 件 ›</button>`);
-    if(oq)ifo.push(`<span class="k">缺貨客戶</span><button type="button" class="v ow" data-go="owe">${fmt(oq)} 件・看是誰 ›</button>`);
+    // 寄庫／缺貨客戶／借出：點一下在這裡展開客戶名單（每位幾件），不用切分頁
+    const exRow=(lab,cls,key,list,txt)=>{const op=EXOPEN.has(key);return `<span class="k">${lab}</span><button type="button" class="v ${cls} exb" data-ex="${esc(key)}" aria-expanded="${op}">${txt}<span class="exa">${op?'收合 ▴':`${list.length} 位 ▾`}</span></button>`+(op?`<span class="exl">${chips(list,T,key)}</span>`:'')};
+    if(oq&&omR[k])ifo.push(exRow('缺貨客戶','oq','o:'+k,omR[k].cs,`${fmt(oq)} 件`));
+    if(cq&&cmR[k]){const real=Math.max(0,cq-ov);ifo.push(exRow('寄庫','cs '+(real>=cq?'ok':real?'part':'no'),'c:'+k,cmR[k],`${fmt(cq)} 件・客戶的${real>=cq?'<i>現貨都在</i>':real?`<i>現貨 <b>${fmt(real)}</b>・還沒貨 <b class="x">${fmt(cq-real)}</b></i>`:'<i>還沒有現貨</i>'}`))}
+    if(lq&&lmR[k])ifo.push(exRow('借出','ln','l:'+k,lmR[k],`${fmt(lq)} 件`));
     if(ifo.length)sub.push(`<span class="ifo">${ifo.join('')}</span>`);
     const go=cq?'cons':lq?'loan':oq?'owe':t?'tr':'';const more='';
     return `<div class="row g ${st}${imOK(i)?' im':''}"${go?` data-k="${k}" data-rgo="${go}"`:''}>${thumb(i,k)}<span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2 lns">${sub.join('')}</span>`:''}<span class="qty${avail>0?'':' none'}"><b>${fmt(avail)}</b><small>現貨可出</small></span>${more}</div>`};
@@ -770,7 +779,7 @@ function conMap(){const m={};bookOf('cons').forEach(c=>c.items.forEach(x=>{const
 const needOf=(i,k,om)=>!!(om[k]||+i.ov>0);
 function needHit(i,k,T,om,cm){const o=om[k],c=+i.ov>0?cm[k]:null;return kwHit([i.brand,i.type,i.cat,i.model,i.color,...(o?o.cs.map(x=>x[0]):[]),...(c?c.map(x=>x[0]):[])],T)}
 // 客戶名單：超過 6 位先收起，按「還有 N 位」展開（記住展開狀態，重畫也不會收回）
-const CCOPEN=new Set();
+const CCOPEN=new Set(),EXOPEN=new Set();
 function chips(list,T,key){const MAX=6,op=CCOPEN.has(key),h=([n,q],x)=>`<span class="cc${x?' xh':''}">${hl(n,T)}<b>${fmt(q)}</b></span>`;
   const hit=T.length?list.filter(([n])=>kwHit([n],T)):[],rest=list.filter(x=>!hit.includes(x)),top=[...hit,...rest];
   return `<span class="ccs${op?' all':''}">`+top.map((x,j)=>h(x,j>=MAX)).join('')+(top.length>MAX?`<button type="button" class="ccbtn" data-cc="${esc(key)}" data-n="${top.length-MAX}">${op?'收合 ˄':`還有 ${top.length-MAX} 位 ›`}</button>`:'')+'</span>'}
@@ -876,6 +885,9 @@ $('selType').onchange=()=>{fType=$('selType').value;
   const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
 $('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';showAll=false;render();renderCons()};
 $('list').addEventListener('click',e=>{
+  // 庫存列裡的客戶名單：展開／收合（不切分頁）
+  const ex=e.target.closest('[data-ex]');if(ex){const k=ex.dataset.ex;EXOPEN.has(k)?EXOPEN.delete(k):EXOPEN.add(k);render();return}
+  const cb=e.target.closest('[data-cc]');if(cb){const k=cb.dataset.cc,box=cb.parentNode,op=!box.classList.contains('all');box.classList.toggle('all',op);op?CCOPEN.add(k):CCOPEN.delete(k);cb.textContent=op?'收合 ˄':`還有 ${cb.dataset.n} 位 ›`;return}
   const tm=e.target.closest('[data-tmore]');if(tm){showAllTypes=!showAllTypes;render();return}
   const fo=e.target.closest('[data-fold]');if(fo){const ds=[...$('list').querySelectorAll('details.cat')],any=ds.some(d=>d.open);ds.forEach(d=>{d.open=!any;OPEN[d.dataset.ok]=!any});fo.textContent=any?'全部展開':'全部收起';return}
   const hb=e.target.closest('[data-brand],[data-type],[data-all],[data-home]');
