@@ -469,7 +469,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-25.9';
+const PAGE_VER='2026-11-25.10';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -955,12 +955,12 @@ const SHOT_OPENG=new Set();
 function showShotOpts(){
   let box=$('shotBox');if(!box){box=document.createElement('div');box.id='shotBox';box.className='shotbox';document.body.appendChild(box)}
   // 換了品牌／搜尋條件才重設勾選；同一個條件下資料自動更新也會保留你勾的
-  if(!shotSel||shotSel.label!==SHOT.label){shotSel=new Set(SHOT.list.map(shotKey));shotSel.label=SHOT.label;SHOT_OPENG.clear();shotQ=''}
+  if(!shotSel||shotSel.label!==SHOT.label){shotSel=new Set();shotSel.label=SHOT.label;SHOT_OPENG.clear();shotQ=''}
   const o=shotOpt(),n=SHOT.list.length;
   const paint=()=>{const k=SHOT.list.filter(i=>shotSel.has(shotKey(i))).length;
     box.innerHTML=`<div class="shotin"><div class="shothd"><b>存成圖片</b><button type="button" class="shotx" data-shotx aria-label="關閉">✕</button></div>
     <div class="shotbody">
-      <p class="shotsec">① 要放哪些商品<small id="spCnt">已選 ${fmt(k)} / ${fmt(n)} 項</small></p>
+      <p class="shotsec">① 要放哪些商品<small id="spCnt">${k?`已選 ${fmt(k)} / ${fmt(n)} 項`:'還沒選，先搜尋或勾選'}</small></p>
       <input type="search" id="spQ" class="shotq" placeholder="搜尋型號、類別" autocomplete="off" value="${esc(shotQ)}">
       <div class="shotpre" id="spAct"></div>
       <div class="shotpick" id="spList">${shotPickHtml()}</div>
@@ -973,7 +973,7 @@ function showShotOpts(){
     box.querySelectorAll('[data-ind]').forEach(c=>c.indeterminate=true);paintAct();bindQ()};
   // 搜尋框打字時只更新清單，不重畫整個視窗（輸入框才不會跳掉）
   const paintAct=()=>{const q=shotQ.trim(),nv=SHOT.list.filter(shotHit).length;box.querySelector('#spAct').innerHTML=q?`<button type="button" class="shotlk" data-sponly>只選搜尋到的 ${fmt(nv)} 項</button><button type="button" class="shotlk" data-spadd>把搜尋到的加進來</button>`:`<button type="button" class="shotlk" data-spall="1">全選</button><button type="button" class="shotlk" data-spall="0">全部不選</button>`};
-  const paintPick=()=>{const k=SHOT.list.filter(i=>shotSel.has(shotKey(i))).length;box.querySelector('#spList').innerHTML=shotPickHtml();box.querySelectorAll('#spList [data-ind]').forEach(c=>c.indeterminate=true);box.querySelector('#spCnt').textContent=`已選 ${fmt(k)} / ${fmt(n)} 項`;const mk=box.querySelector('[data-shotmake]');mk.disabled=!k;mk.textContent=`製作圖片（${fmt(k)} 項）`;paintAct()};
+  const paintPick=()=>{const k=SHOT.list.filter(i=>shotSel.has(shotKey(i))).length;box.querySelector('#spList').innerHTML=shotPickHtml();box.querySelectorAll('#spList [data-ind]').forEach(c=>c.indeterminate=true);box.querySelector('#spCnt').textContent=k?`已選 ${fmt(k)} / ${fmt(n)} 項`:'還沒選，先搜尋或勾選';const mk=box.querySelector('[data-shotmake]');mk.disabled=!k;mk.textContent=`製作圖片（${fmt(k)} 項）`;paintAct()};
   const bindQ=()=>{const qi=box.querySelector('#spQ');qi.oninput=e=>{shotQ=e.target.value;paintPick()};qi.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)e.target.blur()}};
   const keepOpt=()=>{box.querySelectorAll('[data-so]').forEach(c=>o[c.dataset.so]=c.checked)};
   const repaint=()=>{const sc=box.querySelector('.shotbody'),y=sc?sc.scrollTop:0;keepOpt();paint();const sc2=box.querySelector('.shotbody');if(sc2)sc2.scrollTop=y};
@@ -1059,14 +1059,14 @@ function showBookShotOpts(){
   if(!BSHOT||!BSHOT.cs.length)return;
   let box=$('shotBox');if(!box){box=document.createElement('div');box.id='shotBox';box.className='shotbox';document.body.appendChild(box)}
   const sig=BSHOT.view+'|'+BSHOT.label;
-  if(!bsSel||bsSel.sig!==sig){bsSel=new Set(BSHOT.cs.flatMap(c=>c.rows.map(x=>bsKey(c.name,x))));bsSel.sig=sig;BS_OPENC.clear();bsQ=''}
+  if(!bsSel||bsSel.sig!==sig){bsSel=new Set();bsSel.sig=sig;BS_OPENC.clear();bsQ=''}
   const o=bsOpt(),V=BSHOT.view,KEYS=[['rep','所屬業務（客戶名稱旁邊）'],...(V==='cons'?[['real','標出「還沒有現貨」的商品（超賣的）']]:[]),...(V==='owe'?[['tr','叫貨／在途狀況']]:[])];
   // 搜尋：打客戶名稱、業務或商品型號，下面只列符合的客戶（打商品時，客戶裡也只列符合的商品）
   const T2=()=>bsQ.trim()?toks2(bsQ):[];
   const shown=()=>{const T=T2();if(!T.length)return BSHOT.cs.map(c=>({c,rows:c.rows}));
     return BSHOT.cs.map(c=>{if(kwHit([c.name,c.rep],T))return {c,rows:c.rows};const rows=c.rows.filter(x=>kwHit([c.name,c.rep,nameOf(x.it),x.it.brand,x.it.type],T));return rows.length?{c,rows}:null}).filter(Boolean)};
   const paintList=()=>{const sh=shown(),all=BSHOT.cs.flatMap(c=>c.rows.map(x=>bsKey(c.name,x))),k=all.filter(x=>bsSel.has(x)).length,nc=BSHOT.cs.filter(c=>c.rows.some(x=>bsSel.has(bsKey(c.name,x)))).length,q=bsQ.trim();
-    box.querySelector('#bsCnt').textContent=`已選 ${fmt(nc)} 位、${fmt(k)} 項`;
+    box.querySelector('#bsCnt').textContent=k?`已選 ${fmt(nc)} 位、${fmt(k)} 項`:'還沒選，先搜尋或勾選';
     box.querySelector('#bsAct').innerHTML=q?`<button type="button" class="shotlk" data-bsonly>只選搜尋到的 ${fmt(sh.length)} 位</button><button type="button" class="shotlk" data-bsadd>把搜尋到的加進來</button>`:`<button type="button" class="shotlk" data-bsall="1">全選</button><button type="button" class="shotlk" data-bsall="0">全部不選</button>`;
     box.querySelector('#bsList').innerHTML=sh.length?sh.map(({c,rows})=>{const ks=c.rows.map(x=>bsKey(c.name,x)),n2=ks.filter(x=>bsSel.has(x)).length,op=BS_OPENC.has(c.name)||(q&&rows.length<c.rows.length),tq=c.rows.reduce((a,x)=>a+x.q,0);
         return `<div class="spg"><div class="spgh"><label><input type="checkbox" data-bsc="${esc(c.name)}"${n2===ks.length?' checked':''}${n2&&n2<ks.length?' data-ind="1"':''}><span>${esc(c.name)}${c.rep?`<small class="bsrep">${esc(c.rep)}</small>`:''}</span><small>${fmt(n2)} / ${fmt(ks.length)} 項・${fmt(tq)} 件</small></label><button type="button" class="shotlk" data-bso="${esc(c.name)}">${op?'收合 ▴':'選商品 ▾'}</button></div>
