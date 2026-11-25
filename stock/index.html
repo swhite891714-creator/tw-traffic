@@ -85,6 +85,8 @@ h1{font-size:22px;margin:0}
 .spi{display:grid;gap:2px;padding:4px 12px 10px 42px;border-top:1px dashed var(--line)}
 .spi label{display:flex;align-items:center;gap:10px;font-size:14px;padding:4px 0;cursor:pointer}
 .shotgo[disabled]{opacity:.5}
+.bsrep{margin-left:8px;color:var(--muted);font-size:12.5px}
+.spi b{color:var(--warn);margin-left:4px}
 .shotopts{display:grid;gap:4px;margin:4px 0 8px}
 .shotopt{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:15px;cursor:pointer}
 .shotopt input{width:20px;height:20px;accent-color:var(--accent)}
@@ -465,7 +467,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-25.5';
+const PAGE_VER='2026-11-25.8';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -622,7 +624,7 @@ function render(){
   const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||(fBrand&&fType)),oneCat=new Set(sorted.map(i=>bKey(i)+'|'+tKey(i))).size===1;
   // 存成圖片：記下這次篩選出來的商品（品牌、類別、狀態、搜尋），按鈕放在清單最上面
   SHOT={list:sorted,label:[fBrand,fType,statusF?(STATUS.find(x=>x[0]===statusF)||[])[1]:'',T.length?`搜尋「${$('q').value.trim()}」`:''].filter(Boolean).join('・')||'全部商品'};
-  let html=backHtml()+`<div class="shotbar"><button type="button" class="shotbtn" data-shot>📷 把這 ${fmt(sorted.length)} 項存成圖片</button><small>可以整份分享或存到相簿</small></div>`,ci=0;
+  let html=backHtml()+`<div class="shotbar"><button type="button" class="shotbtn" data-shot>📷 存成圖片</button></div>`,ci=0;
   const cnt=g=>`有貨 <em>${fmt(g.filter(inStock).length)}</em> / ${fmt(g.length)}`;
   // 從類別進來：上面是類別名稱，下面每個品牌一個可收合區塊（預設收起，只有一個品牌就直接打開）
   if(fType&&!fBrand&&!T.length){
@@ -756,11 +758,15 @@ function renderCons(){
   if(fItemK>=0&&!(fi&&cs.some(has)))fItemK=-1;
   $('onlyItem').hidden=fItemK<0;
   if(fItemK>=0)$('onlyItemText').textContent=`${nameOf(fi)}：`+cs.filter(has).map(c=>`${c.name} ${B.name} ${fmt(c.items.filter(x=>x.k===fItemK).reduce((a,x)=>a+(+x.q||0),0))} 件`).join('、');
+  // 存成圖片：這次看得到的客戶（含選了業務／客戶／搜尋的條件）和每位的商品
+  BSHOT={view,name:B.name,label:[fRep,fCust,T.length?`搜尋「${$('q').value.trim()}」`:''].filter(Boolean).join('・')||`全部${isL?'對象':'客戶'}`,
+    cs:csR.filter(c=>!fCust||c.name===fCust).map(c=>({name:c.name,rep:isL?(c.b?'業務借出':''):String(c.rep||'').trim(),rows:bookRows(c,T)})).filter(c=>c.rows.length)};
+  const bshotBtn=BSHOT.cs.length?`<div class="shotbar"><button type="button" class="shotbtn" data-bshot>📷 存成圖片</button></div>`:'';
   // 客戶多的時候不先列出所有客戶：要先選客戶（或業務）、搜尋，或按「列出全部客戶」才顯示清單
   const pick=csR.length>1&&!fCust&&!fRep&&!T.length&&fItemK<0&&!cAll;
   sel.classList.toggle('need',pick);
   if(pick){const totQ=csR.reduce((a,c)=>a+tot(c),0);
-    box.innerHTML=`<div class="cpick"><b>請先選擇要看的${isL&&lb?'業務或客戶':'客戶'}</b><span>目前共 ${csR.length} 位${isL&&lb?'業務和客戶':'客戶'}有${B.name}（${fmt(totQ)} 件）。從上面的選單選一位${useRep?(isL?'，或先選「業務借出」／「客戶借出」':'，或先選業務'):''}；也可以在搜尋框輸入客戶名稱或商品型號。</span><button type="button" class="cpall" data-call>${isL&&lb?'列出全部':'列出全部客戶'}</button></div>`;return}
+    box.innerHTML=bshotBtn+`<div class="cpick"><b>請先選擇要看的${isL&&lb?'業務或客戶':'客戶'}</b><span>目前共 ${csR.length} 位${isL&&lb?'業務和客戶':'客戶'}有${B.name}（${fmt(totQ)} 件）。從上面的選單選一位${useRep?(isL?'，或先選「業務借出」／「客戶借出」':'，或先選業務'):''}；也可以在搜尋框輸入客戶名稱或商品型號。</span><button type="button" class="cpall" data-call>${isL&&lb?'列出全部':'列出全部客戶'}</button></div>`;return}
   let html='',n=0,anyC=false;
   const order=fItemK>=0?[...csR].sort((a,b)=>has(b)-has(a)):csR;
   const blocks={};
@@ -777,7 +783,7 @@ function renderCons(){
   for(const r of (useRep?reps:[''])){const b=blocks[r];if(!b)continue;
     if(useRep)html+=`<div class="rhdr${r==='未指定業務'?' none':''}"><b>${hl(r,T)}</b><small>${b.c} 位${isL&&r==='業務借出'?'業務':'客戶'} · ${B.name} ${fmt(b.q)} 件</small></div>`;
     html+=b.h;}
-  if(n)html=`<div class="lbar">${cAll&&!fCust&&!fRep&&!T.length&&fItemK<0&&csR.length>1?'<button type="button" data-cnone>收起客戶清單</button>':'<span></span>'}<button type="button" data-fold>${anyC?'全部收起':'全部展開'}</button></div>`+html;
+  if(n)html=bshotBtn+`<div class="lbar">${cAll&&!fCust&&!fRep&&!T.length&&fItemK<0&&csR.length>1?'<button type="button" data-cnone>收起客戶清單</button>':'<span></span>'}<button type="button" data-fold>${anyC?'全部收起':'全部展開'}</button></div>`+html;
   box.innerHTML=n?html:`<div class="empty">${cs.length?'找不到符合的客戶或商品':B.empty}</div>`;
 }
 /* ---------- 即將到貨（在途） ----------
@@ -909,7 +915,7 @@ $('trList').addEventListener('click',e=>{
 });
 $('tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)goView(b.dataset.v)};
 $('selCust').onchange=()=>{fCust=$('selCust').value;renderCons()};
-$('consList').addEventListener('click',e=>{if(e.target.closest('[data-call]')){cAll=true;renderCons()}else if(e.target.closest('[data-cnone]')){cAll=false;renderCons();window.scrollTo(0,0)}});
+$('consList').addEventListener('click',e=>{if(e.target.closest('[data-bshot]')){showBookShotOpts();return}if(e.target.closest('[data-call]')){cAll=true;renderCons()}else if(e.target.closest('[data-cnone]')){cAll=false;renderCons();window.scrollTo(0,0)}});
 $('selTrB').onchange=()=>{trB=$('selTrB').value;if(trT&&!trItems().some(i=>(!trB||bKey(i)===trB)&&tKey(i)===trT))trT='';renderTr()};
 $('selTrT').onchange=()=>{trT=$('selTrT').value;if(trB&&!trItems().some(i=>(!trT||tKey(i)===trT)&&bKey(i)===trB))trB='';renderTr()};
 $('selRep').onchange=()=>{fRep=$('selRep').value;fCust='';renderCons()};
@@ -1032,10 +1038,91 @@ async function makeShot(opt){
   }
   showShot(urls);
 }
+/* ---------- 寄庫／缺貨／借出 存成圖片 ----------
+   挑客戶（可以展開逐項挑商品），選要不要放業務、現貨狀況；每位客戶一區畫成長圖 */
+let BSHOT=null,bsSel=null;const BS_OPENC=new Set();
+const bsKey=(c,x)=>c+'|'+x.k;
+function bsOpt(){let o={};try{o=JSON.parse(localStorage.getItem('bsOpt')||'{}')||{}}catch(_){}return {rep:!!o.rep,real:!!o.real,tr:!!o.tr}}
+function showBookShotOpts(){
+  if(!BSHOT||!BSHOT.cs.length)return;
+  let box=$('shotBox');if(!box){box=document.createElement('div');box.id='shotBox';box.className='shotbox';document.body.appendChild(box)}
+  const sig=BSHOT.view+'|'+BSHOT.label;
+  if(!bsSel||bsSel.sig!==sig){bsSel=new Set(BSHOT.cs.flatMap(c=>c.rows.map(x=>bsKey(c.name,x))));bsSel.sig=sig;BS_OPENC.clear()}
+  const o=bsOpt(),V=BSHOT.view,KEYS=[['rep','所屬業務（客戶名稱旁邊）'],...(V==='cons'?[['real','標出「還沒有現貨」的商品（超賣的）']]:[]),...(V==='owe'?[['tr','叫貨／在途狀況']]:[])];
+  const paint=()=>{const all=BSHOT.cs.flatMap(c=>c.rows.map(x=>bsKey(c.name,x))),k=all.filter(x=>bsSel.has(x)).length,nc=BSHOT.cs.filter(c=>c.rows.some(x=>bsSel.has(bsKey(c.name,x)))).length;
+    box.innerHTML=`<div class="shotin"><div class="shothd"><b>${esc(BSHOT.name)}存成圖片</b><button type="button" class="shotx" data-shotx aria-label="關閉">✕</button></div>
+    <div class="shotbody">
+      <p class="shotsec">① 要放哪些客戶<small>已選 ${fmt(nc)} 位、${fmt(k)} 項</small></p>
+      <div class="shotpre"><button type="button" class="shotlk" data-bsall="1">全選</button><button type="button" class="shotlk" data-bsall="0">全部不選</button></div>
+      <div class="shotpick">${BSHOT.cs.map(c=>{const ks=c.rows.map(x=>bsKey(c.name,x)),n2=ks.filter(x=>bsSel.has(x)).length,op=BS_OPENC.has(c.name),q=c.rows.reduce((a,x)=>a+x.q,0);
+        return `<div class="spg"><div class="spgh"><label><input type="checkbox" data-bsc="${esc(c.name)}"${n2===ks.length?' checked':''}${n2&&n2<ks.length?' data-ind="1"':''}><span>${esc(c.name)}${c.rep?`<small class="bsrep">${esc(c.rep)}</small>`:''}</span><small>${fmt(n2)} / ${fmt(ks.length)} 項・${fmt(q)} 件</small></label><button type="button" class="shotlk" data-bso="${esc(c.name)}">${op?'收合 ▴':'選商品 ▾'}</button></div>
+          ${op?`<div class="spi">${c.rows.map(x=>`<label><input type="checkbox" data-bsi="${esc(bsKey(c.name,x))}"${bsSel.has(bsKey(c.name,x))?' checked':''}><span>${esc(nameOf(x.it))}　<b>${fmt(x.q)}</b></span></label>`).join('')}</div>`:''}</div>`}).join('')}</div>
+      <p class="shotsec">② 要不要放這些資訊<small>客戶、商品和${esc(BSHOT.name)}件數一定會有</small></p>
+      <div class="shotopts">${KEYS.map(([kk,lb])=>`<label class="shotopt"><input type="checkbox" data-bso2="${kk}"${o[kk]?' checked':''}><span>${lb}</span></label>`).join('')}</div>
+      <p class="err" id="shotErr" hidden></p>
+    </div>
+    <div class="shotacts"><button type="button" class="shotdl" data-shotx>取消</button><button type="button" class="shotgo" data-bsmake${k?'':' disabled'}>製作圖片（${fmt(nc)} 位）</button></div></div>`;
+    box.querySelectorAll('[data-ind]').forEach(c=>c.indeterminate=true)};
+  const repaint=()=>{const sc=box.querySelector('.shotbody'),y=sc?sc.scrollTop:0;box.querySelectorAll('[data-bso2]').forEach(c=>o[c.dataset.bso2]=c.checked);paint();const sc2=box.querySelector('.shotbody');if(sc2)sc2.scrollTop=y};
+  paint();box.hidden=false;document.body.classList.add('noscroll');
+  box.onchange=e=>{const c=e.target;
+    if(c.dataset.bsc!=null){const cc=BSHOT.cs.find(x=>x.name===c.dataset.bsc);if(cc)cc.rows.forEach(x=>c.checked?bsSel.add(bsKey(cc.name,x)):bsSel.delete(bsKey(cc.name,x)));repaint();return}
+    if(c.dataset.bsi!=null){c.checked?bsSel.add(c.dataset.bsi):bsSel.delete(c.dataset.bsi);repaint();return}};
+  box.onclick=async e=>{
+    if(e.target===box||e.target.closest('[data-shotx]')){box.hidden=true;document.body.classList.remove('noscroll');return}
+    const sa=e.target.closest('[data-bsall]');if(sa){BSHOT.cs.forEach(c=>c.rows.forEach(x=>sa.dataset.bsall==='1'?bsSel.add(bsKey(c.name,x)):bsSel.delete(bsKey(c.name,x))));repaint();return}
+    const so=e.target.closest('[data-bso]');if(so){const k=so.dataset.bso;BS_OPENC.has(k)?BS_OPENC.delete(k):BS_OPENC.add(k);repaint();return}
+    const mk=e.target.closest('[data-bsmake]');if(mk){const opt={};box.querySelectorAll('[data-bso2]').forEach(c=>opt[c.dataset.bso2]=c.checked);try{localStorage.setItem('bsOpt',JSON.stringify(opt))}catch(_){}
+      mk.disabled=true;mk.textContent='圖片製作中…';
+      try{await makeBookShot(opt)}catch(_){mk.disabled=false;mk.textContent='製作圖片';const er=$('shotErr');er.textContent='圖片沒有做成功，請再按一次「製作圖片」';er.hidden=false}}
+  };
+}
+async function makeBookShot(opt){
+  const cs=BSHOT.cs.map(c=>({...c,rows:c.rows.filter(x=>bsSel.has(bsKey(c.name,x)))})).filter(c=>c.rows.length);if(!cs.length)return;
+  const W=1080,PAD=48,FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+  try{if(document.fonts&&document.fonts.ready)await document.fonts.ready}catch(_){}
+  const css=getComputedStyle(document.documentElement),cv=n=>css.getPropertyValue(n).trim()||'#333';
+  const C={bg:'#ffffff',fg:cv('--fg'),mu:cv('--muted'),line:cv('--line'),ac:cv('--accent'),warn:cv('--warn'),dan:cv('--danger'),soon:cv('--soon')||'#2f6fb0',owe:cv('--owe'),tile:'#f3f5f4'};
+  const meas=document.createElement('canvas').getContext('2d');
+  const wrap=(t,font,maxW)=>{meas.font=font;const out=[];let cur='';for(const ch of String(t)){if(meas.measureText(cur+ch).width>maxW&&cur){out.push(cur);cur=ch}else cur+=ch}if(cur)out.push(cur);return out};
+  const FN=`600 32px ${FONT}`,FS=`400 24px ${FONT}`,NW=W-PAD*2-200;
+  const rows=[];
+  for(const c of cs){const q=c.rows.reduce((a,x)=>a+x.q,0);rows.push({kind:'c',name:c.name,rep:opt.rep?c.rep:'',sum:`${fmt(c.rows.length)} 項・${BSHOT.name} ${fmt(q)} 件`,h:92});
+    for(const x of c.rows){const i=x.it,sub=[[groupOf(i),C.mu]];
+      if(BSHOT.view==='cons'&&opt.real&&+i.ov>0){const real=Math.max(0,(+i.cq||0)-(+i.ov||0));sub.push([real?`這項寄庫合計只有 ${fmt(real)} 件有現貨`:'這項寄庫還沒有現貨',C.dan])}
+      if(BSHOT.view==='owe'&&opt.tr){const g=goQ2(i),w=twQ(i);if(+i.qty>0)sub.push([`現貨 ${fmt(+i.qty)}`,C.ac]);if(g)sub.push([`在途 ${fmt(g)}${teOK(i.te)?`・預計 ${teMD(i.te)} 到`:'・到貨日確認中'}`,C.soon]);if(w)sub.push([`已叫貨，廠商未出貨 ${fmt(w)}`,C.warn]);if(!+i.qty&&!g&&!w)sub.push(['還沒有叫貨',C.dan])}
+      const nl=wrap(nameOf(i),FN,NW).slice(0,3),sl=sub.flatMap(([t,cl])=>wrap(t,FS,NW).map(l=>[l,cl]));
+      rows.push({kind:'i',nl,sl,q:x.q,unit:i.unit||'件',h:Math.max(90,24+nl.length*42+sl.length*34+14)})}}
+  const HEAD=210,FOOT=90,MAXH=9000,pages=[];let cur=[],h=HEAD;
+  for(const r of rows){if(h+r.h+FOOT>MAXH&&cur.some(x=>x.kind==='i')){pages.push(cur);cur=[];h=HEAD}cur.push(r);h+=r.h}
+  if(cur.length)pages.push(cur);
+  const at=data&&data.at?String(fmtAt(data.at)).replace(/[（(].*?[）)]/g,'').trim():'';
+  const label=cs.length<BSHOT.cs.length?(cs.length<=3?cs.map(c=>c.name).join('、'):`${cs.length} 位客戶`):BSHOT.label;
+  const urls=[];
+  for(let pi=0;pi<pages.length;pi++){const pr=pages[pi],H=HEAD+pr.reduce((n,r)=>n+r.h,0)+FOOT;
+    const cnv=document.createElement('canvas');cnv.width=W;cnv.height=H;const x=cnv.getContext('2d');
+    x.fillStyle=C.bg;x.fillRect(0,0,W,H);x.textBaseline='top';
+    x.fillStyle=C.fg;x.font=`700 48px ${FONT}`;x.fillText(BSHOT.name+'清單',PAD,44);
+    x.fillStyle=C.ac;x.font=`700 34px ${FONT}`;x.fillText(wrap(label,`700 34px ${FONT}`,W-PAD*2)[0],PAD,108);
+    x.fillStyle=C.mu;x.font=`400 26px ${FONT}`;x.fillText(`共 ${fmt(cs.length)} 位${pages.length>1?`　第 ${pi+1} / ${pages.length} 張`:''}${at?`　資料更新於 ${at}`:''}`,PAD,156);
+    x.fillStyle=C.line;x.fillRect(PAD,HEAD-12,W-PAD*2,3);
+    let y=HEAD;
+    for(const r of pr){
+      if(r.kind==='c'){x.fillStyle=C.tile;x.fillRect(PAD,y+14,W-PAD*2,66);x.fillStyle=C.fg;x.font=`700 34px ${FONT}`;x.fillText(r.name,PAD+18,y+28);
+        if(r.rep){meas.font=`700 34px ${FONT}`;const w0=meas.measureText(r.name).width;x.fillStyle=C.mu;x.font=`400 24px ${FONT}`;x.fillText(r.rep,PAD+30+w0,y+36)}
+        x.textAlign='right';x.fillStyle=C.mu;x.font=`400 24px ${FONT}`;x.fillText(r.sum,W-PAD-16,y+36);x.textAlign='left'}
+      else{let yy=y+16;x.fillStyle=C.fg;x.font=FN;r.nl.forEach(l=>{x.fillText(l,PAD+8,yy);yy+=42});x.font=FS;r.sl.forEach(([l,cl])=>{x.fillStyle=cl;x.fillText(l,PAD+8,yy);yy+=34});
+        x.textAlign='right';x.fillStyle=C.fg;x.font=`700 50px ${FONT}`;x.fillText(fmt(r.q),W-PAD,y+12);x.fillStyle=C.mu;x.font=`400 22px ${FONT}`;x.fillText(r.unit,W-PAD,y+68);x.textAlign='left';
+        x.fillStyle=C.line;x.fillRect(PAD,y+r.h-2,W-PAD*2,2)}
+      y+=r.h}
+    x.fillStyle=C.mu;x.font=`400 22px ${FONT}`;x.fillText('數字僅供參考，以實際出貨為準',PAD,H-58);
+    const blob=await new Promise(res=>cnv.toBlob(res,'image/png'));urls.push({blob,url:URL.createObjectURL(blob),name:`${BSHOT.name}_${label.replace(/[\\/:*?"<>|「」]/g,'')}${pages.length>1?`_${pi+1}`:''}.png`})}
+  showShot(urls,showBookShotOpts);
+}
 // 圖片做好後：手機支援的話，直接跳出系統選單（iPhone 按「儲存影像」、Android 按「儲存到相簿／下載」）就進相簿
 // 網頁沒辦法不經過這一步就自己寫進相簿，這是手機系統的限制；所以把這一步做成「做完自動跳出」，少按一次
 const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-function showShot(urls){
+function showShot(urls,reopen){
   let box=$('shotBox');if(!box){box=document.createElement('div');box.id='shotBox';box.className='shotbox';document.body.appendChild(box)}
   const files=(()=>{try{return urls.map(u=>new File([u.blob],u.name,{type:'image/png'}))}catch(_){return null}})();
   const canShare=!!(files&&navigator.canShare&&(()=>{try{return navigator.canShare({files})}catch(_){return false}})());
@@ -1051,7 +1138,7 @@ function showShot(urls){
   const doShare=async()=>{try{await navigator.share({files});return true}catch(e){return e&&e.name==='AbortError'}};
   box.onclick=async e=>{
     if(e.target===box||e.target.closest('[data-shotx]')){box.hidden=true;document.body.classList.remove('noscroll');urls.forEach(u=>setTimeout(()=>URL.revokeObjectURL(u.url),60000));return}
-    if(e.target.closest('[data-shotre]')){urls.forEach(u=>setTimeout(()=>URL.revokeObjectURL(u.url),60000));showShotOpts();return}
+    if(e.target.closest('[data-shotre]')){urls.forEach(u=>setTimeout(()=>URL.revokeObjectURL(u.url),60000));(reopen||showShotOpts)();return}
     if(e.target.closest('[data-shotshare]')){await doShare()}
     if(e.target.closest('[data-shotdl]')&&urls.length>1){e.preventDefault();urls.forEach(u=>{const a=document.createElement('a');a.href=u.url;a.download=u.name;document.body.appendChild(a);a.click();a.remove()})}
   };
