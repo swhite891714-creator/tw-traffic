@@ -90,6 +90,7 @@ h1{font-size:22px;margin:0}
 .shotopt input{width:20px;height:20px;accent-color:var(--accent)}
 .shotpre{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px}
 .shotlk{font:inherit;font-size:14px;border:0;background:none;color:var(--accent);text-decoration:underline;cursor:pointer;padding:6px 0;text-align:left}
+.shottip{background:var(--ok-bg);color:var(--fg);padding:8px 10px;border-radius:10px;font-size:14px}.shottip b{color:var(--accent)}
 .shotacts{display:flex;justify-content:space-between;gap:16px;margin-top:10px}
 .shotgo,.shotdl{font:inherit;font-size:15px;font-weight:700;border-radius:12px;padding:11px 16px;min-height:46px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
 .shotgo{border:0;background:var(--accent);color:var(--accent-fg)}
@@ -463,7 +464,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-25.2';
+const PAGE_VER='2026-11-25.3';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -1030,21 +1031,29 @@ async function makeShot(opt){
   }
   showShot(urls);
 }
+// 圖片做好後：手機支援的話，直接跳出系統選單（iPhone 按「儲存影像」、Android 按「儲存到相簿／下載」）就進相簿
+// 網頁沒辦法不經過這一步就自己寫進相簿，這是手機系統的限制；所以把這一步做成「做完自動跳出」，少按一次
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 function showShot(urls){
   let box=$('shotBox');if(!box){box=document.createElement('div');box.id='shotBox';box.className='shotbox';document.body.appendChild(box)}
-  const canShare=(()=>{try{const f=urls.map(u=>new File([u.blob],u.name,{type:'image/png'}));return !!(navigator.canShare&&navigator.canShare({files:f}))}catch(_){return false}})();
+  const files=(()=>{try{return urls.map(u=>new File([u.blob],u.name,{type:'image/png'}))}catch(_){return null}})();
+  const canShare=!!(files&&navigator.canShare&&(()=>{try{return navigator.canShare({files})}catch(_){return false}})());
+  const tip=canShare?(isIOS?'在跳出的選單按「<b>儲存影像</b>」就會存進相簿':'在跳出的選單選「<b>相簿／儲存圖片</b>」，或按右下「下載」'):(isIOS?'<b>長按圖片</b>，選「加入照片」就會存進相簿':'按右下「下載」，或<b>長按圖片</b>選「下載圖片」');
   box.innerHTML=`<div class="shotin"><div class="shothd"><b>圖片做好了${urls.length>1?`（共 ${urls.length} 張）`:''}</b><button type="button" class="shotx" data-shotx aria-label="關閉">✕</button></div>
-    <p class="shotnote">${canShare?'按「分享／存到相簿」，或':''}長按圖片也可以存到相簿</p>
+    <p class="shotnote shottip">📥 ${tip}</p>
     <div class="shotimgs">${urls.map(u=>`<img src="${u.url}" alt="${esc(u.name)}">`).join('')}</div>
     <button type="button" class="shotlk" data-shotre>‹ 改顯示的內容</button>
-    <div class="shotacts">${canShare?`<button type="button" class="shotgo" data-shotshare>分享／存到相簿</button>`:`<span></span>`}<a class="shotdl" href="${urls[0].url}" download="${esc(urls[0].name)}" data-shotdl>${urls.length>1?`下載全部 ${urls.length} 張`:'下載圖片'}</a></div></div>`;
+    <div class="shotacts">${canShare?`<button type="button" class="shotgo" data-shotshare>📥 存到相簿${urls.length>1?`（${urls.length} 張）`:''}</button>`:`<span></span>`}${isIOS&&canShare?'<span></span>':`<a class="shotdl" href="${urls[0].url}" download="${esc(urls[0].name)}" data-shotdl>${urls.length>1?`下載全部 ${urls.length} 張`:'下載'}</a>`}</div></div>`;
   box.hidden=false;document.body.classList.add('noscroll');
+  const doShare=async()=>{try{await navigator.share({files});return true}catch(e){return e&&e.name==='AbortError'}};
   box.onclick=async e=>{
     if(e.target===box||e.target.closest('[data-shotx]')){box.hidden=true;document.body.classList.remove('noscroll');urls.forEach(u=>setTimeout(()=>URL.revokeObjectURL(u.url),60000));return}
     if(e.target.closest('[data-shotre]')){urls.forEach(u=>setTimeout(()=>URL.revokeObjectURL(u.url),60000));showShotOpts();return}
-    if(e.target.closest('[data-shotshare]')){try{await navigator.share({files:urls.map(u=>new File([u.blob],u.name,{type:'image/png'})),title:'庫存查詢'})}catch(_){}}
+    if(e.target.closest('[data-shotshare]')){await doShare()}
     if(e.target.closest('[data-shotdl]')&&urls.length>1){e.preventDefault();urls.forEach(u=>{const a=document.createElement('a');a.href=u.url;a.download=u.name;document.body.appendChild(a);a.click();a.remove()})}
   };
+  // 做完馬上自動跳出存圖選單（手機允許的話）；被擋下就等使用者按「存到相簿」
+  if(canShare)setTimeout(()=>{doShare()},150);
 }
 $('list').addEventListener('click',e=>{
   const sb=e.target.closest('[data-shot]');if(sb){showShotOpts();return}
