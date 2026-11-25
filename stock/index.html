@@ -464,7 +464,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-25.3';
+const PAGE_VER='2026-11-25.4';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -1038,12 +1038,13 @@ function showShot(urls){
   let box=$('shotBox');if(!box){box=document.createElement('div');box.id='shotBox';box.className='shotbox';document.body.appendChild(box)}
   const files=(()=>{try{return urls.map(u=>new File([u.blob],u.name,{type:'image/png'}))}catch(_){return null}})();
   const canShare=!!(files&&navigator.canShare&&(()=>{try{return navigator.canShare({files})}catch(_){return false}})());
-  const tip=canShare?(isIOS?'在跳出的選單按「<b>儲存影像</b>」就會存進相簿':'在跳出的選單選「<b>相簿／儲存圖片</b>」，或按右下「下載」'):(isIOS?'<b>長按圖片</b>，選「加入照片」就會存進相簿':'按右下「下載」，或<b>長按圖片</b>選「下載圖片」');
+  // 兩個按鈕：左「傳給別人」（打開分享，選 LINE 等）、右「存到相簿」（iPhone 會打開同一個選單，按「儲存影像」；Android 直接下載進相簿）
+  const tip=isIOS?'按「存到相簿」後選「<b>儲存影像</b>」；也可以<b>長按圖片</b>選「加入照片」':'按「存到相簿」就會存進手機；也可以<b>長按圖片</b>選「下載圖片」';
   box.innerHTML=`<div class="shotin"><div class="shothd"><b>圖片做好了${urls.length>1?`（共 ${urls.length} 張）`:''}</b><button type="button" class="shotx" data-shotx aria-label="關閉">✕</button></div>
     <p class="shotnote shottip">📥 ${tip}</p>
     <div class="shotimgs">${urls.map(u=>`<img src="${u.url}" alt="${esc(u.name)}">`).join('')}</div>
     <button type="button" class="shotlk" data-shotre>‹ 改顯示的內容</button>
-    <div class="shotacts">${canShare?`<button type="button" class="shotgo" data-shotshare>📥 存到相簿${urls.length>1?`（${urls.length} 張）`:''}</button>`:`<span></span>`}${isIOS&&canShare?'<span></span>':`<a class="shotdl" href="${urls[0].url}" download="${esc(urls[0].name)}" data-shotdl>${urls.length>1?`下載全部 ${urls.length} 張`:'下載'}</a>`}</div></div>`;
+    <div class="shotacts">${canShare?`<button type="button" class="shotdl" data-shotshare>📤 傳給別人</button>`:'<span></span>'}${isIOS&&canShare?`<button type="button" class="shotgo" data-shotshare>📥 存到相簿${urls.length>1?`（${urls.length} 張）`:''}</button>`:`<a class="shotgo" href="${urls[0].url}" download="${esc(urls[0].name)}" data-shotdl>📥 存到相簿${urls.length>1?`（${urls.length} 張）`:''}</a>`}</div></div>`;
   box.hidden=false;document.body.classList.add('noscroll');
   const doShare=async()=>{try{await navigator.share({files});return true}catch(e){return e&&e.name==='AbortError'}};
   box.onclick=async e=>{
@@ -1052,8 +1053,6 @@ function showShot(urls){
     if(e.target.closest('[data-shotshare]')){await doShare()}
     if(e.target.closest('[data-shotdl]')&&urls.length>1){e.preventDefault();urls.forEach(u=>{const a=document.createElement('a');a.href=u.url;a.download=u.name;document.body.appendChild(a);a.click();a.remove()})}
   };
-  // 做完馬上自動跳出存圖選單（手機允許的話）；被擋下就等使用者按「存到相簿」
-  if(canShare)setTimeout(()=>{doShare()},150);
 }
 $('list').addEventListener('click',e=>{
   const sb=e.target.closest('[data-shot]');if(sb){showShotOpts();return}
