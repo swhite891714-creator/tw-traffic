@@ -61,6 +61,27 @@ h1{font-size:22px;margin:0}
 .chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:700}
 .chip.on small{color:inherit;opacity:.85}
 .chip:disabled{opacity:.45;cursor:default}
+.shotbar{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin:10px 0 2px}
+.shotbtn{font:inherit;font-size:15px;font-weight:700;border:1.5px solid var(--accent);background:var(--surface);color:var(--accent);border-radius:999px;padding:8px 16px;cursor:pointer;min-height:42px}
+.shotbar small{color:var(--muted);font-size:12.5px}
+.shotbox{position:fixed;inset:0;z-index:200;background:rgba(20,30,26,.55);display:flex;align-items:flex-end;justify-content:center}
+.shotbox[hidden]{display:none}
+.shotin{background:var(--surface);width:100%;max-width:640px;max-height:92vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column;padding:14px 16px calc(14px + env(safe-area-inset-bottom,0px))}
+.shothd{display:flex;justify-content:space-between;align-items:center}.shothd b{font-size:17px}
+.shotx{border:0;background:none;font-size:22px;color:var(--muted);cursor:pointer;padding:4px 8px}
+.shotnote{margin:4px 0 8px;color:var(--muted);font-size:13px}
+.shotimgs{overflow:auto;flex:1;display:grid;gap:10px;background:var(--bg);border-radius:10px;padding:8px}
+.shotimgs img{width:100%;height:auto;display:block;border:1px solid var(--line);border-radius:6px;background:#fff}
+.shotopts{display:grid;gap:4px;margin:4px 0 8px}
+.shotopt{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:15px;cursor:pointer}
+.shotopt input{width:20px;height:20px;accent-color:var(--accent)}
+.shotpre{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+.shotlk{font:inherit;font-size:14px;border:0;background:none;color:var(--accent);text-decoration:underline;cursor:pointer;padding:6px 0;text-align:left}
+.shotacts{display:flex;justify-content:space-between;gap:16px;margin-top:10px}
+.shotgo,.shotdl{font:inherit;font-size:15px;font-weight:700;border-radius:12px;padding:11px 16px;min-height:46px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+.shotgo{border:0;background:var(--accent);color:var(--accent-fg)}
+.shotdl{border:1.5px solid var(--accent);color:var(--accent);background:var(--surface)}
+body.noscroll{overflow:hidden}
 .finfo{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .finfo button,.link{border:0;background:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0}
 select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
@@ -429,7 +450,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-24.2';
+const PAGE_VER='2026-11-25.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -516,6 +537,7 @@ function fmtAt(s){
   return `${d.slice(5,7)}/${d.slice(8,10)} ${d.slice(11,16)}（${ago}）`;
 }
 
+let SHOT=null;
 const STATUS=[['','全部'],['has','有貨'],['low','偏低'],['zero','缺貨']];
 const matchS=(i,f)=>!f||(f==='has'?inStock(i):i.st===f);
 // 下拉選單：選項後面的數字是符合目前其他條件的項數
@@ -583,7 +605,9 @@ function render(){
     return `<div class="row g ${st}${imOK(i)?' im':''}"${go?` data-k="${k}" data-rgo="${go}"`:''}>${thumb(i,k)}<span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2 lns">${sub.join('')}</span>`:''}<span class="qty${avail>0?'':' none'}"><b>${fmt(avail)}</b><small>現貨可出</small></span>${more}</div>`};
   // 從品牌進來：類別預設全部收起，要看哪個再點開（只有一個類別就直接打開）；有搜尋或選類別時全部打開
   const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||(fBrand&&fType)),oneCat=new Set(sorted.map(i=>bKey(i)+'|'+tKey(i))).size===1;
-  let html=backHtml(),ci=0;
+  // 存成圖片：記下這次篩選出來的商品（品牌、類別、狀態、搜尋），按鈕放在清單最上面
+  SHOT={list:sorted,label:[fBrand,fType,statusF?(STATUS.find(x=>x[0]===statusF)||[])[1]:'',T.length?`搜尋「${$('q').value.trim()}」`:''].filter(Boolean).join('・')||'全部商品'};
+  let html=backHtml()+`<div class="shotbar"><button type="button" class="shotbtn" data-shot>📷 把這 ${fmt(sorted.length)} 項存成圖片</button><small>可以整份分享或存到相簿</small></div>`,ci=0;
   const cnt=g=>`有貨 <em>${fmt(g.filter(inStock).length)}</em> / ${fmt(g.length)}`;
   // 從類別進來：上面是類別名稱，下面每個品牌一個可收合區塊（預設收起，只有一個品牌就直接打開）
   if(fType&&!fBrand&&!T.length){
@@ -884,7 +908,101 @@ $('selBrand').onchange=()=>{fBrand=$('selBrand').value;
 $('selType').onchange=()=>{fType=$('selType').value;
   const it=(data&&data.items)||[];if(fBrand&&!it.some(i=>(!fType||tKey(i)===fType)&&bKey(i)===fBrand))fBrand='';render()};
 $('fClear').onclick=()=>{fBrand='';fType='';statusF='';$('q').value='';showAll=false;render();renderCons()};
+/* ---------- 存成圖片 ----------
+   手機截圖只能截到看得到的畫面；這裡把目前篩選出來的商品自己畫成一張（或幾張）長圖，可以分享或存到相簿。
+   直接用畫布畫字，不是截圖網頁，所以多長都畫得完整；太長會自動分成幾張。 */
+// 存圖選項：給終端客戶看時可以把內部資訊藏起來（記在這台手機上，下次沿用）
+const SHOT_KEYS=[['tr','在途、廠商未出貨（到貨資訊）'],['cs','寄庫（客戶寄放的貨）'],['ln','借出'],['ow','超賣、缺貨客戶']];
+function shotOpt(){let o={};try{o=JSON.parse(localStorage.getItem('shotOpt')||'{}')||{}}catch(_){}return {tr:!!o.tr,cs:!!o.cs,ln:!!o.ln,ow:!!o.ow}}
+function shotOptSave(o){try{localStorage.setItem('shotOpt',JSON.stringify(o))}catch(_){}}
+function showShotOpts(){
+  let box=$('shotBox');if(!box){box=document.createElement('div');box.id='shotBox';box.className='shotbox';document.body.appendChild(box)}
+  const o=shotOpt(),n=SHOT?SHOT.list.length:0;
+  box.innerHTML=`<div class="shotin"><div class="shothd"><b>存成圖片</b><button type="button" class="shotx" data-shotx aria-label="關閉">✕</button></div>
+    <p class="shotnote">${esc(SHOT?SHOT.label:'')}・共 ${fmt(n)} 項。圖片一定會有商品名稱和「現貨可出」數量；下面勾選的才會一起放進圖片：</p>
+    <div class="shotopts">${SHOT_KEYS.map(([k,lb])=>`<label class="shotopt"><input type="checkbox" id="so-${k}" data-so="${k}"${o[k]?' checked':''}><span>${lb}</span></label>`).join('')}</div>
+    <div class="shotpre"><button type="button" class="shotlk" data-sopre="none">給客戶看：全部不顯示</button><button type="button" class="shotlk" data-sopre="all">內部用：全部顯示</button></div>
+    <div class="shotacts"><button type="button" class="shotdl" data-shotx>取消</button><button type="button" class="shotgo" data-shotmake>製作圖片</button></div></div>`;
+  box.hidden=false;document.body.classList.add('noscroll');
+  box.onclick=async e=>{
+    if(e.target===box||e.target.closest('[data-shotx]')){box.hidden=true;document.body.classList.remove('noscroll');return}
+    const pr=e.target.closest('[data-sopre]');if(pr){box.querySelectorAll('[data-so]').forEach(c=>c.checked=pr.dataset.sopre==='all');return}
+    const mk=e.target.closest('[data-shotmake]');if(mk){const opt={};box.querySelectorAll('[data-so]').forEach(c=>opt[c.dataset.so]=c.checked);shotOptSave(opt);mk.disabled=true;mk.textContent='圖片製作中…';
+      try{await makeShot(opt)}catch(_){mk.disabled=false;mk.textContent='製作圖片';box.querySelector('.shotnote').textContent='圖片沒有做成功，請再按一次「製作圖片」'}}
+  };
+}
+async function makeShot(opt){
+  if(!SHOT||!SHOT.list.length)return;opt=opt||shotOpt();
+  const L=SHOT.list,items=(data&&data.items)||[],W=1080,PAD=48,FONT='"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif';
+  try{if(document.fonts&&document.fonts.ready)await document.fonts.ready}catch(_){}
+  const om={};bookOf('owe').forEach(c=>c.items.forEach(x=>{om[x.k]=(om[x.k]||0)+(+x.q||0)}));
+  const css=getComputedStyle(document.documentElement),cv=n=>css.getPropertyValue(n).trim()||'#333';
+  const C={bg:'#ffffff',fg:cv('--fg'),mu:cv('--muted'),line:cv('--line'),ac:cv('--accent'),warn:cv('--warn'),dan:cv('--danger'),soon:cv('--soon')||'#2f6fb0',owe:cv('--owe'),tile:'#f3f5f4'};
+  const meas=document.createElement('canvas').getContext('2d');
+  const wrap=(t,font,maxW)=>{meas.font=font;const out=[];let cur='';for(const ch of String(t)){if(meas.measureText(cur+ch).width>maxW&&cur){out.push(cur);cur=ch}else cur+=ch}if(cur)out.push(cur);return out};
+  // 每一列要畫的內容
+  const rows=[];let lb=null,lt=null;
+  for(const i of L){const k=items.indexOf(i),q=+i.qty||0,oq=om[k]||0,ov=+i.ov||0,t=+i.tq||0,g=t?goQ2(i):0,w=t?twQ(i):0,cq=+i.cq||0,lq=+i.lq||0,base=q-ov-oq;
+    if(bKey(i)!==lb){lb=bKey(i);lt=null;rows.push({kind:'b',text:lb})}
+    if(hasType(i)&&tKey(i)!==lt){lt=tKey(i);rows.push({kind:'t',text:lt})}
+    const info=[];
+    if(!opt.ow){if(q<=0)info.push(['缺貨',C.mu])}
+    else if(q>0&&oq>0)info.push([`現貨 ${fmt(q)}，${fmt(Math.min(q,oq))} 件先補缺貨客戶`,C.owe]);
+    else if(q<=0&&(ov||oq))info.push([ov&&oq?`缺 ${fmt(ov+oq)} 件（超賣 ${fmt(ov)}、客戶缺 ${fmt(oq)}）`:ov?`已超賣 ${fmt(ov)} 件`:`客戶在等 ${fmt(oq)} 件`,C.dan]);
+    else if(q<=0)info.push(['缺貨',C.mu]);
+    if(g&&opt.tr)info.push([`在途 ${fmt(g)}${teOK(i.te)?`（${teMD(i.te)} 到）`:''} → 到貨後可出 ${fmt(Math.max(0,base+g))}`,C.soon]);
+    if(w&&opt.tr)info.push([`廠商未出貨 ${fmt(w)} → ${g?'再':''}到貨後可出 ${fmt(Math.max(0,base+g+w))}`,C.warn]);
+    if(cq&&opt.cs){const real=Math.max(0,cq-ov);info.push([`寄庫 ${fmt(cq)}（客戶的）${real>=cq?'・現貨都在':real?`・現貨 ${fmt(real)}、還沒貨 ${fmt(cq-real)}`:'・還沒有現貨'}`,C.mu])}
+    if(lq&&opt.ln)info.push([`借出 ${fmt(lq)}`,C.mu]);
+    rows.push({kind:'i',name:nameOf(i),avail:Math.max(0,q-oq),info})}
+  // 排版：算每一列高度
+  const FN=`600 34px ${FONT}`,FI=`400 26px ${FONT}`,NW=W-PAD*2-190;
+  rows.forEach(r=>{if(r.kind==='b')r.h=86;else if(r.kind==='t')r.h=58;else{r.nl=wrap(r.name,FN,NW).slice(0,3);r.il=r.info.flatMap(([t,c])=>wrap(t,FI,NW).map(x=>[x,c]));r.h=Math.max(96,28+r.nl.length*44+r.il.length*36+16)}});
+  const HEAD=210,FOOT=90,MAXH=9000,pages=[];let cur=[],h=HEAD;
+  for(const r of rows){if(h+r.h+FOOT>MAXH&&cur.some(x=>x.kind==='i')){pages.push(cur);cur=[];h=HEAD}cur.push(r);h+=r.h}
+  if(cur.length)pages.push(cur);
+  const at=data&&data.at?String(fmtAt(data.at)).replace(/[（(].*?[）)]/g,'').trim():'';
+  const urls=[];
+  for(let pi=0;pi<pages.length;pi++){const pr=pages[pi],H=HEAD+pr.reduce((n,r)=>n+r.h,0)+FOOT;
+    const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+    x.fillStyle=C.bg;x.fillRect(0,0,W,H);x.textBaseline='top';
+    // 標題
+    x.fillStyle=C.fg;x.font=`700 48px ${FONT}`;x.fillText('庫存查詢',PAD,44);
+    x.fillStyle=C.ac;x.font=`700 34px ${FONT}`;x.fillText(wrap(SHOT.label,`700 34px ${FONT}`,W-PAD*2)[0],PAD,108);
+    x.fillStyle=C.mu;x.font=`400 26px ${FONT}`;x.fillText(`共 ${fmt(L.length)} 項${pages.length>1?`　第 ${pi+1} / ${pages.length} 張`:''}${at?`　資料更新於 ${at}`:''}`,PAD,156);
+    x.fillStyle=C.line;x.fillRect(PAD,HEAD-12,W-PAD*2,3);
+    let y=HEAD;
+    for(const r of pr){
+      if(r.kind==='b'){x.fillStyle=C.tile;x.fillRect(PAD,y+14,W-PAD*2,60);x.fillStyle=C.fg;x.font=`700 36px ${FONT}`;x.fillText(r.text,PAD+18,y+24)}
+      else if(r.kind==='t'){x.fillStyle=C.ac;x.font=`700 28px ${FONT}`;x.fillText(r.text,PAD+4,y+18)}
+      else{let yy=y+18;x.fillStyle=C.fg;x.font=FN;r.nl.forEach(l=>{x.fillText(l,PAD+4,yy);yy+=44});
+        x.font=FI;r.il.forEach(([l,c])=>{x.fillStyle=c;x.fillText(l,PAD+4,yy);yy+=36});
+        x.textAlign='right';x.fillStyle=r.avail>0?C.fg:C.mu;x.font=`700 54px ${FONT}`;x.fillText(fmt(r.avail),W-PAD,y+14);x.fillStyle=C.mu;x.font=`400 22px ${FONT}`;x.fillText('現貨可出',W-PAD,y+74);x.textAlign='left';
+        x.fillStyle=C.line;x.fillRect(PAD,y+r.h-2,W-PAD*2,2)}
+      y+=r.h}
+    x.fillStyle=C.mu;x.font=`400 22px ${FONT}`;x.fillText('數字僅供參考，以實際出貨為準',PAD,H-58);
+    const blob=await new Promise(res=>c.toBlob(res,'image/png'));urls.push({blob,url:URL.createObjectURL(blob),name:`庫存_${SHOT.label.replace(/[\\/:*?"<>|「」]/g,'')}${pages.length>1?`_${pi+1}`:''}.png`});
+  }
+  showShot(urls);
+}
+function showShot(urls){
+  let box=$('shotBox');if(!box){box=document.createElement('div');box.id='shotBox';box.className='shotbox';document.body.appendChild(box)}
+  const canShare=(()=>{try{const f=urls.map(u=>new File([u.blob],u.name,{type:'image/png'}));return !!(navigator.canShare&&navigator.canShare({files:f}))}catch(_){return false}})();
+  box.innerHTML=`<div class="shotin"><div class="shothd"><b>圖片做好了${urls.length>1?`（共 ${urls.length} 張）`:''}</b><button type="button" class="shotx" data-shotx aria-label="關閉">✕</button></div>
+    <p class="shotnote">${canShare?'按「分享／存到相簿」，或':''}長按圖片也可以存到相簿</p>
+    <div class="shotimgs">${urls.map(u=>`<img src="${u.url}" alt="${esc(u.name)}">`).join('')}</div>
+    <button type="button" class="shotlk" data-shotre>‹ 改顯示的內容</button>
+    <div class="shotacts">${canShare?`<button type="button" class="shotgo" data-shotshare>分享／存到相簿</button>`:`<span></span>`}<a class="shotdl" href="${urls[0].url}" download="${esc(urls[0].name)}" data-shotdl>${urls.length>1?`下載全部 ${urls.length} 張`:'下載圖片'}</a></div></div>`;
+  box.hidden=false;document.body.classList.add('noscroll');
+  box.onclick=async e=>{
+    if(e.target===box||e.target.closest('[data-shotx]')){box.hidden=true;document.body.classList.remove('noscroll');urls.forEach(u=>setTimeout(()=>URL.revokeObjectURL(u.url),60000));return}
+    if(e.target.closest('[data-shotre]')){urls.forEach(u=>setTimeout(()=>URL.revokeObjectURL(u.url),60000));showShotOpts();return}
+    if(e.target.closest('[data-shotshare]')){try{await navigator.share({files:urls.map(u=>new File([u.blob],u.name,{type:'image/png'})),title:'庫存查詢'})}catch(_){}}
+    if(e.target.closest('[data-shotdl]')&&urls.length>1){e.preventDefault();urls.forEach(u=>{const a=document.createElement('a');a.href=u.url;a.download=u.name;document.body.appendChild(a);a.click();a.remove()})}
+  };
+}
 $('list').addEventListener('click',e=>{
+  const sb=e.target.closest('[data-shot]');if(sb){showShotOpts();return}
   // 庫存列裡的客戶名單：展開／收合（不切分頁）
   const ex=e.target.closest('[data-ex]');if(ex){const k=ex.dataset.ex;EXOPEN.has(k)?EXOPEN.delete(k):EXOPEN.add(k);render();return}
   const cb=e.target.closest('[data-cc]');if(cb){const k=cb.dataset.cc,box=cb.parentNode,op=!box.classList.contains('all');box.classList.toggle('all',op);op?CCOPEN.add(k):CCOPEN.delete(k);cb.textContent=op?'收合 ˄':`還有 ${cb.dataset.n} 位 ›`;return}
