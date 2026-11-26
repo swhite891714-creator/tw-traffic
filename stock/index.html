@@ -406,6 +406,14 @@ details.blk>summary b,.xh b{min-width:0;overflow-wrap:break-word}
 /* 手機橫放（畫面很矮）：上方搜尋列不固定，留更多空間看清單 */
 @media (max-height:480px) and (orientation:landscape){.dock{position:static!important}}
 @media (max-width:340px){.row.g .qty b{font-size:20px}#tabs.t5 .tab{font-size:12px;letter-spacing:-.4px;padding-left:1px;padding-right:1px}}
+
+/* 上方分頁：每個名稱都排成最多兩行、件數對齊在同一行；手機字體放大時只會換行，不會疊在一起 */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+#tabs .tab{white-space:normal;justify-content:flex-start;padding-top:6px;padding-bottom:5px;min-width:0}
+#tabs .tab .tl2{display:flex;align-items:center;justify-content:center;min-height:2.4em;line-height:1.2;text-align:center;font-size:.9em;overflow-wrap:anywhere}
+#tabs .tab small{white-space:nowrap}
+#tabs [data-v="tr"]{flex-grow:1.2}
+.nb{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -428,11 +436,11 @@ details.blk>summary b,.xh b{min-width:0;overflow-wrap:break-word}
       <button type="button" id="qClear" aria-label="清除搜尋" hidden>×</button>
     </div>
     <div class="tabs" role="tablist" id="tabs" hidden>
-      <button type="button" class="tab" role="tab" data-v="stock" aria-selected="true">庫存<small id="tabStockN"></small></button>
+      <button type="button" class="tab" role="tab" data-v="stock" aria-selected="true"><span class="tl2">庫存</span><small id="tabStockN"></small></button>
       <button type="button" class="tab" role="tab" data-v="tr" aria-selected="false"><span class="tl2">已訂貨／<br>即將到貨</span><small id="tabTrN"></small></button>
-      <button type="button" class="tab" role="tab" data-v="cons" aria-selected="false">客戶寄庫<small id="tabConsN"></small></button>
-      <button type="button" class="tab" role="tab" data-v="owe" aria-selected="false">客戶缺貨<small id="tabOweN"></small></button>
-      <button type="button" class="tab" role="tab" data-v="loan" aria-selected="false"><span id="tabLoanLb">客戶借出</span><small id="tabLoanN"></small></button>
+      <button type="button" class="tab" role="tab" data-v="cons" aria-selected="false"><span class="tl2">客戶<br>寄庫</span><small id="tabConsN"></small></button>
+      <button type="button" class="tab" role="tab" data-v="owe" aria-selected="false"><span class="tl2">客戶<br>缺貨</span><small id="tabOweN"></small></button>
+      <button type="button" class="tab" role="tab" data-v="loan" aria-selected="false"><span class="tl2" id="tabLoanLb">客戶<br>借出</span><small id="tabLoanN"></small></button>
     </div>
   </div>
   <div class="ctl" id="stockCtl">
@@ -488,7 +496,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-26.1';
+const PAGE_VER='2026-11-26.2';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -747,7 +755,7 @@ function renderTabs(T,stockN){
   $('tabTrN').textContent=tt?`${fmt(T.length?(()=>{const om=oweMap(),cm=conMap(),it=(data&&data.items)||[];return trItems().filter(i=>needHit(i,it.indexOf(i),T,om,cm)).length})():tt)} 項`:'';
   document.querySelector('#tabs [data-v="cons"]').hidden=!cc.length;
   document.querySelector('#tabs [data-v="loan"]').hidden=!ll.length;
-  $('tabLoanLb').textContent=ll.some(c=>c.b)?'借出':'客戶借出';
+  $('tabLoanLb').innerHTML=ll.some(c=>c.b)?'借出':'客戶<br>借出';
   $('tabStockN').textContent=T.length?fmt(stockN):'';
   const n=(v,arr)=>arr.length?`${fmt(T.length?bookHits(v,T):arr.length)} 位`:'';
   $('tabConsN').textContent=n('cons',cc);$('tabLoanN').textContent=n('loan',ll);
@@ -829,7 +837,7 @@ function oweInfo(i){const q=+i.qty||0,g=goQ2(i),w=twQ(i),ok=teOK(i.te),p=[];
 // 一行裡的在途標籤（庫存列、缺貨分頁）：已出貨和還沒出貨各一個
 function trTags(i){const g=goQ2(i),w=twQ(i),x=goTxt(i);return (g?`<span class="s ${x.c}">🚚 在途 ${fmt(g)}・${x.t}</span>`:'')+(w?`<span class="s nos">📋 已訂未出貨 ${fmt(w)}</span>`:'')}
 // 標題的件數：已出貨和還沒出貨分開寫
-const trHead=tr=>{const g=tr.reduce((a,i)=>a+goQ2(i),0),w=tr.reduce((a,i)=>a+twQ(i),0);return `${fmt(tr.length)} 項 · ${g?`在途 ${fmt(g)} 件`:''}${g&&w?'・':''}${w?`未出貨 ${fmt(w)} 件`:''}`};
+const trHead=tr=>{const g=tr.reduce((a,i)=>a+goQ2(i),0),w=tr.reduce((a,i)=>a+twQ(i),0);return [`${fmt(tr.length)} 項`,g?`在途 ${fmt(g)} 件`:'',w?`未出貨 ${fmt(w)} 件`:''].filter(Boolean).map(x=>`<span class="nb">${x}</span>`).join(' · ')};
 // 部分出貨的商品拆成兩列：一列在途（已出貨），一列廠商還沒出貨
 function trMiniRows(i,long){const g=goQ2(i),w=twQ(i),r=[];if(g)r.push({sub:goTxt(i,long).t,q:g,lb:'在途'});if(w)r.push({sub:'已訂貨・廠商還沒出貨',q:w,lb:'未出貨',nos:1});return r}
 function teText(te){
