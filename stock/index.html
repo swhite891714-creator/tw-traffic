@@ -101,6 +101,9 @@ h1{font-size:22px;margin:0}
 .shotgo{border:0;background:var(--accent);color:var(--accent-fg)}
 .shotdl{border:1.5px solid var(--accent);color:var(--accent);background:var(--surface)}
 body.noscroll{overflow:hidden}
+  details.blk>summary{gap:8px;padding-left:12px;padding-right:12px}
+  .row.g .qty b{font-size:20px}
+}
 .finfo{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
 .finfo button,.link{border:0;background:none;color:var(--accent);font-weight:700;cursor:pointer;padding:0}
 select{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px;width:100%}
@@ -387,6 +390,22 @@ html.win{--sans:"Microsoft JhengHei UI","Microsoft JhengHei","Noto Sans TC",syst
 #kbHide{position:fixed;right:max(12px,env(safe-area-inset-right,0px));bottom:10px;z-index:80;display:inline-flex;align-items:center;gap:4px;height:38px;padding:0 14px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);box-shadow:0 4px 14px rgba(0,0,0,.18);font:inherit;font-size:14px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent}
 #kbHide svg{width:18px;height:18px}
 #kbHide[hidden]{display:none}
+
+/* 各種手機寬度都不撐破畫面：標題列右邊的小字可以換行；窄手機時小字移到名稱下面一行，名稱不會被一個字一個字切開 */
+details.blk>summary small,details.blk>summary .pct,.xh small{white-space:normal!important;text-align:right;min-width:0;line-height:1.35}
+details.blk>summary b,.xh b{min-width:0;overflow-wrap:break-word}
+.row.g .model,.mini .nm,.mini .sub{min-width:0;overflow-wrap:anywhere}
+.list,.wrap{min-width:0}
+@media (max-width:420px){
+  details.blk>summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;column-gap:10px;row-gap:2px;align-items:center}
+  details.blk>summary>.lg{grid-column:1;grid-row:1 / span 2;--h:34px;width:56px}
+  details.blk>summary>b{grid-column:2;grid-row:1}
+  details.blk>summary>small,details.blk>summary>.pct{grid-column:2;grid-row:2;margin-left:0;text-align:left}
+  details.blk>summary::after{grid-column:3;grid-row:1 / span 2}
+}
+/* 手機橫放（畫面很矮）：上方搜尋列不固定，留更多空間看清單 */
+@media (max-height:480px) and (orientation:landscape){.dock{position:static!important}}
+@media (max-width:340px){.row.g .qty b{font-size:20px}#tabs.t5 .tab{font-size:12px;letter-spacing:-.4px;padding-left:1px;padding-right:1px}}
 </style>
 </head>
 <body>
@@ -469,7 +488,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-25.10';
+const PAGE_VER='2026-11-26.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
