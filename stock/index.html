@@ -211,7 +211,9 @@ details.owblk>summary b{color:var(--danger)}
 .allbtn{display:block;width:100%;margin-top:22px;border:1.5px solid var(--accent);background:none;color:var(--accent);border-radius:12px;padding:12px;font-weight:700;cursor:pointer}
 .backbtn{justify-self:start;margin:12px 0 2px;border:0;background:none;color:var(--accent);font-weight:700;padding:4px 0;cursor:pointer}
 
-.row[data-k]{cursor:pointer}
+.gob{display:inline-flex;align-items:center;justify-content:center;margin-top:6px;min-height:32px;padding:3px 10px;font:inherit;font-size:12.5px;font-weight:700;white-space:nowrap;border:1.5px solid var(--accent);border-radius:999px;background:var(--surface);color:var(--accent);cursor:pointer}
+.gob:active{background:var(--accent);color:#fff}
+.row.g .qty small{display:block}.row.g .qty .gobs{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-top:8px}.row.g .qty .gob{margin:0}
 .model{font-weight:700;min-width:0;overflow-wrap:anywhere}
 .sub{font-size:13px;color:var(--muted);display:block;font-weight:400}
 .row.zero .model{font-weight:500;color:var(--muted)}
@@ -496,7 +498,7 @@ document.addEventListener('toggle',e=>{const d=e.target;if(!(d&&d.dataset&&d.dat
 const GH='https://api.github.com/repos/swhite891714-creator/tw-traffic/contents/stock/data.json?ref=main';
 // 頁面版本：每次改版都會換這個值。頁面開著時會定期檢查網站上的版本，不一樣就自動重新載入，
 // 這樣手機不會一直停在瀏覽器暫存的舊版畫面
-const PAGE_VER='2026-11-26.2';
+const PAGE_VER='2026-11-27.1';
 async function checkVersion(){
   try{
     const t=await fetch('index.html?v='+Date.now(),{cache:'reload'}).then(r=>r.ok?r.text():'');
@@ -648,8 +650,11 @@ function render(){
     if(cq&&cmR[k]){const real=Math.max(0,cq-ov);ifo.push(exRow('寄庫','cs '+(real>=cq?'ok':real?'part':'no'),'c:'+k,cmR[k],`${fmt(cq)} 件・客戶的${real>=cq?'<i>現貨都在</i>':real?`<i>現貨 <b>${fmt(real)}</b>・還沒貨 <b class="x">${fmt(cq-real)}</b></i>`:'<i>還沒有現貨</i>'}`))}
     if(lq&&lmR[k])ifo.push(exRow('借出','ln','l:'+k,lmR[k],`${fmt(lq)} 件`));
     if(ifo.length)sub.push(`<span class="ifo">${ifo.join('')}</span>`);
-    const go=cq?'cons':lq?'loan':oq?'owe':t?'tr':'';const more='';
-    return `<div class="row g ${st}${imOK(i)?' im':''}"${go?` data-k="${k}" data-rgo="${go}"`:''}>${thumb(i,k)}<span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2 lns">${sub.join('')}</span>`:''}<span class="qty${avail>0?'':' none'}"><b>${fmt(avail)}</b><small>現貨可出</small></span>${more}</div>`};
+    const more='';
+    // 右邊按鈕：有幾種資訊就放幾顆（順序跟上方分頁一樣），只有按按鈕才會切到對應分頁；點商品其他地方不會跳走
+    const gos=[t&&['tr','看到貨'],cq&&cmR[k]&&['cons','看寄庫'],oq&&omR[k]&&['owe','看缺貨'],lq&&lmR[k]&&['loan','看借出']].filter(Boolean);
+    const gob=gos.length?`<span class="gobs">${gos.map(([v,lb])=>`<button type="button" class="gob" data-go="${v}" data-k="${k}">${lb} ›</button>`).join('')}</span>`:'';
+    return `<div class="row g ${st}${imOK(i)?' im':''}">${thumb(i,k)}<span class="model">${hl(nameOf(i),T)}</span>${sub.length?`<span class="sub2 lns">${sub.join('')}</span>`:''}<span class="qty${avail>0?'':' none'}"><b>${fmt(avail)}</b><small>現貨可出</small>${gob}</span>${more}</div>`};
   // 從品牌進來：類別預設全部收起，要看哪個再點開（只有一個類別就直接打開）；有搜尋或選類別時全部打開
   const brands=[...new Set(sorted.map(bKey))],openAll=!!(T.length||(fBrand&&fType)),oneCat=new Set(sorted.map(i=>bKey(i)+'|'+tKey(i))).size===1;
   // 存成圖片：記下這次篩選出來的商品（品牌、類別、狀態、搜尋），按鈕放在清單最上面
@@ -1214,10 +1219,9 @@ $('list').addEventListener('click',e=>{
   const v=e.target.closest('[data-view]');if(v){goView(v.dataset.view);return}
   const c=e.target.closest('[data-clear]');
   if(c){if(c.dataset.clear==='q')$('q').value='';else{fBrand='';fType='';statusF=''}render();renderCons();return}
-  // 點商品列或「寄庫／借出 N ›」：切到那個分頁，把有這個商品的客戶排前面並標示
-  const r=e.target.closest('.row[data-k]');if(!r)return;
-  const b=e.target.closest('[data-go]');
-  fItemK=+r.dataset.k;fCust='';$('q').value='';setView(b?b.dataset.go:r.dataset.rgo);renderCons();render();
+  // 只有按「看寄庫／看缺貨… ›」按鈕才切到那個分頁，把有這個商品的客戶排前面並標示；點商品列其他地方不動
+  const b=e.target.closest('.gob[data-go]');if(!b)return;
+  fItemK=+b.dataset.k;fCust='';$('q').value='';setView(b.dataset.go);renderCons();render();
   const el=$('consList').querySelector('.row.hl');try{if(el)el.scrollIntoView({block:'center'});else window.scrollTo(0,0)}catch(x){}
 });
 
